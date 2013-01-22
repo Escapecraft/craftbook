@@ -1,11 +1,16 @@
 package com.sk89q.craftbook.cart;
 
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.PoweredMinecart;
 import org.bukkit.entity.StorageMinecart;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.material.Sign;
 
 import com.sk89q.craftbook.util.RailUtil;
 import com.sk89q.craftbook.util.RedstoneUtil.Power;
@@ -107,6 +112,20 @@ public class CartDispenser extends CartMechanism {
      */
     private void dispense(CartMechanismBlocks blocks, Inventory inv, CartType type) {
 
+    	//Calculate direction to place cart upon
+    	Sign signData = new Sign(Material.SIGN_POST, blocks.sign.getData());
+        BlockFace direction = signData.getFacing().getOppositeFace();
+        Location dispenseAt = blocks.rail.getRelative(direction, 2).getLocation();
+        
+        //check chunk, see if cart is on the track, abort if so.
+        for(Entity e :dispenseAt.getChunk().getEntities()){
+        	if(e instanceof Minecart){
+        		if(e.getLocation().getBlock().equals(dispenseAt.getBlock())){
+        			return;
+        		}
+        	}
+        }
+    	
         if (inv != null) {
             if (type.equals(CartType.Minecart)) {
                 if (!inv.contains(ItemType.MINECART.getID())) return;
@@ -119,7 +138,8 @@ public class CartDispenser extends CartMechanism {
                 inv.removeItem(new ItemStack(ItemType.POWERED_MINECART.getID(), 1));
             }
         }
-        blocks.rail.getWorld().spawn(BukkitUtil.center(blocks.rail.getLocation()), type.toClass());
+        
+        blocks.rail.getWorld().spawn(BukkitUtil.center(dispenseAt), type.toClass());
     }
 
     public enum CartType {
