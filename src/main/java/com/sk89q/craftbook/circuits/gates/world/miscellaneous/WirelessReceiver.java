@@ -20,17 +20,17 @@ import org.bukkit.Server;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.util.yaml.YAMLProcessor;
 
-public class WirelessReceiver extends AbstractIC {
+public class WirelessReceiver extends AbstractSelfTriggeredIC {
 
-    protected String band;
+    private String band;
 
     public WirelessReceiver(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -61,15 +61,26 @@ public class WirelessReceiver extends AbstractIC {
     public void trigger(ChipState chip) {
 
         if (chip.getInput(0)) {
-            Boolean val = WirelessTransmitter.getValue(band);
 
-            if (val == null) {
-                chip.setOutput(0, false);
-                return;
-            }
-
-            chip.setOutput(0, val);
+            chip.setOutput(0, getOutput());
         }
+    }
+
+    public boolean getOutput() {
+
+        Boolean val = WirelessTransmitter.getValue(band);
+
+        if (val == null) {
+            return false;
+        }
+
+        return val;
+    }
+
+    @Override
+    public void think(ChipState chip) {
+
+        chip.setOutput(0, getOutput());
     }
 
     public static class Factory extends AbstractICFactory {
@@ -96,8 +107,7 @@ public class WirelessReceiver extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"wireless band", "user"};
-            return lines;
+            return new String[] {"wireless band", "user"};
         }
 
         @Override
@@ -119,5 +129,10 @@ public class WirelessReceiver extends AbstractIC {
 
             return true;
         }
+    }
+
+    @Override
+    public boolean isActive () {
+        return true;
     }
 }

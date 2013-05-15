@@ -6,18 +6,17 @@ import org.bukkit.block.Block;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
 import com.sk89q.craftbook.util.ICUtil;
-import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.worldedit.Vector;
 import com.sk89q.worldedit.blocks.BlockID;
 
-public class LiquidFlood extends AbstractIC {
+public class LiquidFlood extends AbstractSelfTriggeredIC {
 
     Vector radius;
     String liquid;
@@ -43,27 +42,8 @@ public class LiquidFlood extends AbstractIC {
     @Override
     public void load() {
 
-        centre = BukkitUtil.toSign(getSign()).getLocation();
-
+        centre = ICUtil.parseBlockLocation(getSign()).getLocation();
         radius = ICUtil.parseRadius(getSign());
-        try {
-
-            if (getSign().getLine(2).contains("=")) {
-                String[] splitEquals = RegexUtil.EQUALS_PATTERN.split(getSign().getLine(2), 2);
-                String[] splitCoords = RegexUtil.COLON_PATTERN.split(splitEquals[1]);
-                int x = Integer.parseInt(splitCoords[0]);
-                int y = Integer.parseInt(splitCoords[1]);
-                int z = Integer.parseInt(splitCoords[2]);
-                if (x > 16) x = 16;
-                if (x < -16) x = -16;
-                if (y > 16) y = 16;
-                if (y < -16) y = -16;
-                if (z > 16) z = 16;
-                if (z < -16) z = -16;
-                centre.add(x, y, z);
-            }
-        } catch (Exception ignored) {
-        }
 
         liquid = getSign().getLine(2).equalsIgnoreCase("lava") ? "lava" : "water";
     }
@@ -111,6 +91,12 @@ public class LiquidFlood extends AbstractIC {
         doStuff(chip);
     }
 
+    @Override
+    public void think(ChipState state) {
+
+        doStuff(state);
+    }
+
     public static class Factory extends AbstractICFactory implements RestrictedIC {
 
         public Factory(Server server) {
@@ -133,8 +119,7 @@ public class LiquidFlood extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"water/lava", "radius=x:y:z offset"};
-            return lines;
+            return new String[] {"+owater/lava", "+oradius=x:y:z offset"};
         }
     }
 }

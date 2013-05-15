@@ -144,4 +144,20 @@ class WatchBlockManager {
         }
         return folks;
     }
+
+    /**
+     * Get the mechanics at a specified location.
+     * 
+     * @param pos location
+     * 
+     * @return the mechanic set.
+     */
+    public Set<PersistentMechanic> get(BlockWorldVector pos) {
+
+        Set<PersistentMechanic> folks = new HashSet<PersistentMechanic>();
+        if(watchBlocks.get(pos) == null)
+            return folks;
+        folks.addAll(watchBlocks.get(pos));
+        return folks;
+    }
 }

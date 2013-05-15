@@ -1,35 +1,29 @@
 package com.sk89q.craftbook.circuits.gates.world.items;
 
-import org.bukkit.Location;
+import java.util.List;
+
 import org.bukkit.Server;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.BrewingStand;
-import org.bukkit.block.Furnace;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
-import org.bukkit.inventory.BrewerInventory;
-import org.bukkit.inventory.FurnaceInventory;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
-import com.sk89q.craftbook.util.ICUtil;
+import com.sk89q.craftbook.util.EntityUtil;
+import com.sk89q.craftbook.util.InventoryUtil;
 import com.sk89q.craftbook.util.ItemUtil;
-import com.sk89q.craftbook.util.SignUtil;
-import com.sk89q.worldedit.blocks.BlockID;
 
 /**
  * @author Me4502
  */
-public class ContainerCollector extends AbstractIC {
+public class ContainerCollector extends AbstractSelfTriggeredIC {
 
     public ContainerCollector(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -51,28 +45,32 @@ public class ContainerCollector extends AbstractIC {
     @Override
     public void trigger(ChipState chip) {
 
-        if (chip.getInput(0)) {
-            chip.setOutput(0, collect());
-        }
+        if (chip.getInput(0))
+            chip.setOutput(0, scanForItems());
+    }
+
+    @Override
+    public void think(ChipState chip) {
+
+        chip.setOutput(0, scanForItems());
     }
 
     ItemStack doWant, doNotWant;
 
+    Block chest;
+
     @Override
     public void load() {
 
-        doWant = ICUtil.getItem(getSign().getLine(2));
-        doNotWant = ICUtil.getItem(getSign().getLine(3));
+        doWant = ItemUtil.getItem(getLine(2));
+        doNotWant = ItemUtil.getItem(getLine(3));
+        chest = getBackBlock().getRelative(0, 1, 0);
     }
 
-    protected boolean collect() {
+    protected boolean scanForItems() {
 
-        Block b = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock());
-
-        int x = b.getX();
-        int y = b.getY() + 1;
-        int z = b.getZ();
-        Block bl = BukkitUtil.toSign(getSign()).getBlock().getWorld().getBlockAt(x, y, z);
+        if(!(chest.getState() instanceof InventoryHolder))
+            return false;
 
         boolean collected = false;
         for (Entity en : BukkitUtil.toSign(getSign()).getChunk().getEntities()) {
@@ -80,88 +78,44 @@ public class ContainerCollector extends AbstractIC {
                 continue;
             }
             Item item = (Item) en;
-            ItemStack stack = item.getItemStack();
-            if (!ItemUtil.isStackValid(stack) || item.isDead() || !item.isValid()) {
+            if (item.isDead() || !item.isValid())
                 continue;
-            }
-            Location location = item.getLocation();
-            int ix = location.getBlockX();
-            int iy = location.getBlockY();
-            int iz = location.getBlockZ();
-            if (ix == getSign().getX() && iy == getSign().getY() && iz == getSign().getZ()) {
 
-                // Check to see if it matches either test stack, if not stop
-                if (doWant != null && !ItemUtil.areItemsIdentical(doWant, stack)) {
-                    continue;
-                }
-                if (doNotWant != null && ItemUtil.areItemsIdentical(doNotWant, stack)) {
-                    continue;
-                }
+            if (EntityUtil.isEntityInBlock(en, BukkitUtil.toSign(getSign()).getBlock())) {
 
-                // Add the items to a container, and destroy them.
-                if (addToContainer(bl, stack)) {
-                    item.remove();
+                if(collectItem(item))
                     collected = true;
-                }
             }
         }
         return collected;
     }
 
-    private boolean addToContainer(Block bl, ItemStack stack) {
+    public boolean collectItem(Item item) {
+        ItemStack stack = item.getItemStack();
 
-        int type = bl.getTypeId();
-        if (type == BlockID.CHEST || type == BlockID.DISPENSER) {
-            BlockState state = bl.getState();
-            Inventory inventory = ((InventoryHolder) state).getInventory();
-            if (inventory.firstEmpty() != -1) {
-                inventory.addItem(stack);
-                state.update();
-                return true;
-            }
-        } else if (type == BlockID.BREWING_STAND) {
+        if(!ItemUtil.isStackValid(stack))
+            return false;
 
-            if (!ItemUtil.isAPotionIngredient(stack)) return false;
-            BrewingStand brewingStand = (BrewingStand) bl.getState();
-            BrewerInventory inv = brewingStand.getInventory();
-            if (fitsInSlot(stack, inv.getIngredient())) {
-                if (inv.getIngredient() == null) {
-                    inv.setIngredient(stack);
-                } else {
-                    ItemUtil.addToStack(inv.getIngredient(), stack);
-                }
-                brewingStand.update();
-                return true;
-            }
-        } else if (type == BlockID.FURNACE || type == BlockID.BURNING_FURNACE) {
+        // Check to see if it matches either test stack, if not stop
+        if (doWant != null && !ItemUtil.areItemsIdentical(doWant, stack))
+            return false;
 
-            Furnace furnace = (Furnace) bl.getState();
-            FurnaceInventory inv = furnace.getInventory();
+        if (doNotWant != null && ItemUtil.areItemsIdentical(doNotWant, stack))
+            return false;
 
-            if (ItemUtil.isFurnacable(stack) && fitsInSlot(stack, inv.getSmelting())) {
-                if (inv.getSmelting() == null) {
-                    inv.setSmelting(stack);
-                } else {
-                    ItemUtil.addToStack(inv.getSmelting(), stack);
-                }
-                furnace.update();
-                return true;
-            } else if (ItemUtil.isAFuel(stack) && fitsInSlot(stack, inv.getFuel())) {
-                if (inv.getFuel() == null) {
-                    inv.setFuel(stack);
-                } else {
-                    ItemUtil.addToStack(inv.getFuel(), stack);
-                }
-                furnace.update();
+        // Add the items to a container, and destroy them.
+        List<ItemStack> leftovers = InventoryUtil.addItemsToInventory((InventoryHolder)chest.getState(), stack);
+        if(leftovers.isEmpty()) {
+            item.remove();
+            return true;
+        } else {
+            if(ItemUtil.areItemsIdentical(leftovers.get(0), stack) && leftovers.get(0).getAmount() != stack.getAmount()) {
+                item.setItemStack(leftovers.get(0));
                 return true;
             }
         }
+
         return false;
-    }
-
-    private static boolean fitsInSlot(ItemStack stack, ItemStack slot) {
-
-        return slot == null || ItemUtil.areItemsIdentical(stack, slot);
     }
 
     public static class Factory extends AbstractICFactory {
@@ -186,8 +140,7 @@ public class ContainerCollector extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"included id:data", "excluded id:data"};
-            return lines;
+            return new String[] {"included id:data", "excluded id:data"};
         }
     }
 }

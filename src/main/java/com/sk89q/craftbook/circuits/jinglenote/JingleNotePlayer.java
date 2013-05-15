@@ -5,21 +5,31 @@
 
 package com.sk89q.craftbook.circuits.jinglenote;
 
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.circuits.jinglenote.JingleSequencer.Note;
+import com.sk89q.worldedit.WorldVector;
 
-public class JingleNotePlayer implements Runnable {
+public abstract class JingleNotePlayer implements Runnable {
 
     protected final String player;
     protected JingleSequencer sequencer;
+    protected WorldVector centre;
+    protected int radius;
 
-    public JingleNotePlayer(String player, JingleSequencer seq) {
+    /**
+     * Constructs a new JingleNotePlayer
+     * 
+     * @param player The player who is hearing this's name.
+     * @param seq The JingleSequencer to play.
+     * @param centre The source of the sound. (Optional)
+     * @param radius The radius this sound can be heard from. 0 or less means limitless.
+     */
+    public JingleNotePlayer(String player, JingleSequencer seq, WorldVector centre, int radius) {
 
         this.player = player;
         sequencer = seq;
+        this.centre = centre;
+        this.radius = radius;
     }
 
     @Override
@@ -28,7 +38,7 @@ public class JingleNotePlayer implements Runnable {
         try {
             try {
                 sequencer.run(this);
-            } catch (Throwable t) {
+            } catch (Throwable t) { 
                 BukkitUtil.printStacktrace(t);
             }
 
@@ -53,17 +63,5 @@ public class JingleNotePlayer implements Runnable {
         }
     }
 
-    Player p = null;
-
-    public void play(Note note) {
-
-        if (p == null || !p.isOnline())
-            p = Bukkit.getPlayer(player);
-
-        if (p == null || !p.isOnline() || note == null) {
-            return;
-        }
-
-        p.playSound(p.getLocation(), note.getInstrument(), note.getVelocity(), note.getNote());
-    }
+    public abstract void play(Note note);
 }

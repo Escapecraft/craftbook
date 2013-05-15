@@ -12,6 +12,7 @@ import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
+import com.sk89q.craftbook.util.BlockUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
@@ -30,9 +31,9 @@ public class SetBridge extends AbstractIC {
     private int width;
     private int depth;
 
-    private int offsetX;
-    private int offsetY;
-    private int offsetZ;
+    private int offsetX = 0;
+    private int offsetY = 1;
+    private int offsetZ = 0;
 
     private Block center;
     private BlockFace faceing;
@@ -45,7 +46,7 @@ public class SetBridge extends AbstractIC {
     @Override
     public void load() {
 
-        center = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock());
+        center = getBackBlock();
         faceing = SignUtil.getFacing(BukkitUtil.toSign(getSign()).getBlock());
         String line = getSign().getLine(2);
         if (!line.isEmpty()) {
@@ -95,13 +96,9 @@ public class SetBridge extends AbstractIC {
                 offsetY = Integer.parseInt(offsetSplit[1]);
                 offsetZ = Integer.parseInt(offsetSplit[2]);
             } catch (NumberFormatException e) {
-                offsetX = 0;
-                offsetY = 1;
-                offsetZ = 0;
+                // ignore and use defaults
             } catch (IndexOutOfBoundsException e) {
-                offsetX = 0;
-                offsetY = 1;
-                offsetZ = 0;
+                // ignore and use defaults
             }
             try {
                 // parse the size of the door
@@ -144,6 +141,8 @@ public class SetBridge extends AbstractIC {
         } else {
             setDoor(false);
         }
+
+        chip.setOutput(0, chip.getInput(0));
     }
 
     private void setDoor(boolean open) {
@@ -151,9 +150,14 @@ public class SetBridge extends AbstractIC {
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 Block block = LocationUtil.getRelativeOffset(center, faceing, x, 0, z);
+                // do not replace the block the sign is on
+                boolean isSource = block.equals(getBackBlock());
+
                 if (open) {
+                    if (isSource && !BlockUtil.isBlockSolid(onMaterial)) continue;
                     block.setTypeIdAndData(onMaterial, (byte) onData, true);
                 } else {
+                    if (isSource && !BlockUtil.isBlockSolid(offMaterial)) continue;
                     block.setTypeIdAndData(offMaterial, (byte) offData, true);
                 }
             }
@@ -176,8 +180,7 @@ public class SetBridge extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"onID:onData-offID:offData", "offset x,y,z:width,depth"};
-            return lines;
+            return new String[] {"onID{:onData-offID:offData}", "offset x,y,z:width,depth"};
         }
 
         @Override

@@ -23,6 +23,7 @@ import org.bukkit.potion.PotionEffectType;
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.ItemUtil;
+import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.ItemID;
 
@@ -32,10 +33,6 @@ import com.sk89q.worldedit.blocks.ItemID;
  * @author Me4502
  */
 public class Snow implements Listener {
-
-    public Snow() {
-
-    }
 
     private HashMap<Location, Integer> tasks = new HashMap<Location, Integer>();
 
@@ -139,7 +136,7 @@ public class Snow implements Listener {
         if (event.getBlock().getTypeId() == BlockID.SNOW) {
             Block block = event.getBlock();
 
-            if (CraftBookPlugin.inst().getConfiguration().snowRealistic) disperse(event.getBlock(), true, 0);
+            if (CraftBookPlugin.inst().getConfiguration().snowRealistic && event.getBlock().getData() > 0x0) disperse(event.getBlock(), true, 0);
 
             if (event.getBlock().getWorld().hasStorm()) pile(block);
         }
@@ -153,7 +150,7 @@ public class Snow implements Listener {
                 (), new MakeSnow(loc),
                 delay * 20L, delay * 20L);
         if (taskID == -1)
-            Bukkit.getLogger().log(Level.SEVERE, "[CraftBookMechanisms] Snow Mechanic failed to schedule!");
+            CraftBookPlugin.logger().log(Level.SEVERE, "Snow Mechanic failed to schedule!");
         else tasks.put(loc, taskID);
     }
 
@@ -225,8 +222,7 @@ public class Snow implements Listener {
         }
 
         if (isValidBlock(block.getRelative(1, 0, 0).getTypeId()) && block.getRelative(1, 0, 0).getData() < 0x7) {
-            if (block.getRelative(1, 0, 0).getData() < block.getData() || block.getRelative(1, 0,
-                    0).getTypeId() != BlockID.SNOW) {
+            if (block.getRelative(1, 0, 0).getData() < block.getData() || block.getRelative(1, 0,0).getTypeId() != BlockID.SNOW) {
                 incrementData(block.getRelative(1, 0, 0), depth+1);
                 if (remove) lowerData(block);
                 return true;
@@ -263,7 +259,10 @@ public class Snow implements Listener {
         return false;
     }
 
-    public void incrementData(Block block, int depth) {
+    public void incrementData(final Block block, final int depth) {
+
+        if(block.getLocation().getY() == 0)
+            return;
 
         if (block.getRelative(0, -1, 0).getTypeId() == BlockID.WATER || block.getRelative(0, -1, 0).getTypeId() == BlockID.STATIONARY_WATER) {
             block.getRelative(0, -1, 0).setTypeId(BlockID.ICE, false);
@@ -274,13 +273,31 @@ public class Snow implements Listener {
             return;
         } else if (!isValidBlock(block.getTypeId())) return;
 
-        if (depth < 10 && canPassThrough(block.getTypeId()) && canPassThrough(block.getRelative(0, -1, 0).getTypeId())) {
+        if (depth < 1 && canPassThrough(block.getTypeId()) && canPassThrough(block.getRelative(0, -1, 0).getTypeId())) {
             incrementData(block.getRelative(0, -1, 0), depth+1);
+            return;
+        } else if (depth >= 1 && canPassThrough(block.getTypeId()) && canPassThrough(block.getRelative(0, -1, 0).getTypeId())) {
+
+            final boolean remove;
+            if(block.getTypeId() != BlockID.SNOW && canPassThrough(block.getTypeId())) {
+                block.setTypeId(BlockID.SNOW, false);
+                remove = true;
+            } else {
+                remove = false;
+            }
+            Bukkit.getScheduler().runTaskLater(CraftBookPlugin.inst(), new Runnable() {
+
+                @Override
+                public void run () {
+                    if(remove)
+                        block.setTypeId(0, false);
+                    incrementData(block.getRelative(0, -1, 0), depth+1);
+                }
+            }, 5L);
             return;
         }
 
-        if (canPassThrough(block.getTypeId()) && block.getRelative(0, -1, 0).getTypeId() == BlockID.SNOW
-                && block.getRelative(0, -1, 0).getData() < 0x7) {
+        if (canPassThrough(block.getTypeId()) && block.getRelative(0, -1, 0).getTypeId() == BlockID.SNOW && block.getRelative(0, -1, 0).getData() < 0x7) {
             incrementData(block.getRelative(0, -1, 0), depth+1);
             return;
         }
@@ -311,17 +328,14 @@ public class Snow implements Listener {
 
         block.setTypeIdAndData(block.getTypeId(), data, false);
         for (Player p : block.getWorld().getPlayers()) {
-            if (p.getLocation().distanceSquared(block.getLocation()) < CraftBookPlugin.inst().getServer()
-                    .getViewDistance() * 16
-                    * CraftBookPlugin.inst().getServer().getViewDistance() * 16) {
+            if (LocationUtil.getDistanceSquared(p.getLocation(), block.getLocation()) < CraftBookPlugin.inst().getServer().getViewDistance() * 16 * CraftBookPlugin.inst().getServer().getViewDistance() * 16)
                 p.sendBlockChange(block.getLocation(), block.getTypeId(), data);
-            }
         }
     }
 
     public boolean canPassThrough(int id) {
 
-        return id == BlockID.DEAD_BUSH || id == BlockID.AIR || id == BlockID.LONG_GRASS || id == BlockID.FIRE;
+        return id == BlockID.AIR || CraftBookPlugin.inst().getConfiguration().snowRealisticReplacables.contains(id);
     }
 
     public boolean isSnowBlock(int id) {

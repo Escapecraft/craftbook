@@ -4,8 +4,13 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.jar.JarFile;
@@ -28,23 +33,30 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.comphenix.protocol.ProtocolLibrary;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.sk89q.bukkit.util.CommandsManagerRegistration;
 import com.sk89q.craftbook.LanguageManager;
 import com.sk89q.craftbook.LocalComponent;
 import com.sk89q.craftbook.LocalPlayer;
+import com.sk89q.craftbook.Mechanic;
 import com.sk89q.craftbook.MechanicClock;
+import com.sk89q.craftbook.MechanicFactory;
 import com.sk89q.craftbook.MechanicManager;
 import com.sk89q.craftbook.bukkit.BukkitMetrics.Graph;
 import com.sk89q.craftbook.bukkit.BukkitMetrics.Plotter;
 import com.sk89q.craftbook.bukkit.commands.TopLevelCommands;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.util.GeneralUtil;
+import com.sk89q.craftbook.util.config.VariableConfiguration;
 import com.sk89q.minecraft.util.commands.CommandException;
 import com.sk89q.minecraft.util.commands.CommandPermissionsException;
 import com.sk89q.minecraft.util.commands.CommandUsageException;
@@ -58,6 +70,7 @@ import com.sk89q.wepif.PermissionsResolverManager;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.GlobalRegionManager;
+import com.sk89q.worldguard.protection.flags.DefaultFlag;
 
 public class CraftBookPlugin extends JavaPlugin {
 
@@ -84,6 +97,11 @@ public class CraftBookPlugin extends JavaPlugin {
     private LanguageManager languageManager;
 
     /**
+     * The mechanic manager
+     */
+    private MechanicManager manager;
+
+    /**
      * The random
      */
     private Random random = new Random();
@@ -99,6 +117,7 @@ public class CraftBookPlugin extends JavaPlugin {
      * Handles all configuration.
      */
     private BukkitConfiguration config;
+    private VariableConfiguration variableConfiguration;
 
     /**
      * Used for backwards compatability of block faces.
@@ -113,14 +132,22 @@ public class CraftBookPlugin extends JavaPlugin {
     /**
      * The adapter for events to the manager.
      */
-    private MechanicListenerAdapter managerAdapter;
+    MechanicListenerAdapter managerAdapter;
 
     /**
      * The MechanicClock that manages all Self-Triggering Components.
      */
     private MechanicClock mechanicClock;
 
-    public HashMap<String, String> versionConverter = new HashMap<String, String>();
+    /**
+     * The map used to store versions, useful for auto updaters and /cb about.
+     */
+    public BiMap<String, String> versionConverter = HashBiMap.create();
+
+    /**
+     * Stores the variables used in VariableStore.
+     */
+    public HashMap<String, String> variableStore = new HashMap<String, String>();
 
     /**
      * Construct objects. Actual loading occurs when the plugin is enabled, so
@@ -133,19 +160,33 @@ public class CraftBookPlugin extends JavaPlugin {
 
         // Set the version converter contents. It really only needs the current versions stuff... but just incase you are using a release version that isn't on bukkit dev yet, this is here.
         versionConverter.put("3.4.1", "1541");
-        versionConverter.put("3.5", "1680");
+        versionConverter.put("3.5",   "1680");
         versionConverter.put("3.5.1", "1718");
+        versionConverter.put("3.5.2", "1749");
+        versionConverter.put("3.5.3", "1766");
+        versionConverter.put("3.5.4", "1795");
+        versionConverter.put("3.5.5b1","1816");
+        versionConverter.put("3.5.5", "1828");
+        versionConverter.put("3.5.6", "1839");
+        versionConverter.put("3.5.7", "1853");
+        versionConverter.put("3.6b1", "1859");
+        versionConverter.put("3.6b2", "1873");
+        versionConverter.put("3.6b3", "1886");
+        versionConverter.put("3.6b4", "1921");
+        versionConverter.put("3.6",   "1955");
+        versionConverter.put("3.6.1", "1999");
+        versionConverter.put("3.6.2", "2051");
+        versionConverter.put("3.6.3", "2118");
+        versionConverter.put("3.6.3r3", "2123");
+        versionConverter.put("3.6.4", "2153");
     }
 
-    public void registerManager(MechanicManager manager) {
+    public String parseVariables(String line) {
 
-        managerAdapter.register(manager);
-    }
+        for(String key : variableStore.keySet())
+            line = line.replace("%" + key + "%", variableStore.get(key));
 
-    public void registerManager(MechanicManager manager, boolean player, boolean block, boolean world,
-            boolean vehicle) {
-
-        managerAdapter.register(manager, player, block, world, vehicle);
+        return line;
     }
 
     /**
@@ -154,8 +195,6 @@ public class CraftBookPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
 
-        managerAdapter = new MechanicListenerAdapter();
-        mechanicClock = new MechanicClock();
         // Check plugin for checking the active states of a plugin
         Plugin checkPlugin;
 
@@ -174,6 +213,22 @@ public class CraftBookPlugin extends JavaPlugin {
                 return;
             }
         }
+
+        // Resolve ProtocolLib
+        checkPlugin = getServer().getPluginManager().getPlugin("ProtocolLib");
+        if (checkPlugin != null && checkPlugin instanceof ProtocolLibrary) {
+            protocolLib = (ProtocolLibrary) checkPlugin;
+        } else protocolLib = null;
+
+        // Resolve WorldGuard
+        checkPlugin = getServer().getPluginManager().getPlugin("WorldGuard");
+        if (checkPlugin != null && checkPlugin instanceof WorldGuardPlugin) {
+            worldGuardPlugin = (WorldGuardPlugin) checkPlugin;
+        } else worldGuardPlugin = null;
+
+        manager = new MechanicManager();
+        managerAdapter = new MechanicListenerAdapter();
+        mechanicClock = new MechanicClock();
 
         // Setup Config and the Commands Manager
         final CraftBookPlugin plugin = this;
@@ -205,13 +260,9 @@ public class CraftBookPlugin extends JavaPlugin {
         try {
             config.load();
         } catch (Throwable e) {
-            getLogger().severe(GeneralUtil.getStackTrace(e));
+            getLogger().severe(getStackTrace(e));
             getServer().shutdown();
         }
-
-        // Initialize the language manager.
-        createDefaultConfiguration(new File(getDataFolder(), "en_US.txt"), "en_US.txt", false);
-        languageManager = new LanguageManager();
 
         // Resolve Vault
         try {
@@ -223,20 +274,8 @@ public class CraftBookPlugin extends JavaPlugin {
             economy = null;
         }
 
-        // Resolve ProtocolLib
-
-        checkPlugin = getServer().getPluginManager().getPlugin("ProtocolLib");
-        if (checkPlugin != null && checkPlugin instanceof ProtocolLibrary) {
-            protocolLib = (ProtocolLibrary) checkPlugin;
-        } else protocolLib = null;
-
-        // Resolve WorldGuard
-        checkPlugin = getServer().getPluginManager().getPlugin("WorldGuard");
-        if (checkPlugin != null && checkPlugin instanceof WorldEditPlugin) {
-            worldGuardPlugin = (WorldGuardPlugin) checkPlugin;
-        } else worldGuardPlugin = null;
-
         // Let's start the show
+        setupCraftBook();
         registerGlobalEvents();
         startComponents();
     }
@@ -245,32 +284,68 @@ public class CraftBookPlugin extends JavaPlugin {
     String latestVersion = null;
     long updateSize = 0;
 
+    public String getLatestVersion() {
+
+        return latestVersion;
+    }
+
+    public boolean isUpdateAvailable() {
+
+        return updateAvailable;
+    }
+
+    /**
+     * Register basic things to the plugin. For example, languages.
+     */
+    public void setupCraftBook() {
+
+        // Initialize the language manager.
+        createDefaultConfiguration(new File(getDataFolder(), "en_US.txt"), "en_US.txt", true);
+        languageManager = new LanguageManager();
+    }
+
+    /**
+     * Get the mechanic manager.
+     * 
+     * @return The mechanic manager.
+     */
+    public MechanicManager getManager() {
+
+        return manager;
+    }
+
     /**
      * Registers events used by the main CraftBook plugin. Also registers PluginMetrics
      */
     public void registerGlobalEvents() {
 
+        getServer().getPluginManager().registerEvents(managerAdapter, inst());
+
         if(getConfiguration().updateNotifier) {
 
-            Updater updater = new Updater(this, "CraftBook", getFile(), Updater.UpdateType.NO_DOWNLOAD, false); // Start Updater but just do a version check
-            updateAvailable = updater.getResult() == Updater.UpdateResult.UPDATE_AVAILABLE; // Determine if there is an update ready for us
-            latestVersion = updater.getLatestVersionString(); // Get the latest version
-            Bukkit.getLogger().info(latestVersion);
-            updateSize = updater.getFileSize(); // Get latest size
+            checkForUpdates();
+        }
 
-            if(updateAvailable) {
+        if(getConfiguration().easterEggs) {
+            Bukkit.getScheduler().runTaskLater(this, new Runnable() {
 
-                getServer().getPluginManager().registerEvents(new Listener() {
-                    @EventHandler
-                    public void onPlayerJoin (PlayerJoinEvent event) {
-                        Player player = event.getPlayer();
-                        if (player.hasPermission("craftbook.update")) {
-                            player.sendMessage(ChatColor.YELLOW + "An update is available: " + latestVersion + "(" + updateSize + " bytes)");
-                            player.sendMessage(ChatColor.YELLOW + "Type /cb update if you would like to update.");
-                        }
-                    }
-                }, this);
-            }
+                @Override
+                public void run () {
+
+                    Calendar date = Calendar.getInstance();
+
+                    if(date.get(Calendar.MONTH) == Calendar.JUNE && date.get(Calendar.DAY_OF_MONTH) == 22) //Me4502 reddit cakeday
+                        getLogger().info("Happy " + (date.get(Calendar.YEAR) - 2012) + "th reddit cakeday me4502!");
+                    else if(date.get(Calendar.MONTH) == Calendar.OCTOBER && date.get(Calendar.DAY_OF_MONTH) == 16) //Me4502 birthday
+                        getLogger().info("Happy birthday me4502!");
+                    else if(date.get(Calendar.MONTH) == Calendar.JANUARY && date.get(Calendar.DAY_OF_MONTH) == 1) //New Years
+                        getLogger().info("Happy new years! Happy " + date.get(Calendar.YEAR) + "!!!");
+                    else if(date.get(Calendar.MONTH) == Calendar.OCTOBER && date.get(Calendar.DAY_OF_MONTH) == 22) //CraftBook birthday
+                        getLogger().info("Happy " + (date.get(Calendar.YEAR) - 2010) + "th birthday CraftBook!");
+                    else if(date.get(Calendar.MONTH) == Calendar.APRIL && date.get(Calendar.DAY_OF_MONTH) == 24) //Me4502ian CraftBook birthday
+                        getLogger().info("CraftBook has been under Me4502's 'harsh dictatorship :P' for " + (date.get(Calendar.YEAR) - 2012) + " year(s) today!");
+                }
+            }, 20L);
         }
 
         try {
@@ -294,23 +369,104 @@ public class CraftBookPlugin extends JavaPlugin {
                     return languageManager.getLanguages().size();
                 }
             });
+
+            Graph comp = metrics.createGraph("Components");
+            if (config.enableCircuits)
+                comp.addPlotter(new Plotter("Circuits") {
+
+                    @Override
+                    public int getValue () {
+                        return 1;
+                    }
+                });
+            if (config.enableMechanisms)
+                comp.addPlotter(new Plotter("Mechanisms") {
+
+                    @Override
+                    public int getValue () {
+                        return 1;
+                    }
+                });
+            if (config.enableVehicles)
+                comp.addPlotter(new Plotter("Vehicles") {
+
+                    @Override
+                    public int getValue () {
+                        return 1;
+                    }
+                });
         } catch (Throwable e1) {
             BukkitUtil.printStacktrace(e1);
         }
     }
 
-    public void startComponents() {
-        // Circuits
-        if (config.enableCircuits) {
-            CircuitCore circuitCore = new CircuitCore();
-            circuitCore.enable();
-            components.add(circuitCore);
+    public void checkForUpdates() {
+
+        boolean exempt = false;
+
+        try {
+            int ver = Integer.parseInt(getDescription().getVersion().split("-")[0]);
+            if (ver < 1541) //Not valid prior to this version.
+                exempt = true;
         }
+        catch(Exception e) {
+            exempt = true;
+        }
+
+        if(!exempt) {
+            final Updater updater = new Updater(this, "CraftBook", getFile(), Updater.UpdateType.NO_DOWNLOAD, false); // Start Updater but just do a version check
+            updateAvailable = updater.getResult() == Updater.UpdateResult.UPDATE_AVAILABLE; // Determine if there is an update ready for us
+            latestVersion = updater.getLatestVersionString(); // Get the latest version
+            getLogger().info(latestVersion + " is the latest version available, and the updatability of it is: " + updater.getResult().name());
+            updateSize = updater.getFileSize(); // Get latest size
+
+            if(updateAvailable) {
+
+                for (Player player : getServer().getOnlinePlayers()) {
+                    if (hasPermission(player, "craftbook.update")) {
+                        player.sendMessage(ChatColor.YELLOW + "An update is available: " + latestVersion + "(" + updateSize + " bytes)");
+                        player.sendMessage(ChatColor.YELLOW + "Type /cb update if you would like to update.");
+                    }
+                }
+
+                getServer().getPluginManager().registerEvents(new Listener() {
+                    @EventHandler
+                    public void onPlayerJoin (PlayerJoinEvent event) {
+                        Player player = event.getPlayer();
+                        if (hasPermission(player, "craftbook.update")) {
+                            player.sendMessage(ChatColor.YELLOW + "An update is available: " + latestVersion + "(" + updateSize + " bytes)");
+                            player.sendMessage(ChatColor.YELLOW + "Type /cb update if you would like to update.");
+                        }
+                    }
+                }, CraftBookPlugin.inst());
+            }
+        } else {
+            getLogger().info("The Auto-Updater is disabled for your version!");
+        }
+    }
+
+    public void startComponents() {
+
+        // VariableStore
+        try {
+            File varFile = new File(getDataFolder(), "variables.yml");
+            if(!varFile.exists())
+                varFile.createNewFile();
+            variableConfiguration = new VariableConfiguration(new YAMLProcessor(varFile, true, YAMLFormat.EXTENDED), logger());
+            variableConfiguration.load();
+        } catch(Exception e){}
+
         // Mechanics
         if (config.enableMechanisms) {
             MechanicalCore mechanicalCore = new MechanicalCore();
             mechanicalCore.enable();
             components.add(mechanicalCore);
+        }
+        // Circuits
+        if (config.enableCircuits) {
+            CircuitCore circuitCore = new CircuitCore();
+            circuitCore.enable();
+            components.add(circuitCore);
         }
         // Vehicles
         if (config.enableVehicles) {
@@ -331,7 +487,8 @@ public class CraftBookPlugin extends JavaPlugin {
         for (LocalComponent component : components) {
             component.disable();
         }
-        config.unload();
+        variableConfiguration.save();
+        components.clear();
     }
 
     /**
@@ -395,6 +552,52 @@ public class CraftBookPlugin extends JavaPlugin {
     }
 
     /**
+     * Register a mechanic if possible
+     *
+     * @param factory
+     */
+    public void registerMechanic(MechanicFactory<? extends Mechanic> factory) {
+
+        manager.register(factory);
+    }
+
+    /**
+     * Register a array of mechanics if possible
+     *
+     * @param factories
+     */
+    protected void registerMechanic(MechanicFactory<? extends Mechanic>[] factories) {
+
+        for (MechanicFactory<? extends Mechanic> aFactory : factories) {
+            registerMechanic(aFactory);
+        }
+    }
+
+    /**
+     * Unregister a mechanic if possible TODO Ensure no remnants are left behind
+     *
+     * @param factory
+     *
+     * @return true if the mechanic was successfully unregistered.
+     */
+    protected boolean unregisterMechanic(MechanicFactory<? extends Mechanic> factory) {
+
+        return manager.unregister(factory);
+    }
+
+    protected boolean unregisterAllMechanics() {
+
+        Iterator<MechanicFactory<? extends Mechanic>> iterator = manager.factories.iterator();
+
+        while (iterator.hasNext()) {
+            iterator.next();
+            manager.unregister(iterator);
+        }
+
+        return true;
+    }
+
+    /**
      * Setup the required components of self-triggered Mechanics.
      */
     private void setupSelfTriggered() {
@@ -405,15 +608,9 @@ public class CraftBookPlugin extends JavaPlugin {
         int numWorlds = 0;
         int numChunks = 0;
 
-        for (MechanicManager manager : managerAdapter.getManagers()) {
-            mechanicClock.addManager(manager);
-        }
-
         for (World world : getServer().getWorlds()) {
             for (Chunk chunk : world.getLoadedChunks()) {
-                for (MechanicManager manager : managerAdapter.getManagers()) {
-                    manager.enumerate(chunk);
-                }
+                manager.enumerate(chunk);
                 numChunks++;
             }
 
@@ -630,12 +827,18 @@ public class CraftBookPlugin extends JavaPlugin {
      */
     public void reloadConfiguration() throws Throwable {
 
+        unregisterAllMechanics();
         for (LocalComponent component : components) {
             component.disable();
         }
-        HandlerList.unregisterAll(this);
-        config.unload();
+        components.clear();
+        getServer().getScheduler().cancelTasks(inst());
+        HandlerList.unregisterAll(inst());
         config.load();
+        manager = new MechanicManager();
+        managerAdapter = new MechanicListenerAdapter();
+        mechanicClock = new MechanicClock();
+        setupCraftBook();
         registerGlobalEvents();
         startComponents();
     }
@@ -771,10 +974,7 @@ public class CraftBookPlugin extends JavaPlugin {
      */
     public boolean canBuild(Player player, Location loc) {
 
-        return true;
-        //if (!config.obeyWorldguard)
-        //    return true;
-        //return worldGuardPlugin != null && worldGuardPlugin.getGlobalRegionManager().canBuild(player, loc);
+        return canBuild(player,loc.getBlock());
     }
 
     /**
@@ -790,9 +990,16 @@ public class CraftBookPlugin extends JavaPlugin {
      */
     public boolean canBuild(Player player, Block block) {
 
-        return true;
-        //if (!config.obeyWorldguard) return true;
-        //return worldGuardPlugin != null && worldGuardPlugin.getGlobalRegionManager().canBuild(player, block);
+        if (config.advancedBlockChecks) {
+
+            BlockPlaceEvent event = new BlockPlaceEvent(block, block.getState(), block.getRelative(0, -1, 0), player.getItemInHand(), player, true);
+            getServer().getPluginManager().callEvent(event);
+            if(event.isCancelled() || !event.canBuild())
+                return false;
+        }
+        if (!config.obeyWorldguard) return true;
+        if (worldGuardPlugin == null) return true;
+        return worldGuardPlugin.canBuild(player, block);
     }
 
     /**
@@ -806,12 +1013,19 @@ public class CraftBookPlugin extends JavaPlugin {
      *
      * @see GlobalRegionManager#canBuild(org.bukkit.entity.Player, org.bukkit.Location)
      */
-    public boolean canUse(Player player, Location loc) {
+    public boolean canUse(Player player, Location loc, BlockFace face) {
 
-        return true;
-        //if (!config.obeyWorldguard) return true;
-        //return worldGuardPlugin != null && worldGuardPlugin.getGlobalRegionManager().allows(new StateFlag("use",
-        //        true), loc, worldGuardPlugin.wrapPlayer(player));
+        if (config.advancedBlockChecks) {
+
+            PlayerInteractEvent event = new PlayerInteractEvent(player, Action.RIGHT_CLICK_BLOCK, player.getItemInHand(), loc.getBlock(), face == null ? BlockFace.SELF : face);
+            MechanicListenerAdapter.ignoredEvents.add(event);
+            getServer().getPluginManager().callEvent(event);
+            if(event.isCancelled())
+                return false;
+        }
+        if (!config.obeyWorldguard) return true;
+        if (worldGuardPlugin == null) return true;
+        return worldGuardPlugin.getGlobalRegionManager().allows(DefaultFlag.USE, loc, worldGuardPlugin.wrapPlayer(player));
     }
 
     /**
@@ -833,5 +1047,27 @@ public class CraftBookPlugin extends JavaPlugin {
     public File getFile() {
 
         return super.getFile();
+    }
+
+    public static String getStackTrace(Throwable ex) {
+
+        Writer out = new StringWriter();
+        PrintWriter pw = new PrintWriter(out);
+        ex.printStackTrace(pw);
+        return out.toString();
+    }
+
+    public static boolean isDebugFlagEnabled(String flag) {
+
+        if(!inst().getConfiguration().debugMode || inst().getConfiguration().debugFlags == null || inst().getConfiguration().debugFlags.isEmpty())
+            return false;
+
+        for(String testflag : inst().getConfiguration().debugFlags) {
+
+            if(testflag.equalsIgnoreCase(flag))
+                return true;
+        }
+
+        return false;
     }
 }

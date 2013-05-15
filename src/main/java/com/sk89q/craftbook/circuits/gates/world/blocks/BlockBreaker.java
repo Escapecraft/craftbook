@@ -1,8 +1,7 @@
 package com.sk89q.craftbook.circuits.gates.world.blocks;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Server;
@@ -10,13 +9,12 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.material.PistonBaseMaterial;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.CircuitCore;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
+import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -25,7 +23,7 @@ import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.blocks.BlockID;
 
-public class BlockBreaker extends AbstractIC {
+public class BlockBreaker extends AbstractSelfTriggeredIC {
 
     boolean above;
 
@@ -55,6 +53,12 @@ public class BlockBreaker extends AbstractIC {
         }
     }
 
+    @Override
+    public void think(ChipState state) {
+
+        state.setOutput(0, breakBlock());
+    }
+
     Block broken, chest;
 
     int id;
@@ -75,7 +79,7 @@ public class BlockBreaker extends AbstractIC {
 
         if (chest == null || broken == null) {
 
-            Block bl = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock());
+            Block bl = getBackBlock();
 
             if (above) {
                 chest = bl.getRelative(0, 1, 0);
@@ -98,26 +102,14 @@ public class BlockBreaker extends AbstractIC {
 
         if (data > 0 && data != broken.getData()) return false;
 
-        broken.getDrops();
         for (ItemStack blockstack : broken.getDrops()) {
 
             BlockFace back = SignUtil.getBack(BukkitUtil.toSign(getSign()).getBlock());
-            Block pipe = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(back);
-            if (pipe.getTypeId() == BlockID.PISTON_STICKY_BASE) {
+            Block pipe = getBackBlock().getRelative(back);
 
-                PistonBaseMaterial p = (PistonBaseMaterial) pipe.getState().getData();
-                Block fac = pipe.getRelative(p.getFacing());
-                if (fac.getLocation().equals(BukkitUtil.toSign(getSign()).getBlock().getRelative(back).getLocation())) {
+            if(Pipes.Factory.setupPipes(pipe, getBackBlock(), Arrays.asList(blockstack)) != null)
+                continue;
 
-                    List<ItemStack> items = new ArrayList<ItemStack>();
-                    items.add(blockstack);
-                    if (((CircuitCore) CircuitCore.inst()).getPipeFactory() != null)
-                        if (((CircuitCore) CircuitCore.inst()).getPipeFactory().detect(BukkitUtil.toWorldVector(pipe),
-                                items) != null) {
-                            continue;
-                        }
-                }
-            }
             if (hasChest) {
                 Chest c = (Chest) chest.getState();
                 HashMap<Integer, ItemStack> overflow = c.getInventory().addItem(blockstack);
@@ -168,8 +160,7 @@ public class BlockBreaker extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"Optional block ID", null};
-            return lines;
+            return new String[] {"Block ID{:Data}", null};
         }
     }
 }

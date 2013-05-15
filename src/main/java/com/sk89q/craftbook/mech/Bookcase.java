@@ -61,8 +61,6 @@ public class Bookcase extends AbstractMechanic {
      */
     public void read(LocalPlayer player, String bookReadLine) {
 
-        if (!player.hasPermission("craftbook.mech.bookshelf.use")) return;
-
         try {
             String text = getBookLine();
 
@@ -116,7 +114,7 @@ public class Bookcase extends AbstractMechanic {
         if (event.getPlayer().isSneaking() != plugin.getConfiguration().bookcaseReadWhenSneaking) return;
 
         LocalPlayer player = plugin.wrapPlayer(event.getPlayer());
-        if (player.getTypeInHand() == 0 || !player.isHoldingBlock()) {
+        if (player.getHeldItemType() == 0 || !player.isHoldingBlock()) {
             read(player, plugin.getConfiguration().bookcaseReadLine);
         }
     }
@@ -129,12 +127,11 @@ public class Bookcase extends AbstractMechanic {
         }
 
         @Override
-        public Bookcase detect(BlockWorldVector pt) {
+        public Bookcase detect(BlockWorldVector pt, LocalPlayer player) {
 
-            if (pt.getWorld().getBlockType(pt) == BlockID.BOOKCASE) return new Bookcase(pt);
+            if (pt.getWorld().getBlockType(pt) == BlockID.BOOKCASE && player.hasPermission("craftbook.mech.bookshelf.use")) return new Bookcase(pt);
 
             return null;
         }
-
     }
 }

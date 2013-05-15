@@ -1,3 +1,301 @@
+3.6.4
++ Added footprint mechanic. (Adds footprints when you walk)
+* Fix CombineHarvester offset.
+* Made Melody IC require restricted perms to broadcast globally.
+* Few improvements to IC Caching systems.
+* Few improvements to Chunk Anchor.
++ Add support for names, lore, enchants in most places items are parsed from strings.
++ Add enchantment support to CustomCrafting.
++ Added Variables to CraftBook. (Vid tut: https://www.youtube.com/watch?v=Ndsx0xx-fXA)
+* Fix a pipe error with null items.
+* Fix some issues with CustomCrafting in certain circumstances.
+* Minor optimizations to ContainerCollector.
+* Fix a ParticleEffect IC Error.
+* Stop AnimalBreeder crazily breeding hundreds of mobs instantly.
++ Added MC1214, Ranged Collector. (Like MC1209, but is ranged)
++ Added PermissionNode sensing support to MC1272
+* Tweak a few IC Docs.
+* Replaced the 2 Managers with 1 Manager. Should make CraftBook more optimized and generally more stable/faster.
+* Fix a few bugs with item comparing, and shaped Auto Crafter crafting.
++ Added a flag to /cb report to print the location and text of all IC's. (/cb report -i)
+
+3.6.3r3
+* Fixed a CustomCrafting error with Furnace Recipes.
+* Fixed a few console messages not having [CraftBook] at the start.
+* Fixed ContentSensor being incredibly pedantic about the amount of items.
+
+3.6.3
++ Added /cb update -c to force an update.
+* Enhanced [off] formatting.
+* Fixed an error relating to item parsing.
+* Enhanced a few CraftBook easter eggs.
+* Fix CartDeposit removing metadata. Eg, name, enchants, book text.
+* Few tweaks to Cooking Pot.
+* Heavily optimized AI Mechanics.
+* Made AutoCrafter more stable.
+* Fix IC's not having MultiWorld support.
+* Fixed redstone not updating things when broken.
++ Add tests for CraftBook. Should minimise bugs in the areas it tests.
+* Fixed SaveArea's overwriting wrong areas.
++ Added the ability to add Custom Crafting recipes ingame.
+* Few minor error fixes.
+* Small tweak to Sound Effect IC.
+* Made Netherrack mechanic only block destruction if actually lit.
++ Added option to change Flamethrower max distance.
+* Fixed Bridges/Doors having seperate inventories on both signs.
+* Made AI Mechanics scale difficulty dependent on world difficulty.
++ Added option to make Cooking Pot's super fast.
+* Fixed some area commands not supporting shortened namespaces if name is too long.
++ Added sphere support to [off]
++ Added [rad] support to IC's. Setting radius based on WE selection.
+* Fix minecart decay on mc 1.5+
+* Major optimizations to the Clock IC.
++ Added Dropper support for AutoCrafter. Recommended as Dispensers now use up a fair few items. (But with dispensers, you can have compact minecart creaters/spawners)
+* Updated to 1.5.2
+* CartDeposit now looks for a wider range of chests.
+* Fix BlockBreak error.
+* Fixed AnimalBreeder error.
++ Added support for more different item names/block names to CustomCrafting.
+
+3.6.2
+* Fixed experimental right click support.
+* Optimized advanced data support in CustomCrafting.
+* Made 'T' EntityType explosive, not just TNT Carts.
++ Added 'R' EntityType for Rideable entities.
+* Fix Payment mechanic.
+* Improve Vehicle collision code. (Fixes a few boat/cart bugs)
+* Fix pipe inclusions/exlusions filters.
+* Fix pipes finding weird signs in weird places and using them.
+* Made pipes take priority for pistons, so that a pipe with pistons extending off of it will take priority.
+* Fix CraftBook triggering Cheat Protections for Incorrect Direction of right clicks.
++ Add delay option to FlameThrower IC.
++ Added amount filters to EntitySensor IC.
+* Fix AnimalBreeder.
+* Enhanced ChestStocker so it defaults to the block above the back block, not the back block.
+* Minor optimization to ContainerSensor.
+* Fix a few peculiarities with max stack sizes of less than 64.
+* Few tweaks to Driller IC.
+* Fix a few data detecting bugs with IC's and Pipes.
++ Added a configuration option to driller to allow or disallow it to break non-natural blocks.
+* Few balance tweaks to Cooking Pot.
+* Heavily optimize pipes.
++ Added pipe support to driller.
++ Added lore support to Custom Crafting.
+* Enhanced the checks to see if an entity is standing in a block.
++ Added support for entity spawner IC's to set a mobs name.
++ Added WIP WorldEdit support to IC creation. If you select a region with WorldEdit, and put [off] on an IC sign, it should use the region centre as an offset.
+* Convert PLC folder to a new folder format. (Will be used for future stuff)
+* Fix BetterPistons using signs out of reach that it shouldn't use.
+* Fix BlockReplacer replacing incorrect blocks.
+* Tweaked location calculations to always agree with block location config value.
++ Added option to tweak minecart fall speed modifiers. Allows for minecart jumps and flying carts.
+* Fix a rare memory leak that if a component(mech/circuits/vehicles) is disabled, and /cb reload is used that it stays loaded.
+
+3.6.1
++ Added a message that occurs if you are too far away and try to change a painting.
+* Fix Potion Inducer 'm' dissapearing.
+* Small change to Item Dispenser.
+* Fixed CartLift.
+* Fixed Deposit/Collect multiple item id's.
++ Added new experimental right clicking function.
+* Fix container stacker stacking items with meta info.
+* Fix gate dupe bug.
++ Add easter eggs to startup process.
+* Made SetBridge and SetDoor output their inputs for easy compactability.
+* Fix a few redstone bugs.
+* Fix CustomDrops messing with XP.
++ Added info to the 'language' configuration node.
+* Made vehicles less laggy.
++ Added Animal Breeder IC. (MC1280)
++ Added Block Replacer IC. (MC1249)
+* Fix CartSorter erasing carts.
+* Allowed languages to use special characters. (Eg, chinese)
+* Fix pipe errors involving AIR.
+* Allow Clock IC's ticks to be set, to allow offsets.
+* Fix [Area] weird area name case issues.
+* Fixed SignCopier triggering mechanics, and made advanced-block-checks improve performance.
+* Fixed light level IC.
+* Fixed languages breaking on reload.
+* Slight changes to /cb update.
+* Fix delayer errors.
+* Minor changes to Entity Cannon.
+
+3.6
+* Fix a bridge dupe bug.
+* Fix IC's not being converted on creation.
++ Added radius and chance to Zeus Bolt IC.
+* Many changes to cooking pots.
++ Added a driller IC. Acts like a BuildCraft quarry in a 3x3 area.
++ Added a command to toggle 'Toggle Areas' from the console. (Also Command Blocks)
++ Added a blacklist to BetterPistons Bounce and Crush.
+* Removed some redundant debug code that printed weird stuff to the console.
+* Fix Sound Effect IC and Particle Effect IC not popping off if the verification failed.
+* Fix Potion Inducer radius bug.
+* Fixed entity spawning IC's spawning in unloaded chunks.
++ Added new 1.5 blocks to places that they should be added.
+* Fix an IC error.
+* Fix a chunk anchor issue.
++ Added debug mode and debug flags options. Allows a fine tuned debug mode.
+* Fix CombineHarvester radius.
+* Planter IC will now plant anything if no ID is provided.
+* Fix a few CartDeposit bugs.
++ Added exclusions to pipes, and the ability to have inclusions and exclusions on pipe put pistons.
+* Fix pipe bug where items would dissapear.
+
+3.6 Beta 4
+* Performance enhancements.
+* Bug fixes in Cooking Pot.
++ Added option to make cooking pots destroy buckets.
+* Bug fixes for ChestStocker IC.
+* Workaround for bukkit lever update issue.
+* Made SignCopier work with ST IC's.
+* Fix ParticleEffect offset being way off.
+* Fixed SignCopier allowing the sign to be broken.
+* Forced Redstone Netherrack to update the fire on the client. (Fixes a 1.5 bug)
+* Cleanup for ContainerCollector (It is now more stable)
++ Added [Pipe] signs to do filters for pipes. (With permission)
++ Added support for cart teleporters to teleport non-ridable carts.
++ Added a converter for IC's in the creation section, so people can create old IC's and have them be converted.
++ Added option to force pipes to have signs.
+* Fix /cb reload bugs.
+
+3.6 Beta 3
+* Fix a bug where MC1510 would allow players without restricted perms to use BROADCAST.
++ Added NetherRack -> NetherBrick support to Cooking Pot.
+* Upgraded to 1.5.1
+* Changed the offset of many IC's so they work the same way.
+* Sound Effect IC will now allow sounds with a greater length than the sign.
+* Temporary possible workaround for the vehicle crash in bukkit.
++ Added an option for Crush piston to kill entities.
++ Added a sign copying mechanic using Ink Sacs.
+* Possible subtle performance improvements.
+
+3.6 Beta 2
+* Fix AutoCrafter and Custom Crafting bugs.
++ Added support for multiple ID's on Minecart Collect/Deposit signs.
+* Made CartDispenser not require a chest if 'inf' is set.
+* Upgraded to 1.5. Added all 1.5 blocks to neccesary places eg Rails.
+* Minor changes to how CraftBook displays corrupt signs/skulls/etc.
+* Made WeatherFaker use the new bukkit API. It now works on any mc version from now on.
+* Fix a few advanced-block-checks and made it more performance friendly.
++ Added enforce-gate-type option to make sure people can't change the contents of a gates type.
++ Added new blocks to the redstone handling code. Also tweaked levers/buttons so they can trigger mechanics on the opposite side of the block they're attached to.
+* Fixed a few bugs where IC's which should always be ST were not ST.
+
+3.6 Beta 1
+* Remade the ST IC system.
+  * ST IC's now use the same ID as their triggered equivalent, but have an S after the [mcxxxx], hence it is [mcxxxx]S.
+  * In turn, this makes the plugin smaller in size and easier to manage.
+* Many BetterPistons bug fixes.
+* CreatureSpawner spawns skeletons with bows.
+* Fix doors and bridges saying it was toggled successfully when it wasn't.
++ Added a /circuits alias of /ic
+* Fix disabled-ics.
+
+3.5.7
+* Fix SuperSticky piston eating blocks.
+* Fix some bugs with ChunkAnchors
+* Moved the 'type' of a CartDispenser to the first line to stop conflicts.
++ Added support for JingleNote to not play music for people outside the radius.
++ Added a Blacklist for Container Stacker IC.
+* Fix snow stacking on the void.
+
+3.5.6
+* Buttons moved by BetterPistons will default to unpressed state, so they don't get stuck.
+* Improved performance by not having lightstone ammeter and cauldron initialize on right click/redstone event.
+* Removed a few redundant IC checks, which caused more harm than good.
+* Fix sugar cane not being harvested by the Combine Harvester.
+* Fix a cooking pot dupe bug.
++ Added support for BetterPistons to move Containers and Signs, and keep the contents/text.
+* Fix an error with recipes using the SHAPED wrapper type.
+* Improved CustomCrafting checks, to remove false positives.
+
+3.5.5
++ Added offset support to Timed Explosion IC.
+* Fix magical data transformation of IC's.
+* Fix few cooking pot bugs.
+* Re-balanced cooking pots.
+* Stopped custom drops working in creative.
++ Added 'custom results' support to custom crafting.
++ Added a User Agent to the auto updater, because google chrome is awesome.
+* Fix cooking pot not giving back buckets.
+* Disabled WG Flag Checks by default.
+* Fixed WG Flag Checks without WG installed.
++ Added 'Optional' Grey Text to IC DOCS.
+
+3.5.5 Beta 1
+* Fix Combine Harvester sometimes not returning drops.
++ Added IC Keep Loaded option. Keeps chunks with ST IC's in them loaded.
+* Fix WorldGuard flag protection.
+* Allowed WorldEdit to be in the lib directory, instead of the plugin directory.
+* Fixed Tune IC Error.
+* Made Crush better piston mech work with Sticky Pistons.
+* Fixed bug with invert on Item Sorter.
+* Made ProgrammableFireworkDisplay check if the chunk is loaded.
+* Improved Custom Crafting recipe examples.
+* Fixed CraftBook overriding other plugins recipes.
+* Fix Set-Door/Set-Bridge not working with only x and y offsets.
+* Fixed container stacker not working with 2 stacks that'd add up to over 64.
++ Add permission nodes to Custom Crafting.
+* Made Cannon/Fan Dispenser Recipes more normal.
++ Added support for CreatureSpawner/AES to spawn Wither Skeletons.
+
+3.5.4
+* Bonemeal terraformer can now grow crops a few stages instead of just 1.
+* Fixed a few /cb reload bugs.
+* Fix redstone not correctly being updated around IC outputs.
+* Fix a Container Dispenser error.
++ Added naming support to custom recipes.
++ Added support for the irrigator IC to use water above the IC block.
++ Added a slot option to the content sensor IC.
+* Command sign can now only be triggered on rising edge.
++ Added off block support for MultiBlockSet.
++ Added an option to have superpush/sticky move blocks more than 1 block per trigger.
++ Added support for betterpiston mechs to move entities when they move blocks. (Eg, for elevators)
++ Added an option to change max BetterPiston distance.
+* Bug fixes for BetterPistons. (Fixes bounce boucning wrong entities)
+* Fixed BetterPhysics ladders requiring 2 to be placed to work.
+* Fixed /cb report requiring WorldGuard.
+* BetterPistons no longer interact with Bedrock/Obsidian.
+* Fixed a gate dupe bug.
++ Added an option to IC's, to change default offset mode.
+
+3.5.3
+* Fix ContainerDispenser ignoring amount written on sign.
+* Fix an error with Painting Switcher and the Auto Updater.
++ Added SuperPush piston mechanic. It can push air.
+* Fix an error in Playlists sometimes stopping players from being removed.
+* Fixed some MIDIs sounding different with Radio IC's.
+* Fix item dissapearing bug with BetterPistons.
+* Fixed 5 Output IC's.
++ Added missing language nodes for BetterPistons.
+* Made /cb about give release versions name (If using one).
++ Added /cb report command to allow us to solve peoples issues quicker. (Reports config and other info)
+* BetterPiston mechanics allow multiple mechanics on a single piston.
++ Added an AIR option to last line of SuperSticky, allowing it to pull air.
+* Fixed Repeaters not working 100% with BetterPistons.
+* Fixed Repeaters not working 100% with IC's. (Thanks to Silthus)
+
+3.5.2
++ Added BetterPistons mechanic
+  - Bounce Pistons, bounce blocks or entities with set velocity
+  - SuperSticky Pistons, allow a sticky piston to pull back further than 1 block.
+  - Crush Pistons, allow pistons to break blocks.
++ Chest Content Detector IC.
++ Added a custom list of blocks snow can replace to the config.
++ Added better corrupt sign handling, although bukkit has fixed the type of corruption this detected.
+* Fixed gates allowing transmutation of blocks.
++ Added a few extra messages to teleporters.
+* Bug fixes for realistic snow. No more StackOverflowExceptions.
+* Fixed a potion inducer error.
+* Fix Flamethrower IC.
+* Commented config properly.
+* Fixed a few perm bugs with commands.
+* Fix custom drop errors about invalid items.
+* Fixed an AI mechanic bug.
+* Fixed Combine Harvester & Nether Wart.
+* Fixed a pipe dupe bug.
+
 3.5.1
 * Fixed a few vehicle bugs.
 * Renamed Radio IC to JukeBox IC.

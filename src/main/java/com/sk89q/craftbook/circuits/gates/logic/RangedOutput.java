@@ -3,24 +3,17 @@ package com.sk89q.craftbook.circuits.gates.logic;
 import org.bukkit.Server;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
-import com.sk89q.craftbook.circuits.ic.SelfTriggeredIC;
 import com.sk89q.craftbook.util.RegexUtil;
 
 /**
  * @author Me4502
  */
-public class RangedOutput extends AbstractIC implements SelfTriggeredIC {
-
-    int ticks = 0;
-    int maxTicks = 0;
-    boolean hasStarted = false;
-    int amountDone = 0;
-    int maxAmount = 0;
+public class RangedOutput extends AbstractSelfTriggeredIC {
 
     public RangedOutput(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -40,17 +33,36 @@ public class RangedOutput extends AbstractIC implements SelfTriggeredIC {
     }
 
     @Override
+    public boolean isAlwaysST() {
+
+        return true;
+    }
+
+    @Override
     public void think(ChipState chip) {
 
         chip.setOutput(0, shouldOutput(chip));
     }
 
+    int min,max;
+
+    int ticks = 0;
+    int maxTicks = 0;
+    boolean hasStarted = false;
+    int amountDone = 0;
+    int maxAmount = 0;
+
+    @Override
+    public void load() {
+        String[] minmax = RegexUtil.MINUS_PATTERN.split(getSign().getLine(2));
+        min = Integer.parseInt(minmax[0]);
+        max = Integer.parseInt(minmax[1]);
+    }
+
     protected boolean shouldOutput(ChipState chip) {
 
         if (chip.getInput(0)) {
-            String[] minmax = RegexUtil.MINUS_PATTERN.split(getSign().getLine(2));
-            int min = Integer.parseInt(minmax[0]);
-            int max = Integer.parseInt(minmax[1]);
+
             maxAmount = min + (int) (Math.random() * (max - min + 1));
             amountDone = 0;
             ticks = 0;
@@ -80,14 +92,7 @@ public class RangedOutput extends AbstractIC implements SelfTriggeredIC {
     }
 
     @Override
-    public boolean isActive() {
-
-        return true;
-    }
-
-    @Override
     public void trigger(ChipState chip) {
-        // non-self triggered only
     }
 
     public static class Factory extends AbstractICFactory {

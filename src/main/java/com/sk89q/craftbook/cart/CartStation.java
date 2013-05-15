@@ -1,6 +1,6 @@
 package com.sk89q.craftbook.cart;
 
-import static com.sk89q.craftbook.cart.CartUtils.stop;
+import static com.sk89q.craftbook.util.CartUtils.stop;
 
 import org.bukkit.Location;
 import org.bukkit.block.Block;
@@ -55,7 +55,7 @@ public class CartStation extends CartMechanism {
     }
 
     @Override
-    public void enter(Minecart cart, Entity entity, CartMechanismBlocks blocks, boolean minor) {
+    public void enter(Minecart cart, Entity entity, CartMechanismBlocks blocks) {
         // validate
         if (cart == null) return;
         if (!blocks.matches("station")) return;

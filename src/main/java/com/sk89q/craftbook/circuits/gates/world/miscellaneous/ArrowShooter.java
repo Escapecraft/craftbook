@@ -111,6 +111,9 @@ public class ArrowShooter extends AbstractIC {
                 targetDir.getY() + 0.5,
                 targetDir.getZ() + 0.5);
 
+        if(!shootLoc.getChunk().isLoaded())
+            return;
+
         for (short i = 0; i < n; i++) {
             BukkitUtil.toSign(getSign()).getWorld().spawnArrow(shootLoc, velocity, speed, spread);
         }
@@ -138,8 +141,7 @@ public class ArrowShooter extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"speed:spread", "vertical gain"};
-            return lines;
+            return new String[] {"speed:spread", "vertical gain"};
         }
     }
 }

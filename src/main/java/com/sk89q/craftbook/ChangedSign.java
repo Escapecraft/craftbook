@@ -27,6 +27,12 @@ public interface ChangedSign {
 
     public boolean hasChanged();
 
+    public void flushLines();
+
+    public boolean updateSign(ChangedSign sign);
+
+    public boolean hasVariable(String var);
+
     // Other
     public boolean update(boolean force);
 

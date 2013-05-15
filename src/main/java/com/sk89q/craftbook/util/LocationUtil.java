@@ -19,14 +19,6 @@ import com.sk89q.worldedit.blocks.BlockID;
  */
 public final class LocationUtil {
 
-    private LocationUtil() {
-
-    }
-
-    public static void init() {
-
-    }
-
     public static boolean isWithinSphericalRadius(Location l1, Location l2, int radius) {
 
         return l1.getWorld().equals(l2.getWorld()) && Math.floor(getDistanceSquared(l1, l2)) <= radius * radius; // Floor for more accurate readings
@@ -262,7 +254,7 @@ public final class LocationUtil {
                 for (Entity e : new Location(l.getWorld(), x + chX * 16, y, z + chZ * 16).getChunk().getEntities()) {
                     if(!(e instanceof Player))
                         continue;
-                    if (e.getLocation().distanceSquared(l) <= radius * radius && e.getLocation().getBlock() != l
+                    if (getDistanceSquared(e.getLocation(), l) <= radius * radius && e.getLocation().getBlock() != l
                             .getBlock()) {
                         radiusEntities.add((Player) e);
                     }
@@ -270,5 +262,10 @@ public final class LocationUtil {
             }
         }
         return radiusEntities.toArray(new Player[radiusEntities.size()]);
+    }
+
+    public static BlockFace[] getDirectFaces() {
+
+        return new BlockFace[] {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST};
     }
 }

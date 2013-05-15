@@ -23,10 +23,6 @@ public class Command extends AbstractMechanic {
 
     public static class Factory extends AbstractMechanicFactory<Command> {
 
-        public Factory() {
-
-        }
-
         /**
          * Explore around the trigger to find a functional command sign; throw if things look funny.
          *
@@ -55,7 +51,7 @@ public class Command extends AbstractMechanic {
          */
         @Override
         public Command detect(BlockWorldVector pt, LocalPlayer player,
-                              ChangedSign sign) throws InvalidMechanismException,
+                ChangedSign sign) throws InvalidMechanismException,
                 ProcessedMechanismException {
 
             if (!sign.getLine(1).equalsIgnoreCase("[Command]")) return null;
@@ -109,6 +105,8 @@ public class Command extends AbstractMechanic {
     @Override
     public void onBlockRedstoneChange(SourcedBlockRedstoneEvent event) {
 
+        if (event.getNewCurrent() < event.getOldCurrent())
+            return;
         if (!plugin.getConfiguration().commandSignEnabled) return;
         if (!BukkitUtil.toWorldVector(event.getBlock()).equals(BukkitUtil.toWorldVector(trigger)))
             return; // wth? our manager is insane

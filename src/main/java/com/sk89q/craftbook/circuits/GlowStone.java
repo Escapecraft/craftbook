@@ -7,7 +7,7 @@
  * Software Foundation, either version 3 of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
-  * warranty of MERCHANTABILITY or
+ * warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License along with this program. If not,
@@ -39,19 +39,14 @@ public class GlowStone extends PersistentMechanic {
 
     public static class Factory extends AbstractMechanicFactory<GlowStone> {
 
-
-        public Factory() {
-
-        }
-
         @Override
         public GlowStone detect(BlockWorldVector pt) {
 
             int type = BukkitUtil.toWorld(pt).getBlockTypeIdAt(BukkitUtil.toLocation(pt));
 
-            if (type == CraftBookPlugin.inst().getConfiguration().glowstoneOffBlock || type == BlockID.LIGHTSTONE) {
+            if (type == CraftBookPlugin.inst().getConfiguration().glowstoneOffBlock || type == BlockID.LIGHTSTONE)
                 return new GlowStone(pt);
-            }
+
             return null;
         }
     }
@@ -75,13 +70,7 @@ public class GlowStone extends PersistentMechanic {
     @Override
     public void onBlockRedstoneChange(SourcedBlockRedstoneEvent event) {
 
-        if (event.getNewCurrent() > 0) {
-            event.getBlock().setTypeId(BlockID.LIGHTSTONE);
-        } else {
-            event.getBlock().setTypeId(CraftBookPlugin.inst().getConfiguration().glowstoneOffBlock);
-        }
-
-        event.getBlock().setData(event.getBlock().getData(), false);
+        event.getBlock().setTypeIdAndData(event.getNewCurrent() > 0 ? BlockID.LIGHTSTONE : CraftBookPlugin.inst().getConfiguration().glowstoneOffBlock, event.getBlock().getData(), true);
     }
 
     /**
@@ -96,10 +85,8 @@ public class GlowStone extends PersistentMechanic {
     @Override
     public void onBlockBreak(BlockBreakEvent event) {
 
-        if (event.getBlock().getTypeId() == BlockID.LIGHTSTONE && (event.getBlock().isBlockIndirectlyPowered() ||
-                event.getBlock().isBlockPowered())) {
+        if (event.getBlock().getTypeId() == BlockID.LIGHTSTONE && (event.getBlock().isBlockIndirectlyPowered() || event.getBlock().isBlockPowered()))
             event.setCancelled(true);
-        }
     }
 
     @Override
@@ -112,9 +99,7 @@ public class GlowStone extends PersistentMechanic {
     public void onWatchBlockNotification(BlockEvent evt) {
 
         if (evt instanceof BlockBreakEvent)
-            if (evt.getBlock().getTypeId() == BlockID.LIGHTSTONE && (evt.getBlock().isBlockIndirectlyPowered() || evt
-                    .getBlock().isBlockPowered())) {
+            if (evt.getBlock().getTypeId() == BlockID.LIGHTSTONE && (evt.getBlock().isBlockIndirectlyPowered() || evt.getBlock().isBlockPowered()))
                 ((BlockBreakEvent) evt).setCancelled(true);
-            }
     }
 }

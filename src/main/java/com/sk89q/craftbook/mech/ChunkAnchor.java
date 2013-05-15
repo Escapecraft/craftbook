@@ -6,13 +6,13 @@ import java.util.List;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 
 import com.sk89q.craftbook.AbstractMechanicFactory;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.PersistentMechanic;
+import com.sk89q.craftbook.SelfTriggeringMechanic;
 import com.sk89q.craftbook.SourcedBlockRedstoneEvent;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.exceptions.InsufficientPermissionsException;
@@ -21,13 +21,9 @@ import com.sk89q.craftbook.util.exceptions.ProcessedMechanismException;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.bukkit.BukkitUtil;
 
-public class ChunkAnchor extends PersistentMechanic {
+public class ChunkAnchor extends PersistentMechanic implements SelfTriggeringMechanic {
 
     public static class Factory extends AbstractMechanicFactory<ChunkAnchor> {
-
-        public Factory() {
-
-        }
 
         /**
          * Explore around the trigger to find a functional chunk anchor sign; throw if things look funny.
@@ -85,7 +81,7 @@ public class ChunkAnchor extends PersistentMechanic {
         }
     }
 
-    public boolean isOn = false;
+    public boolean isOn = true;
 
     /**
      * @param trigger if you didn't already check if this is a wall sign with appropriate text,
@@ -108,11 +104,6 @@ public class ChunkAnchor extends PersistentMechanic {
     private final Block trigger;
 
     @Override
-    public void onRightClick(PlayerInteractEvent event) {
-
-    }
-
-    @Override
     public void onBlockRedstoneChange(SourcedBlockRedstoneEvent event) {
 
         if(!CraftBookPlugin.inst().getConfiguration().chunkAnchorRedstone) return;
@@ -128,7 +119,7 @@ public class ChunkAnchor extends PersistentMechanic {
     @Override
     public boolean isActive() {
 
-        return true;
+        return isOn;
     }
 
     @Override
@@ -138,9 +129,22 @@ public class ChunkAnchor extends PersistentMechanic {
     }
 
     @Override
-    public void unloadWithEvent(ChunkUnloadEvent event) {
+    public void unloadWithEvent(final ChunkUnloadEvent event) {
 
         if (!isOn && CraftBookPlugin.inst().getConfiguration().chunkAnchorRedstone) return;
         event.setCancelled(true);
+        CraftBookPlugin.inst().getServer().getScheduler().runTaskLater(CraftBookPlugin.inst(), new Runnable() {
+
+            @Override
+            public void run () {
+                event.getWorld().loadChunk(event.getChunk().getX(), event.getChunk().getZ(), true);
+            }
+
+        }, 2L);
+    }
+
+    @Override
+    public void think () {
+        //Do nothing. We are ST so it keeps running, to keep chunks loaded.
     }
 }

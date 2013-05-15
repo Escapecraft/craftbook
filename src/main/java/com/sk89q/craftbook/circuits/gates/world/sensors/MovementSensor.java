@@ -7,9 +7,8 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -17,7 +16,6 @@ import com.sk89q.craftbook.util.EntityType;
 import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.Vector;
 
 /**
@@ -25,7 +23,7 @@ import com.sk89q.worldedit.Vector;
  *
  * @author Me4502
  */
-public class MovementSensor extends AbstractIC {
+public class MovementSensor extends AbstractSelfTriggeredIC {
 
     public MovementSensor(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -62,7 +60,7 @@ public class MovementSensor extends AbstractIC {
             center = ICUtil.parseBlockLocation(getSign());
         } else {
             getSign().setLine(2, radiusString);
-            center = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock());
+            center = getBackBlock();
         }
         getSign().update(false);
     }
@@ -83,6 +81,12 @@ public class MovementSensor extends AbstractIC {
     public void trigger(ChipState chip) {
 
         if (chip.getInput(0)) chip.setOutput(0, check());
+    }
+
+    @Override
+    public void think(ChipState chip) {
+
+        check();
     }
 
     public boolean check() {
@@ -124,8 +128,7 @@ public class MovementSensor extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"radius=x:y:z offset", "entity type"};
-            return lines;
+            return new String[] {"radius=x:y:z offset", "entity type"};
         }
     }
 }

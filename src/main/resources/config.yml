@@ -3,7 +3,7 @@ enable-mechanisms: true
 enable-vehicles: true
 
 language: en_US
-no-op-permissions: true
+no-op-permissions: false
 safe-destruction: true
 use-block-distance: false
 check-worldguard-flags: true
@@ -27,8 +27,6 @@ circuits:
 mechanics:
     ai:
         enable: true
-        zombie-enable: true
-        skeleton-enable: true
     ammeter:
         enable: true
         item: 263
@@ -54,7 +52,7 @@ mechanics:
         enable: true
         require-sneak: true
         regen-health: true
-        blocks: [53, 67, 108, 109, 114, 128, 134, 135, 136]
+        blocks: [53, 67, 108, 109, 114, 128, 134, 135, 136, 156]
     chunk-anchor:
         enable: true
     command-sign:

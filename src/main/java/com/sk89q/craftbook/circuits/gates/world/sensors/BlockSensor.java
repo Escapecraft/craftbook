@@ -4,8 +4,8 @@ import org.bukkit.Server;
 import org.bukkit.block.Block;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -14,7 +14,7 @@ import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.util.yaml.YAMLProcessor;
 
-public class BlockSensor extends AbstractIC {
+public class BlockSensor extends AbstractSelfTriggeredIC {
 
     private Block center;
     private int id;
@@ -60,6 +60,12 @@ public class BlockSensor extends AbstractIC {
         if (chip.getInput(0)) {
             chip.setOutput(0, ((Factory) getFactory()).invert ? !hasBlock() : hasBlock());
         }
+    }
+
+    @Override
+    public void think(ChipState chip) {
+
+        chip.setOutput(0, ((Factory) getFactory()).invert ? !hasBlock() : hasBlock());
     }
 
     /**
@@ -113,8 +119,7 @@ public class BlockSensor extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"x:y:z", "id:data"};
-            return lines;
+            return new String[] {"x:y:z", "id:data"};
         }
 
         @Override
@@ -128,5 +133,10 @@ public class BlockSensor extends AbstractIC {
 
             return true;
         }
+    }
+
+    @Override
+    public boolean isActive () {
+        return true;
     }
 }

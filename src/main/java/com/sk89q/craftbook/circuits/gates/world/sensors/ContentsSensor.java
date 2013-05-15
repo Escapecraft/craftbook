@@ -5,15 +5,15 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
-import com.sk89q.craftbook.util.ICUtil;
+import com.sk89q.craftbook.util.ItemUtil;
 
-public class ContentsSensor extends AbstractIC {
+public class ContentsSensor extends AbstractSelfTriggeredIC {
 
     public ContentsSensor (Server server, ChangedSign sign, ICFactory factory) {
         super(server, sign, factory);
@@ -22,10 +22,20 @@ public class ContentsSensor extends AbstractIC {
     @Override
     public void load() {
 
-        item = ICUtil.getItem(getLine(2));
+        item = ItemUtil.getItem(getLine(2));
+        if(getLine(3).isEmpty())
+            slot = -1;
+        else {
+            try {
+                slot = Integer.parseInt(getLine(3));
+            } catch (Exception e) {
+                slot = -1;
+            }
+        }
     }
 
     ItemStack item;
+    int slot;
 
     @Override
     public String getTitle () {
@@ -44,12 +54,24 @@ public class ContentsSensor extends AbstractIC {
             chip.setOutput(0, sense());
     }
 
+    @Override
+    public void think (ChipState chip) {
+
+        chip.setOutput(0, sense());
+    }
+
     public boolean sense() {
 
         if (getBackBlock().getRelative(0, 1, 0).getState() instanceof InventoryHolder) {
 
             InventoryHolder inv = (InventoryHolder) getBackBlock().getRelative(0, 1, 0).getState();
-            return inv.getInventory().containsAtLeast(item, 1);
+            if(slot < 0 || slot > inv.getInventory().getContents().length) {
+                for(ItemStack cont : inv.getInventory().getContents())
+                    if(ItemUtil.areItemsIdentical(cont, item))
+                        return true;
+            }
+            else
+                return ItemUtil.areItemsIdentical(item, inv.getInventory().getItem(slot));
         }
 
         return false;
@@ -71,7 +93,7 @@ public class ContentsSensor extends AbstractIC {
         @Override
         public void verify(ChangedSign sign) throws ICVerificationException {
 
-            ItemStack item = ICUtil.getItem(sign.getLine(2));
+            ItemStack item = ItemUtil.getItem(sign.getLine(2));
             if(item == null)
                 throw new ICVerificationException("Invalid item to detect!");
         }
@@ -85,8 +107,7 @@ public class ContentsSensor extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"item id:data", null};
-            return lines;
+            return new String[] {"item id:data", "slot (optional)"};
         }
     }
 }

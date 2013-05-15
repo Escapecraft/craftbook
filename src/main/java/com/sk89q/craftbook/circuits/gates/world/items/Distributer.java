@@ -15,8 +15,8 @@ import org.bukkit.material.PistonBaseMaterial;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.CircuitCore;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -28,7 +28,7 @@ import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.blocks.BlockID;
 
-public class Distributer extends AbstractIC implements PipeInputIC {
+public class Distributer extends AbstractSelfTriggeredIC implements PipeInputIC {
 
     public Distributer(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -51,7 +51,7 @@ public class Distributer extends AbstractIC implements PipeInputIC {
         }
         left = Integer.parseInt(RegexUtil.COLON_PATTERN.split(getLine(2))[0]);
         right = Integer.parseInt(RegexUtil.COLON_PATTERN.split(getLine(2))[1]);
-        chestBlock = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, 1, 0);
+        chestBlock = getBackBlock().getRelative(0, 1, 0);
     }
 
     @Override
@@ -70,6 +70,12 @@ public class Distributer extends AbstractIC implements PipeInputIC {
     public void trigger(ChipState chip) {
 
         if (chip.getInput(0)) chip.setOutput(0, distribute());
+    }
+
+    @Override
+    public void think(ChipState state) {
+
+        state.setOutput(0, distribute());
     }
 
     public boolean distribute() {
@@ -112,8 +118,7 @@ public class Distributer extends AbstractIC implements PipeInputIC {
                         List<ItemStack> items = new ArrayList<ItemStack>();
                         items.add(item.getItemStack());
                         if (CircuitCore.inst().getPipeFactory() != null)
-                            if (CircuitCore.inst().getPipeFactory().detect(BukkitUtil.toWorldVector(b),
-                                    items) != null) {
+                            if (CircuitCore.inst().getPipeFactory().detectWithItems(BukkitUtil.toWorldVector(b), items) != null) {
                                 item.remove();
                                 pipes = true;
                                 returnValue = true;
@@ -151,7 +156,7 @@ public class Distributer extends AbstractIC implements PipeInputIC {
                 List<ItemStack> items = new ArrayList<ItemStack>();
                 items.add(item);
                 if (CircuitCore.inst().getPipeFactory() != null)
-                    if (CircuitCore.inst().getPipeFactory().detect(BukkitUtil.toWorldVector(b), items) != null) {
+                    if (CircuitCore.inst().getPipeFactory().detectWithItems(BukkitUtil.toWorldVector(b), items) != null) {
                         pipes = true;
                     }
             }
@@ -199,8 +204,7 @@ public class Distributer extends AbstractIC implements PipeInputIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"left quantity:right quantity", "Current distribution status"};
-            return lines;
+            return new String[] {"left quantity:right quantity", "Current distribution status"};
         }
 
         @Override

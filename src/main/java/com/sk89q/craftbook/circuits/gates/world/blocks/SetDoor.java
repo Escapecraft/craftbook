@@ -12,6 +12,7 @@ import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
+import com.sk89q.craftbook.util.BlockUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
@@ -30,9 +31,9 @@ public class SetDoor extends AbstractIC {
     private int width;
     private int height;
 
-    private int offsetX;
-    private int offsetY;
-    private int offsetZ;
+    private int offsetX = 0;
+    private int offsetY = 1;
+    private int offsetZ = 0;
 
     private Block center;
     private BlockFace faceing;
@@ -94,13 +95,9 @@ public class SetDoor extends AbstractIC {
                 offsetY = Integer.parseInt(offsetSplit[1]);
                 offsetZ = Integer.parseInt(offsetSplit[2]);
             } catch (NumberFormatException e) {
-                offsetX = 0;
-                offsetY = 1;
-                offsetZ = 0;
+                // ignore and use defaults
             } catch (IndexOutOfBoundsException e) {
-                offsetX = 0;
-                offsetY = 1;
-                offsetZ = 0;
+                // ignore and use defaults
             }
             try {
                 // parse the size of the door
@@ -116,10 +113,10 @@ public class SetDoor extends AbstractIC {
             if (relativeOffset) {
                 center = LocationUtil.getRelativeOffset(getSign(), offsetX, offsetY, offsetZ);
             } else {
-                center = LocationUtil.getOffset(SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()), offsetX, offsetY, offsetZ);
+                center = LocationUtil.getOffset(getBackBlock(), offsetX, offsetY, offsetZ);
             }
         } else {
-            center = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(BlockFace.UP);
+            center = getBackBlock().getRelative(BlockFace.UP);
         }
     }
 
@@ -143,6 +140,8 @@ public class SetDoor extends AbstractIC {
         } else {
             setDoor(false);
         }
+
+        chip.setOutput(0, chip.getInput(0));
     }
 
     private void setDoor(boolean open) {
@@ -150,9 +149,14 @@ public class SetDoor extends AbstractIC {
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 Block block = LocationUtil.getRelativeOffset(center, faceing, x, y, 0);
+                // do not replace the block the sign is on
+                boolean isSource = block.equals(getBackBlock());
+
                 if (open) {
+                    if (isSource && !BlockUtil.isBlockSolid(onMaterial)) continue;
                     block.setTypeIdAndData(onMaterial, (byte) onData, true);
                 } else {
+                    if (isSource && !BlockUtil.isBlockSolid(offMaterial)) continue;
                     block.setTypeIdAndData(offMaterial, (byte) offData, true);
                 }
             }
@@ -181,8 +185,7 @@ public class SetDoor extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"onID:onData-offID:offData", "offset x,y,z:width,height"};
-            return lines;
+            return new String[] {"onID{:onData-offID:offData}", "offset x,y,z:width,height"};
         }
     }
 }

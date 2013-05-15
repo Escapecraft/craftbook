@@ -1,6 +1,6 @@
 package com.sk89q.craftbook.util;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
@@ -10,12 +10,12 @@ import com.sk89q.worldedit.blocks.BlockID;
 
 public class RailUtil {
 
-    public static ArrayList<Chest> getNearbyChests(Block body) {
+    public static HashSet<Chest> getNearbyChests(Block body) {
 
         int x = body.getX();
         int y = body.getY();
         int z = body.getZ();
-        ArrayList<Chest> containers = new ArrayList<Chest>();
+        HashSet<Chest> containers = new HashSet<Chest>();
         if (body.getWorld().getBlockAt(x, y, z).getTypeId() == BlockID.CHEST) {
             containers.add((Chest) body.getWorld().getBlockAt(x, y, z).getState());
         }
@@ -47,15 +47,13 @@ public class RailUtil {
         return containers;
     }
 
-    private static final int[] trackBlocks = new int[] {
-        BlockID.MINECART_TRACKS, BlockID.POWERED_RAIL,
-        BlockID.DETECTOR_RAIL
+    private static final int[] trackBlocks = new int[] { BlockID.MINECART_TRACKS, BlockID.POWERED_RAIL, BlockID.DETECTOR_RAIL, BlockID.ACTIVATOR_RAIL
     };
 
     public static boolean isTrack(int id) {
 
         if (CraftBookPlugin.inst().getConfiguration().minecartPressurePlateIntersection)
-            if (id == BlockID.STONE_PRESSURE_PLATE || id == BlockID.WOODEN_PRESSURE_PLATE)
+            if (id == BlockID.STONE_PRESSURE_PLATE || id == BlockID.WOODEN_PRESSURE_PLATE || id == BlockID.PRESSURE_PLATE_HEAVY || id == BlockID.PRESSURE_PLATE_LIGHT)
                 return true;
 
         for (int trackBlock : trackBlocks) {

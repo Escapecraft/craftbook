@@ -16,6 +16,7 @@
 
 package com.sk89q.craftbook.mech;
 
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -298,11 +299,10 @@ public class Bridge extends AbstractMechanic {
                     return;
                 }
 
-        flipState(player);
-
         event.setCancelled(true);
 
-        player.print("mech.bridge.toggle");
+        if(flipState(player))
+            player.print("mech.bridge.toggle");
     }
 
     @Override
@@ -312,14 +312,16 @@ public class Bridge extends AbstractMechanic {
         if (!BukkitUtil.toWorldVector(event.getBlock()).equals(BukkitUtil.toWorldVector(trigger))) return;
         if (event.getNewCurrent() == event.getOldCurrent()) return;
 
-        if (event.getNewCurrent() == 0) {
-            plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new ToggleRegionOpen(), 2);
-        } else {
-            plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new ToggleRegionClosed(null), 2);
-        }
+        Bukkit.getScheduler().runTaskLater(CraftBookPlugin.inst(), new Runnable() {
+
+            @Override
+            public void run () {
+                flipState(null);
+            }
+        }, 2L);
     }
 
-    private void flipState(LocalPlayer player) {
+    private boolean flipState(LocalPlayer player) {
         // this is kinda funky, but we only check one position
         // to see if the bridge is open and/or closable.
         // efficiency choice :/
@@ -331,67 +333,56 @@ public class Bridge extends AbstractMechanic {
         // obsidian in the middle of a wooden bridge, just weird
         // results.
         if (canPassThrough(hinge.getTypeId())) {
-            new ToggleRegionClosed(player).run();
+            return closeBridge(player);
         } else {
-            new ToggleRegionOpen().run();
+            return openBridge();
         }
     }
 
-    private class ToggleRegionOpen implements Runnable {
+    public boolean openBridge() {
 
-        @Override
-        public void run() {
-
-            for (BlockVector bv : toggle) {
-                Block b = trigger.getWorld().getBlockAt(bv.getBlockX(), bv.getBlockY(), bv.getBlockZ());
-                int oldType = b.getTypeId();
-                if (b.getTypeId() == getBridgeMaterial() || canPassThrough(b.getTypeId())) {
-                    b.setTypeId(BlockID.AIR);
-                    if (plugin.getConfiguration().safeDestruction) {
-                        ChangedSign s = BukkitUtil.toChangedSign(trigger);
-                        if (oldType != 0) {
-                            addBlocks(s, 1);
-                        }
+        for (BlockVector bv : toggle) {
+            Block b = trigger.getWorld().getBlockAt(bv.getBlockX(), bv.getBlockY(), bv.getBlockZ());
+            int oldType = b.getTypeId();
+            if (b.getTypeId() == getBridgeMaterial() || canPassThrough(b.getTypeId())) {
+                b.setTypeId(BlockID.AIR);
+                if (plugin.getConfiguration().safeDestruction) {
+                    ChangedSign s = BukkitUtil.toChangedSign(trigger);
+                    if (oldType == getBridgeMaterial()) {
+                        addBlocks(s, 1);
                     }
                 }
             }
         }
+
+        return true;
     }
 
-    private class ToggleRegionClosed implements Runnable {
+    public boolean closeBridge(LocalPlayer player) {
 
-        final LocalPlayer player;
-
-        public ToggleRegionClosed(LocalPlayer player) {
-
-            this.player = player;
-        }
-
-        @Override
-        public void run() {
-
-            for (BlockVector bv : toggle) {
-                Block b = trigger.getWorld().getBlockAt(bv.getBlockX(), bv.getBlockY(), bv.getBlockZ());
-                if (canPassThrough(b.getTypeId())) {
-                    if (plugin.getConfiguration().safeDestruction) {
-                        ChangedSign s = BukkitUtil.toChangedSign(trigger);
-                        if (hasEnoughBlocks(s)) {
-                            b.setTypeId(getBridgeMaterial());
-                            b.setData(getBridgeData());
-                            removeBlocks(s, 1);
-                        } else {
-                            if (player != null) {
-                                player.printError("mech.not-enough-blocks");
-                            }
-                            return;
-                        }
-                    } else {
+        for (BlockVector bv : toggle) {
+            Block b = trigger.getWorld().getBlockAt(bv.getBlockX(), bv.getBlockY(), bv.getBlockZ());
+            if (canPassThrough(b.getTypeId())) {
+                if (plugin.getConfiguration().safeDestruction) {
+                    ChangedSign s = BukkitUtil.toChangedSign(trigger);
+                    if (hasEnoughBlocks(s)) {
                         b.setTypeId(getBridgeMaterial());
                         b.setData(getBridgeData());
+                        removeBlocks(s, 1);
+                    } else {
+                        if (player != null) {
+                            player.printError("mech.not-enough-blocks");
+                        }
+                        return false;
                     }
+                } else {
+                    b.setTypeId(getBridgeMaterial());
+                    b.setData(getBridgeData());
                 }
             }
         }
+
+        return true;
     }
 
     private int getBridgeMaterial() {
@@ -508,13 +499,34 @@ public class Bridge extends AbstractMechanic {
         return curBlocks >= 0;
     }
 
+    public void setBlocks(ChangedSign s, int amount) {
+
+        if (s.getLine(0).equalsIgnoreCase("infinite")) return;
+        int curBlocks = amount;
+        s.setLine(0, String.valueOf(curBlocks));
+        s.update(false);
+    }
+
     public int getBlocks(ChangedSign s) {
 
-        if (s.getLine(0).equalsIgnoreCase("infinite")) return 0;
-        int curBlocks;
+        ChangedSign otherSign = BukkitUtil.toChangedSign(farSide);
+        return getBlocks(s, otherSign);
+    }
+
+    public int getBlocks(ChangedSign s, ChangedSign other) {
+
+        if (s.getLine(0).equalsIgnoreCase("infinite") || other != null && other.getLine(0).equalsIgnoreCase("infinite"))
+            return 0;
+        int curBlocks = 0;
         try {
             curBlocks = Integer.parseInt(s.getLine(0));
-        } catch (NumberFormatException e) {
+            try {
+                curBlocks += Integer.parseInt(other.getLine(0));
+                setBlocks(s, curBlocks);
+                setBlocks(other, 0);
+            } catch (Exception ignored) {
+            }
+        } catch (Exception e) {
             curBlocks = 0;
         }
         return curBlocks;

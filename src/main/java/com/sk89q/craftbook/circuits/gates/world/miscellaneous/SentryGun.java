@@ -7,17 +7,18 @@ import org.bukkit.entity.Entity;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
 import com.sk89q.craftbook.util.EntityType;
+import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.SignUtil;
 
-public class SentryGun extends AbstractIC {
+public class SentryGun extends AbstractSelfTriggeredIC {
 
     private EntityType type;
     private Block center;
@@ -32,7 +33,7 @@ public class SentryGun extends AbstractIC {
     public void load() {
 
         type = EntityType.fromString(getSign().getLine(2));
-        center = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock());
+        center = getBackBlock();
         radius = Integer.parseInt(getSign().getLine(3));
     }
 
@@ -50,6 +51,12 @@ public class SentryGun extends AbstractIC {
 
     @Override
     public void trigger(ChipState chip) {
+
+        shoot();
+    }
+
+    @Override
+    public void think(ChipState state) {
 
         shoot();
     }
@@ -72,8 +79,7 @@ public class SentryGun extends AbstractIC {
          */
 
         for (Entity aEntity : center.getWorld().getEntities()) {
-            if (!aEntity.isDead() && aEntity.isValid() && type.is(aEntity)
-                    && aEntity.getLocation().distanceSquared(center.getLocation()) <= radius * radius) {
+            if (!aEntity.isDead() && aEntity.isValid() && type.is(aEntity) && LocationUtil.getDistanceSquared(aEntity.getLocation(), center.getLocation()) <= radius * radius) {
                 Block signBlock = BukkitUtil.toSign(getSign()).getBlock();
                 BlockFace face = SignUtil.getBack(signBlock);
                 Block targetDir = signBlock.getRelative(face).getRelative(face);
@@ -120,8 +126,7 @@ public class SentryGun extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"Mob Type", "Radius"};
-            return lines;
+            return new String[] {"Mob Type", "Radius"};
         }
     }
 }

@@ -99,10 +99,7 @@ public class ProgrammableFireworkShow extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {
-                    "Name of firework show", null
-            };
-            return lines;
+            return new String[] {"Name of firework show", null};
         }
     }
 
@@ -136,7 +133,7 @@ public class ProgrammableFireworkShow extends AbstractIC {
                 fyrestone = true;
                 firework = new File(CircuitCore.inst().getFireworkFolder(), show + ".fwk");
                 if (!firework.exists()) {
-                    Bukkit.getLogger().severe("Firework File Not Found! " + firework.getName());
+                    CraftBookPlugin.logger().severe("Firework File Not Found! " + firework.getName());
                     return;
                 }
             }
@@ -280,6 +277,8 @@ public class ProgrammableFireworkShow extends AbstractIC {
 
                         if(effects.containsKey(line.replace("launch ", ""))) {
 
+                            if(!location.getBlock().getChunk().isLoaded())
+                                continue;
                             Firework firework = (Firework) location.getWorld().spawnEntity(location, EntityType.FIREWORK);
                             FireworkMeta meta = firework.getFireworkMeta();
                             for(FireworkEffect effect : effects.get(line.replace("launch ", "")))
@@ -377,6 +376,9 @@ public class ProgrammableFireworkShow extends AbstractIC {
                             FireworkEffect effect = FireworkEffect.builder().with(type).withColor(colour).withFade
                                     (fade).flicker(flicker).trail(trail).build();
 
+                            if(!location.getBlock().getChunk().isLoaded())
+                                continue;
+
                             Firework firework = (Firework) location.getWorld().spawnEntity(location,
                                     EntityType.FIREWORK);
                             FireworkMeta meta = firework.getFireworkMeta();
@@ -384,7 +386,7 @@ public class ProgrammableFireworkShow extends AbstractIC {
                             meta.setPower((int) duration * 2);
                             firework.setFireworkMeta(meta);
                         } catch (Exception e) {
-                            Bukkit.getLogger().severe("Error occured while doing: " + errorLocation + ". Whilst " +
+                            CraftBookPlugin.logger().severe("Error occured while doing: " + errorLocation + ". Whilst " +
                                     "reading line " + position + " of the firework file " + show + "!");
                             BukkitUtil.printStacktrace(e);
                         }

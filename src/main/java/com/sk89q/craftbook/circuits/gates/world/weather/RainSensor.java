@@ -4,13 +4,13 @@ import org.bukkit.Server;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 
-public class RainSensor extends AbstractIC {
+public class RainSensor extends AbstractSelfTriggeredIC {
 
     public RainSensor(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -37,6 +37,12 @@ public class RainSensor extends AbstractIC {
         }
     }
 
+    @Override
+    public void think(ChipState chip) {
+
+        chip.setOutput(0, BukkitUtil.toSign(getSign()).getWorld().hasStorm());
+    }
+
     public static class Factory extends AbstractICFactory {
 
         public Factory(Server server) {
@@ -54,13 +60,6 @@ public class RainSensor extends AbstractIC {
         public String getShortDescription() {
 
             return "Outputs high if it is raining.";
-        }
-
-        @Override
-        public String[] getLineHelp() {
-
-            String[] lines = new String[] {null, null};
-            return lines;
         }
     }
 }

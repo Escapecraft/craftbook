@@ -3,11 +3,9 @@ package com.sk89q.craftbook.util;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 
+import com.sk89q.worldedit.blocks.BlockID;
+
 public class BlockUtil {
-
-    private BlockUtil() {
-
-    }
 
     public static boolean areBlocksSimilar(Block block, Block block2) {
 
@@ -31,9 +29,24 @@ public class BlockUtil {
         return false;
     }
 
-    public static void setBlockTypeAndData(Block block, int type, byte data) {
+    public static boolean isBlockSolid(int id) {
 
-        block.setTypeIdAndData(type, data, true);
+        switch (id) {
+
+            case BlockID.AIR:
+            case BlockID.CROPS:
+            case BlockID.DEAD_BUSH:
+            case BlockID.END_PORTAL:
+            case BlockID.FIRE:
+            case BlockID.GRASS:
+            case BlockID.LAVA:
+            case BlockID.STATIONARY_LAVA:
+            case BlockID.WATER:
+            case BlockID.STATIONARY_WATER:
+                return false;
+            default:
+                return true;
+        }
     }
 
     public static Location getBlockCentre(Block block) {

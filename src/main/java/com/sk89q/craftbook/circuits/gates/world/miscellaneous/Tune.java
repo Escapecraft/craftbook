@@ -44,7 +44,7 @@ public class Tune extends AbstractIC {
 
             if (sequencer != null || jNote != null) {
                 for (Player player : getServer().getOnlinePlayers()) {
-                    jNote.stop(player);
+                    jNote.stop(player.getName());
                 }
                 jNote.stopAll();
             }
@@ -57,12 +57,12 @@ public class Tune extends AbstractIC {
                         player.getLocation(), radius)) {
                     continue;
                 }
-                jNote.play(player, sequencer);
+                jNote.play(player.getName(), sequencer, getSign().getBlockVector(), radius);
             }
         } else if (!chip.getInput(0) && sequencer != null) {
             sequencer.stop();
             for (Player player : getServer().getOnlinePlayers()) {
-                jNote.stop(player);
+                jNote.stop(player.getName());
             }
             jNote.stopAll();
         }
@@ -103,7 +103,7 @@ public class Tune extends AbstractIC {
         try {
             sequencer.stop();
             for (Player player : getServer().getOnlinePlayers()) {
-                jNote.stop(player);
+                jNote.stop(player.getName());
             }
             jNote.stopAll();
         } catch (Exception ignored) {
@@ -126,8 +126,7 @@ public class Tune extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"Delay:Tune", "Radius"};
-            return lines;
+            return new String[] {"Delay:Tune", "Radius"};
         }
 
         @Override

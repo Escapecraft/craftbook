@@ -7,9 +7,8 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Minecart;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -23,7 +22,7 @@ import com.sk89q.worldedit.Vector;
 /**
  * @author Me4502
  */
-public class EntityTrap extends AbstractIC {
+public class EntityTrap extends AbstractSelfTriggeredIC {
 
     public EntityTrap(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -50,6 +49,12 @@ public class EntityTrap extends AbstractIC {
         }
     }
 
+    @Override
+    public void think(ChipState chip) {
+
+        chip.setOutput(0, hurt());
+    }
+
     Vector radius;
     int damage;
     EntityType type;
@@ -58,19 +63,14 @@ public class EntityTrap extends AbstractIC {
     @Override
     public void load() {
 
-        location = BukkitUtil.toSign(getSign()).getLocation();
+        location = ICUtil.parseBlockLocation(getSign(), 2).getLocation();
         radius = ICUtil.parseRadius(getSign());
         try {
             String[] splitLine = RegexUtil.EQUALS_PATTERN.split(getSign().getLine(2), 3);
-            if (getSign().getLine(2).contains("=")) {
-                String[] pos = RegexUtil.COLON_PATTERN.split(splitLine[1]);
-                int x = Integer.parseInt(pos[0]);
-                int y = Integer.parseInt(pos[1]);
-                int z = Integer.parseInt(pos[2]);
-                location.add(x, y, z);
-
+            if (splitLine.length > 2) {
                 damage = Integer.parseInt(splitLine[2]);
-            } else damage = 2;
+            } else
+                damage = 2;
         } catch (Exception ignored) {
             damage = 2;
         }
@@ -131,8 +131,7 @@ public class EntityTrap extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"radius=x:y:z=damage", "mob type"};
-            return lines;
+            return new String[] {"radius=x:y:z=damage", "mob type"};
         }
     }
 }

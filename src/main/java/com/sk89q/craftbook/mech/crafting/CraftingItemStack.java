@@ -1,127 +1,87 @@
 package com.sk89q.craftbook.mech.crafting;
 
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
 
-import org.bukkit.Material;
-import org.bukkit.entity.Item;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 
-import com.sk89q.craftbook.util.RegexUtil;
+import com.sk89q.craftbook.bukkit.CraftBookPlugin;
+import com.sk89q.craftbook.util.ItemUtil;
 
 /**
  * @author Silthus
  */
 public class CraftingItemStack implements Comparable<CraftingItemStack> {
 
-    public static Collection<CraftingItemStack> convert(Collection<Item> stacks) {
+    private ItemStack item;
 
-        Map<String, Integer> items = new HashMap<String, Integer>();
-        for (Item item : stacks) {
-            ItemStack stack = item.getItemStack();
-            String name = stack.getType() + ":" + stack.getDurability();
-            if (items.containsKey(name)) {
-                items.put(name, items.get(name) + stack.getAmount());
-            } else {
-                items.put(name, stack.getAmount());
-            }
+    //Advanced data
+    private HashMap<String, Object> advancedData = new HashMap<String, Object>();
+
+    public HashMap<String, Object> getAllAdvancedData() {
+
+        return advancedData;
+    }
+
+    public boolean hasAdvancedData() {
+        return !advancedData.isEmpty();
+    }
+
+    public boolean hasAdvancedData(String key) {
+        return advancedData.containsKey(key);
+    }
+
+    public Object getAdvancedData(String key) {
+        return advancedData.get(key);
+    }
+
+    public void addAdvancedData(String key, Object data) {
+        if(CraftBookPlugin.isDebugFlagEnabled("advanced-data"))
+            CraftBookPlugin.logger().info("Adding advanced data of type: " + key + " to an ItemStack!");
+        advancedData.put(key, data);
+    }
+
+    public CraftingItemStack(ItemStack item) {
+
+        this.item = item;
+        if(item != null && item.hasItemMeta()) { //We have some advanced data to set.
+
+            if(item.getItemMeta().hasDisplayName())
+                addAdvancedData("name", item.getItemMeta().getDisplayName());
+            if(item.getItemMeta().hasLore())
+                addAdvancedData("lore", item.getItemMeta().getLore());
+            if(item.getItemMeta().hasEnchants())
+                addAdvancedData("enchants", item.getItemMeta().getEnchants());
         }
-        Set<CraftingItemStack> stackSet = new LinkedHashSet<CraftingItemStack>();
-        // merge the amounts and stacks
-        for (Map.Entry<String, Integer> entry : items.entrySet()) {
-            String[] split = RegexUtil.COLON_PATTERN.split(entry.getKey());
-            stackSet.add(new CraftingItemStack(Material.getMaterial(split[0]), Short.parseShort(split[1]),
-                    entry.getValue()));
-        }
-        return stackSet;
-    }
-
-    private Material material;
-    private short data;
-    private int amount;
-
-    public CraftingItemStack(Material material, short data, int amount) {
-
-        this.material = material;
-        this.data = data;
-        this.amount = amount;
-    }
-
-    public CraftingItemStack(Material material, int amount) {
-
-        this.material = material;
-        this.amount = amount;
-        data = 0;
-    }
-
-    public CraftingItemStack(Material material, short data) {
-
-        this(material, data, 0);
-    }
-
-    public CraftingItemStack(Material material) {
-
-        this(material, 0);
-    }
-
-    public Material getMaterial() {
-
-        return material;
-    }
-
-    public short getData() {
-
-        return data;
-    }
-
-    public int getAmount() {
-
-        if (amount < 1) return 1;
-        return amount;
-    }
-
-    public void setMaterial(Material material) {
-
-        this.material = material;
-    }
-
-    public void setData(short data) {
-
-        this.data = data;
-    }
-
-    public void setAmount(int amount) {
-
-        this.amount = amount;
     }
 
     public ItemStack getItemStack() {
 
-        return new ItemStack(material, amount, data);
+        return item;
     }
 
     public CraftingItemStack add(CraftingItemStack stack) {
 
-        if (stack.equals(this)) {
-            amount += stack.getAmount();
+        if (stack.isSameType(this)) {
+            ItemUtil.addToStack(item, stack.getItemStack());
+            advancedData.putAll(stack.getAllAdvancedData());
         }
         return this;
     }
 
     public boolean isSameType(CraftingItemStack stack) {
 
-        if (data == -1 || stack.getData() == -1) return stack.getMaterial() == getMaterial();
-        return stack.getMaterial() == getMaterial() && stack.getData() == getData();
+        return ItemUtil.areItemsIdentical(item, stack.item);
     }
 
     @Override
     public int compareTo(CraftingItemStack stack) {
 
-        if (getAmount() > stack.getAmount()) return 1;
-        if (getAmount() == stack.getAmount()) return 0;
+        if (stack.getItemStack().getAmount() > item.getAmount()) return 1;
+        if (stack.getItemStack().getAmount() == item.getAmount()) return 0;
         return -1;
     }
 
@@ -130,9 +90,8 @@ public class CraftingItemStack implements Comparable<CraftingItemStack> {
 
         final int prime = 31;
         int result = 1;
-        result = prime * result + amount;
-        result = prime * result + data;
-        result = prime * result + (material == null ? 0 : material.hashCode());
+        result = prime * result + item.hashCode();
+        result = prime * result + advancedData.hashCode();
         return result;
     }
 
@@ -141,8 +100,32 @@ public class CraftingItemStack implements Comparable<CraftingItemStack> {
 
         if (obj instanceof CraftingItemStack) {
             CraftingItemStack stack = (CraftingItemStack) obj;
-            return isSameType(stack) && stack.getAmount() == getAmount();
+            return isSameType(stack) && stack.getItemStack().getAmount() == getItemStack().getAmount();
         }
         return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public String toString() {
+
+        String me = getItemStack().getType().name();
+        if(getItemStack().getDurability() > 0)
+            me = me + ":" + getItemStack().getDurability();
+
+        if(hasAdvancedData("enchants"))
+            for(Entry<Enchantment,Integer> enchants : ((Map<Enchantment,Integer>)getAdvancedData("enchants")).entrySet())
+                me = me + ";" + enchants.getKey().getName() + ":" + enchants.getValue();
+
+        if(hasAdvancedData("name"))
+            me = me + "|" + getAdvancedData("name");
+
+        if(hasAdvancedData("lore")) {
+            List<String> list = (List<String>)getAdvancedData("lore");
+            for(String s : list)
+                me = me + "|" + s;
+        }
+
+        return me;
     }
 }

@@ -72,10 +72,7 @@ public class MessageSender extends AbstractIC {
         String name = getLine(2);
         String message = getLine(3);
         Player player = getServer().getPlayer(name);
-        // FIXME: There is a cached block problem somewhere if the sign is
-        // destroyed and replaced.
-        // Until the player relogs, the sign will continue sending to the name
-        // on the first sign.
+
         if (player != null) {
             player.sendMessage(message.replace("&", "\u00A7"));
             sent = true;
@@ -102,7 +99,7 @@ public class MessageSender extends AbstractIC {
         public void checkPlayer(ChangedSign sign, LocalPlayer player) throws ICVerificationException {
 
             if (!sign.getLine(2).equalsIgnoreCase(player.getName()))
-                if (!ICMechanicFactory.checkPermissionsBoolean(player, this, "mc1510"))
+                if (!ICMechanicFactory.hasRestrictedPermissions(player, this, "mc1510"))
                     throw new ICVerificationException("You don't have permission to use other players!");
         }
 
@@ -115,8 +112,7 @@ public class MessageSender extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"name of player, or BROADCAST for whole server", "Message to send."};
-            return lines;
+            return new String[] {"name of player, or BROADCAST for whole server", "Message to send."};
         }
     }
 }

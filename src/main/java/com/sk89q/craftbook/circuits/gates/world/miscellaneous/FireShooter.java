@@ -97,6 +97,9 @@ public class FireShooter extends AbstractIC {
         float z = targetDir.getZ() - signBlock.getZ();
         Location shootLoc = new Location(BukkitUtil.toSign(getSign()).getWorld(), targetDir.getX() + 0.5,targetDir.getY() + 0.5,targetDir.getZ() + 0.5);
 
+        if(!shootLoc.getChunk().isLoaded())
+            return;
+
         for (short i = 0; i < n; i++) {
 
             float f2 = (float) Math.sqrt(x * x + vert * vert + z * z);
@@ -141,8 +144,7 @@ public class FireShooter extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"speed:spread", "vertical gain"};
-            return lines;
+            return new String[] {"speed:spread", "vertical gain"};
         }
     }
 }

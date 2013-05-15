@@ -19,12 +19,13 @@ import org.bukkit.scheduler.BukkitTask;
 import com.sk89q.craftbook.bukkit.CircuitCore;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.worldedit.WorldVector;
 
 public class Playlist {
 
     String playlist;
 
-    protected volatile HashSet<Player> players; // Super safe code here.. this is going to be done across threads.
+    protected volatile HashSet<Player> players; // Super safe code here.. this is going to be accessed across threads.
     private volatile HashSet<Player> lastPlayers;
 
     int position;
@@ -36,6 +37,9 @@ public class Playlist {
     volatile JingleNoteManager jNote = new JingleNoteManager();
     volatile MidiJingleSequencer midiSequencer;
     volatile StringJingleSequencer stringSequencer;
+
+    private WorldVector centre;
+    private int radius;
 
     public Playlist(String name) {
 
@@ -49,12 +53,26 @@ public class Playlist {
         }
     }
 
+    public Playlist(String name, WorldVector centre, int radius) {
+
+        players = new HashSet<Player>();
+        lastPlayers = new HashSet<Player>();
+        playlist = name;
+        this.centre = centre;
+        this.radius = radius;
+        try {
+            readPlaylist();
+        } catch (IOException e) {
+            BukkitUtil.printStacktrace(e);
+        }
+    }
+
     public void readPlaylist() throws IOException {
 
         lines.clear();
         File file = new File(new File(CircuitCore.inst().getMidiFolder(), "playlists"), playlist + ".txt");
         if(!file.exists()) {
-            Bukkit.getLogger().severe("Playlist File Not Found! " + file.getName());
+            CraftBookPlugin.logger().severe("Playlist File Not Found! " + file.getName());
             return;
         }
         BufferedReader br = new BufferedReader(new FileReader(file));
@@ -125,27 +143,24 @@ public class Playlist {
 
                 if(midiSequencer != null) {
 
-                    while(midiSequencer.isSongPlaying()) {
+                    while(midiSequencer != null && midiSequencer.isSongPlaying()) {
 
                         if(!areIdentical(players, lastPlayers)) {
 
-                            Bukkit.getLogger().severe("OUT OF SYNC PLAYERS");
                             for(Player p : players) {
 
                                 if(lastPlayers.contains(p))
                                     continue;
-                                Bukkit.getLogger().severe("ADDING A PLAYER");
 
-                                jNote.play(p, midiSequencer);
+                                jNote.play(p.getName(), midiSequencer, centre, radius);
                             }
 
                             for(Player p : lastPlayers) {
 
                                 if(players.contains(p))
                                     continue;
-                                Bukkit.getLogger().severe("TAKING A PLAYER");
 
-                                jNote.stop(p);
+                                jNote.stop(p.getName());
                             }
 
                             lastPlayers = (HashSet<Player>) players.clone();
@@ -161,7 +176,7 @@ public class Playlist {
                 }
                 if(stringSequencer != null) {
 
-                    while(stringSequencer.isSongPlaying()) {
+                    while(stringSequencer != null && stringSequencer.isSongPlaying()) {
 
                         if(!lastPlayers.equals(players)) {
 
@@ -170,7 +185,7 @@ public class Playlist {
                                 if(lastPlayers.contains(p))
                                     continue;
 
-                                jNote.play(p, stringSequencer);
+                                jNote.play(p.getName(), stringSequencer, centre, radius);
                             }
 
                             for(Player p : lastPlayers) {
@@ -178,7 +193,7 @@ public class Playlist {
                                 if(players.contains(p))
                                     continue;
 
-                                jNote.stop(p);
+                                jNote.stop(p.getName());
                             }
 
                             lastPlayers = (HashSet<Player>) players.clone();
@@ -193,7 +208,6 @@ public class Playlist {
                     stringSequencer = null;
                 }
                 String line = lines.get(position);
-                Bukkit.getLogger().severe(line);
                 position++;
                 if (line.trim().startsWith("#") || line.trim().isEmpty())
                     continue;
@@ -205,6 +219,14 @@ public class Playlist {
                     return;
                 } else if (line.startsWith("midi ")) {
 
+                    if(players.isEmpty()) {
+                        try {
+                            Thread.sleep(1000L);
+                        } catch (InterruptedException e) {
+                            BukkitUtil.printStacktrace(e);
+                        }
+                        continue;
+                    }
                     File file = null;
                     String midiName = line.replace("midi ", "");
 
@@ -225,7 +247,18 @@ public class Playlist {
 
                     try {
                         midiSequencer = new MidiJingleSequencer(file);
-                        midiSequencer.getSequencer().start();
+                        if (!midiSequencer.getSequencer().isOpen()) {
+                            midiSequencer.getSequencer().open();
+                        }
+
+                        for(Player player : players)
+                            jNote.play(player.getName(), midiSequencer, centre, radius);
+
+                        try {
+                            Thread.sleep(1000L);
+                        } catch (InterruptedException e) {
+                            BukkitUtil.printStacktrace(e);
+                        }
                     } catch (MidiUnavailableException e) {
                         BukkitUtil.printStacktrace(e);
                     } catch (InvalidMidiDataException e) {
@@ -233,19 +266,38 @@ public class Playlist {
                     } catch (IOException e) {
                         BukkitUtil.printStacktrace(e);
                     }
-
-                    for(Player player : players)
-                        jNote.play(player, midiSequencer);
                 } else if (line.startsWith("tune ")) {
 
+                    if(players.isEmpty()) {
+                        try {
+                            Thread.sleep(1000L);
+                        } catch (InterruptedException e) {
+                            BukkitUtil.printStacktrace(e);
+                        }
+                        continue;
+                    }
                     String tune = line.replace("tune ", "");
 
                     stringSequencer = new StringJingleSequencer(tune, 0);
 
                     for(Player player : players)
-                        jNote.play(player, stringSequencer);
+                        jNote.play(player.getName(), stringSequencer, centre, radius);
+
+                    try {
+                        Thread.sleep(1000L);
+                    } catch (InterruptedException e) {
+                        BukkitUtil.printStacktrace(e);
+                    }
                 } else if (line.startsWith("send ")) {
 
+                    if(players.isEmpty()) {
+                        try {
+                            Thread.sleep(1000L);
+                        } catch (InterruptedException e) {
+                            BukkitUtil.printStacktrace(e);
+                        }
+                        continue;
+                    }
                     String message = line.replace("send ", "");
 
                     for(Player player : players)

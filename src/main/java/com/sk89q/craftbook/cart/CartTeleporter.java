@@ -7,6 +7,7 @@ import org.bukkit.entity.Minecart;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.craftbook.util.CartUtils;
 import com.sk89q.craftbook.util.RegexUtil;
 
 public class CartTeleporter extends CartMechanism {
@@ -15,7 +16,8 @@ public class CartTeleporter extends CartMechanism {
     public void impact(final Minecart cart, CartMechanismBlocks blocks, boolean minor) {
         // validate
         if (cart == null) return;
-
+        if (blocks.sign == null) return;
+        if (minor) return;
         if (!blocks.matches("teleport")) return;
 
         // go

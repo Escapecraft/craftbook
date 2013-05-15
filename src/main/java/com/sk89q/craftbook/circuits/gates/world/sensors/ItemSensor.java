@@ -7,9 +7,8 @@ import org.bukkit.entity.Item;
 import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -17,7 +16,6 @@ import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.Vector;
 import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.BlockType;
@@ -26,7 +24,7 @@ import com.sk89q.worldedit.blocks.ItemType;
 /**
  * @author Silthus
  */
-public class ItemSensor extends AbstractIC {
+public class ItemSensor extends AbstractSelfTriggeredIC {
 
     private int item;
     private short data;
@@ -74,7 +72,7 @@ public class ItemSensor extends AbstractIC {
         if (getSign().getLine(2).contains("=")) {
             center = ICUtil.parseBlockLocation(getSign());
         } else {
-            center = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock());
+            center = getBackBlock();
         }
     }
 
@@ -96,6 +94,12 @@ public class ItemSensor extends AbstractIC {
         if (chip.getInput(0)) {
             chip.setOutput(0, isDetected());
         }
+    }
+
+    @Override
+    public void think(ChipState state) {
+
+        state.setOutput(0, isDetected());
     }
 
     protected boolean isDetected() {
@@ -141,8 +145,7 @@ public class ItemSensor extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"radius=x:y:z offset", "id:data"};
-            return lines;
+            return new String[] {"radius=x:y:z offset", "id:data"};
         }
     }
 }

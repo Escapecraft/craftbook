@@ -1,6 +1,7 @@
 package com.sk89q.craftbook.circuits.gates.world.items;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -9,31 +10,35 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Dispenser;
+import org.bukkit.block.Dropper;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
-import org.bukkit.material.PistonBaseMaterial;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.CircuitCore;
+import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
+import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.PipeInputIC;
+import com.sk89q.craftbook.mech.crafting.CustomCrafting;
 import com.sk89q.craftbook.util.ItemUtil;
-import com.sk89q.craftbook.util.SignUtil;
+import com.sk89q.craftbook.util.VerifyUtil;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.blocks.BlockID;
 
-public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
+public class AutomaticCrafter extends AbstractSelfTriggeredIC implements PipeInputIC {
 
     public AutomaticCrafter(Server server, ChangedSign block, ICFactory factory) {
 
@@ -63,7 +68,13 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
         }
     }
 
-    public boolean craft(Dispenser disp) {
+    @Override
+    public void think(ChipState state) {
+
+        state.setOutput(0, doStuff(true, true));
+    }
+
+    public boolean craft(InventoryHolder disp) {
 
         Inventory inv = disp.getInventory();
         for (ItemStack it : inv.getContents()) {
@@ -93,7 +104,13 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
 
         if (!isValidRecipe(recipe, inv)) {
             recipe = null;
-            craft(disp);
+            return craft(disp);
+        }
+
+        ItemStack result = CustomCrafting.craftItem(recipe);
+
+        if(!ItemUtil.isStackValid(result)) {
+            CraftBookPlugin.inst().getLogger().warning("An Automatic Crafter IC had a valid recipe, but there was no result!");
             return false;
         }
 
@@ -109,33 +126,26 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
 
         boolean pipes = false;
 
-        if (CircuitCore.inst().getPipeFactory() != null) {
-            Block b = disp.getBlock().getRelative(((org.bukkit.material.Dispenser) disp.getData()).getFacing());
-            if (b.getTypeId() == BlockID.PISTON_STICKY_BASE) {
-
-                PistonBaseMaterial p = (PistonBaseMaterial) b.getState().getData();
-                if (p.getFacing() == ((org.bukkit.material.Dispenser) disp.getData()).getFacing().getOppositeFace()) {
-                    List<ItemStack> items = new ArrayList<ItemStack>();
-                    items.add(recipe.getResult().clone());
-                    if (CircuitCore.inst().getPipeFactory() != null)
-                        if (CircuitCore.inst().getPipeFactory()
-                                .detect(BukkitUtil.toWorldVector(b), items) != null) {
-                            pipes = true;
-                        }
-                }
-            }
+        if(CraftBookPlugin.isDebugFlagEnabled("ic-mc1219")) {
+            CraftBookPlugin.logger().info("AutoCrafter is dispensing a " + result.getTypeId() + " with data: " + result.getDurability() + " and amount: " + result.getAmount());
         }
 
+        if(Pipes.Factory.setupPipes(((BlockState) disp).getBlock().getRelative(((org.bukkit.material.Directional) ((BlockState) disp).getData()).getFacing()), ((BlockState) disp).getBlock(), Arrays.asList(result)) != null)
+            pipes = true;
+
         if (!pipes) {
-            disp.getInventory().addItem(recipe.getResult().clone());
-            for(int i = 0; i < recipe.getResult().getAmount(); i++)
-                disp.dispense();
+            if(disp.getInventory().addItem(result).isEmpty())
+                for(int i = 0; i < result.getAmount(); i++)
+                    if(disp instanceof Dispenser)
+                        ((Dispenser) disp).dispense();
+                    else if(disp instanceof Dropper)
+                        ((Dropper) disp).drop();
         }
         disp.getInventory().setContents(replace);
         return true;
     }
 
-    public boolean collect(Dispenser disp) {
+    public boolean collect(InventoryHolder disp) {
 
         outer:
             for (Entity en : BukkitUtil.toSign(getSign()).getChunk().getEntities()) {
@@ -157,7 +167,7 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
                         ItemStack it = ItemUtil.getSmallestStackOfType(disp.getInventory().getContents(),
                                 item.getItemStack());
                         if (it == null) continue outer;
-                        if (it.getAmount() < 64) {
+                        if (it.getAmount() < it.getMaxStackSize()) {
                             it.setAmount(it.getAmount() + 1);
                             newAmount -= 1;
                         } else if (newAmount > 0) {
@@ -185,14 +195,13 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
     public boolean doStuff(boolean craft, boolean collect) {
 
         boolean ret = false;
-        Block crafter = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, 1, 0);
-        if (crafter.getTypeId() == BlockID.DISPENSER) {
-            Dispenser disp = (Dispenser) crafter.getState();
-            if (craft) {
-                craft(disp);
-            }
+        Block crafter = getBackBlock().getRelative(0, 1, 0);
+        if (crafter.getTypeId() == BlockID.DISPENSER || crafter.getTypeId() == BlockID.DROPPER) {
             if (collect) {
-                collect(disp);
+                collect((InventoryHolder) crafter.getState());
+            }
+            if (craft) {
+                craft((InventoryHolder) crafter.getState());
             }
         }
         return ret;
@@ -210,10 +219,10 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
                 ItemStack stack = inv.getItem(slot);
                 try {
                     c++;
-                    if (c == 3) {
+                    if (c >= 3) {
                         c = 0;
                         in++;
-                        if (in == 3) {
+                        if (in >= 3) {
                             break;
                         }
                     }
@@ -237,8 +246,8 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
                     catch(Exception e){
                         BukkitUtil.printStacktrace(e);
                     }
-                    if (ItemUtil.areItemsIdentical(require, stack)) {
-                    } else return false;
+                    if (!ItemUtil.areItemsIdentical(require, stack))
+                        return false;
                 } catch (Exception e) {
                     BukkitUtil.printStacktrace(e);
                     return false;
@@ -247,12 +256,15 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
             return true;
         } else if (r instanceof ShapelessRecipe && (recipe == null || recipe instanceof ShapelessRecipe)) {
             ShapelessRecipe shape = (ShapelessRecipe) r;
-            List<ItemStack> ing = new ArrayList<ItemStack>();
-            ing.addAll(shape.getIngredientList());
+            List<ItemStack> ing = new ArrayList<ItemStack>(VerifyUtil.<ItemStack>withoutNulls(shape.getIngredientList()));
             for (ItemStack it : inv.getContents()) {
                 if (!ItemUtil.isStackValid(it)) continue;
+                if(ing.isEmpty())
+                    return false;
                 Iterator<ItemStack> ingIterator = ing.iterator();
                 while (ingIterator.hasNext()) {
+                    if(ing.isEmpty())
+                        break;
                     ItemStack stack = ingIterator.next();
                     if (!ItemUtil.isStackValid(stack)) {
                         ing.remove(stack);
@@ -266,7 +278,8 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
             }
             return ing.isEmpty();
 
-        } else return false;
+        } else
+            return false;
     }
 
     public static class Factory extends AbstractICFactory {
@@ -285,35 +298,34 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
         @Override
         public String getShortDescription() {
 
-            return "Auto-crafts recipes in the above dispenser.";
+            return "Auto-crafts recipes in the above dispenser/dropper.";
         }
 
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {null, null};
-            return lines;
+            return new String[] {null, null};
         }
     }
 
     @Override
     public List<ItemStack> onPipeTransfer(BlockWorldVector pipe, List<ItemStack> items) {
 
-        Block crafter = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, 1, 0);
-        if (crafter.getTypeId() == BlockID.DISPENSER) {
-            Dispenser disp = (Dispenser) crafter.getState();
+        Block crafter = getBackBlock().getRelative(0, 1, 0);
+        if (crafter.getTypeId() == BlockID.DISPENSER || crafter.getTypeId() == BlockID.DROPPER) {
+            InventoryHolder disp = (InventoryHolder) crafter.getState();
 
             boolean delete = true;
             List<ItemStack> newItems = new ArrayList<ItemStack>();
             newItems.addAll(items);
             for (ItemStack ite : items) {
-                if (ite == null) continue;
+                if (!ItemUtil.isStackValid(ite)) continue;
                 int iteind = newItems.indexOf(ite);
                 int newAmount = ite.getAmount();
                 for (int i = 0; i < ite.getAmount(); i++) {
                     ItemStack it = ItemUtil.getSmallestStackOfType(disp.getInventory().getContents(), ite);
-                    if (it == null) continue;
-                    if (it.getAmount() < 64) {
+                    if (!ItemUtil.isStackValid(it) || !ItemUtil.areItemsIdentical(ite, it)) continue;
+                    if (it.getAmount() < it.getMaxStackSize()) {
                         it.setAmount(it.getAmount() + 1);
                         newAmount -= 1;
                     } else {
@@ -324,7 +336,8 @@ public class AutomaticCrafter extends AbstractIC implements PipeInputIC {
                     }
                 }
                 if (newAmount > 0) delete = false;
-                ite.setAmount(newAmount);
+                if(newAmount != ite.getAmount())
+                    ite.setAmount(newAmount);
                 if (delete) newItems.remove(iteind);
                 else newItems.set(iteind, ite);
             }

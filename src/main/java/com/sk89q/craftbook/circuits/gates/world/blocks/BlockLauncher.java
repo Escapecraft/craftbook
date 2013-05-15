@@ -15,7 +15,6 @@ import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
 import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.craftbook.util.SignUtil;
 
 public class BlockLauncher extends AbstractIC {
 
@@ -72,14 +71,14 @@ public class BlockLauncher extends AbstractIC {
 
     public void launch() {
 
-        Block above = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, 1, 0);
+        Block above = getBackBlock().getRelative(0, 1, 0);
         int timeout = 12;
         while (above.getTypeId() != 0 || timeout < 0 || above.getLocation().getY() >= 255) {
             above = above.getRelative(0, 1, 0);
             timeout--;
         }
         if (velocity.getY() < 0) {
-            above = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, -1, 0);
+            above = getBackBlock().getRelative(0, -1, 0);
             timeout = 12;
             while (above.getTypeId() != 0 || timeout < 0 || above.getLocation().getY() <= 1) {
                 above = above.getRelative(0, -1, 0);
@@ -87,6 +86,10 @@ public class BlockLauncher extends AbstractIC {
             }
         }
         double y = above.getY() - 0.99D;
+
+        if(!new Location(BukkitUtil.toSign(getSign()).getWorld(), above.getX() + 0.5D, y, above.getZ() + 0.5D).getChunk().isLoaded())
+            return;
+
         FallingBlock block = BukkitUtil.toSign(getSign()).getWorld()
                 .spawnFallingBlock(new Location(BukkitUtil.toSign(getSign()).getWorld(), above.getX() + 0.5D, y,
                         above.getZ() + 0.5D), id, data);
@@ -115,8 +118,7 @@ public class BlockLauncher extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"id:data", "velocity x:y:z"};
-            return lines;
+            return new String[] {"id{:data}", "+ovelocity x:y:z"};
         }
     }
 }

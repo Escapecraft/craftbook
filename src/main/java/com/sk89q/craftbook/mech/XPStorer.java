@@ -5,6 +5,7 @@ import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.AbstractMechanic;
 import com.sk89q.craftbook.AbstractMechanicFactory;
+import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.blocks.ItemID;
@@ -14,16 +15,12 @@ public class XPStorer extends AbstractMechanic {
 
     public static class Factory extends AbstractMechanicFactory<XPStorer> {
 
-        public Factory() {
-
-        }
-
         @Override
-        public XPStorer detect(BlockWorldVector pt) {
+        public XPStorer detect(BlockWorldVector pt, LocalPlayer player) {
 
             int type = BukkitUtil.toWorld(pt).getBlockTypeIdAt(BukkitUtil.toLocation(pt));
 
-            if (type == CraftBookPlugin.inst().getConfiguration().xpStorerBlock) return new XPStorer(pt);
+            if (type == CraftBookPlugin.inst().getConfiguration().xpStorerBlock && player.hasPermission("craftbook.mech.xpstore.use")) return new XPStorer(pt);
 
             return null;
         }
@@ -42,7 +39,6 @@ public class XPStorer extends AbstractMechanic {
     @Override
     public void onRightClick(PlayerInteractEvent event) {
 
-        if (!CraftBookPlugin.inst().wrapPlayer(event.getPlayer()).hasPermission("craftbook.mech.xpstore.use")) return;
         if (event.getPlayer().isSneaking() || event.getPlayer().getLevel() < 1) {
             return;
         }
@@ -62,8 +58,8 @@ public class XPStorer extends AbstractMechanic {
         }
 
         event.getClickedBlock().getWorld()
-                .dropItemNaturally(event.getClickedBlock().getLocation(), new ItemStack(ItemID.BOTTLE_O_ENCHANTING,
-                        xp / 16));
+        .dropItemNaturally(event.getClickedBlock().getLocation(), new ItemStack(ItemID.BOTTLE_O_ENCHANTING,
+                xp / 16));
 
         event.getPlayer().setLevel(0);
         event.getPlayer().setExp(0);

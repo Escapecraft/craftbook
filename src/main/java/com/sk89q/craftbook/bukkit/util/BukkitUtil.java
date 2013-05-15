@@ -20,13 +20,13 @@ import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.BukkitChangedSign;
 import com.sk89q.craftbook.bukkit.BukkitVehicle;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
-import com.sk89q.craftbook.util.GeneralUtil;
 import com.sk89q.worldedit.BlockVector;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.LocalWorld;
 import com.sk89q.worldedit.Location;
 import com.sk89q.worldedit.Vector;
 import com.sk89q.worldedit.WorldVector;
+import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
 import com.sk89q.worldedit.bukkit.entity.BukkitEntity;
 import com.sk89q.worldedit.bukkit.entity.BukkitExpOrb;
@@ -57,7 +57,7 @@ public class BukkitUtil {
 
     public static void printStacktrace(Throwable e) {
 
-        CraftBookPlugin.inst().getLogger().severe(GeneralUtil.getStackTrace(e));
+        CraftBookPlugin.inst().getLogger().severe(CraftBookPlugin.getStackTrace(e));
     }
 
     public static ChangedSign toChangedSign(Sign sign) {
@@ -67,7 +67,12 @@ public class BukkitUtil {
 
     public static ChangedSign toChangedSign(Block sign) {
 
-        if (!(sign.getState() instanceof Sign)) return null;
+        if (sign.getTypeId() != BlockID.WALL_SIGN && sign.getTypeId() != BlockID.SIGN_POST) return null;
+        try {
+            sign.getState();
+        } catch (NullPointerException ex) {
+            return null;
+        }
         return toChangedSign((Sign) sign.getState(), ((Sign) sign.getState()).getLines());
     }
 
@@ -78,9 +83,12 @@ public class BukkitUtil {
 
     public static Sign toSign(ChangedSign sign) {
 
-        if(sign.hasChanged())
-            sign.update(false);
-        return ((BukkitChangedSign) sign).getSign();
+        try {
+            if (sign.hasChanged()) sign.update(false);
+            return ((BukkitChangedSign) sign).getSign();
+        } catch (NullPointerException ex) {
+            return null;
+        }
     }
 
     private static final Map<World, LocalWorld> wlw = new HashMap<World, LocalWorld>();

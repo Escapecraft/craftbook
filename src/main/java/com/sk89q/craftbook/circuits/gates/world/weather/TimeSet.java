@@ -4,14 +4,14 @@ import org.bukkit.Server;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
 
-public class TimeSet extends AbstractIC {
+public class TimeSet extends AbstractSelfTriggeredIC {
 
     public TimeSet(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -49,6 +49,17 @@ public class TimeSet extends AbstractIC {
         }
     }
 
+    @Override
+    public void think(ChipState chip) {
+
+        try {
+            if (chip.getInput(0)) {
+                BukkitUtil.toSign(getSign()).getWorld().setTime(Long.parseLong(getSign().getLine(2)));
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
     public static class Factory extends AbstractICFactory implements RestrictedIC {
 
         public Factory(Server server) {
@@ -71,8 +82,12 @@ public class TimeSet extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"time to set", null};
-            return lines;
+            return new String[] {"time to set", null};
         }
+    }
+
+    @Override
+    public boolean isActive () {
+        return true;
     }
 }

@@ -16,9 +16,15 @@ public class MechanismCommands {
 
     }
 
-    @Command(aliases = {"area"}, desc = "Commands to manage Craftbook Areas")
+    @Command(aliases = {"area", "togglearea"}, desc = "Commands to manage Craftbook Areas")
     @NestedCommand(AreaCommands.class)
     public void area(CommandContext context, CommandSender sender) {
+
+    }
+
+    @Command(aliases = {"recp", "recps"}, desc = "Commands to manage Craftbook Custom Recipes")
+    @NestedCommand(RecipeCommands.class)
+    public void recipe(CommandContext context, CommandSender sender) {
 
     }
 

@@ -28,8 +28,7 @@ import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
-import com.sk89q.craftbook.util.ICUtil;
-import com.sk89q.craftbook.util.SignUtil;
+import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.worldedit.blocks.BlockType;
 
 public class ItemDispenser extends AbstractIC {
@@ -46,16 +45,17 @@ public class ItemDispenser extends AbstractIC {
 
         int amount = 1;
 
+        item = ItemUtil.getItem(getLine(2));
+        if(item == null)
+            item = new ItemStack(1, 1);
+
         try {
-            amount = Math.min(64, Math.max(1, Integer.parseInt(getSign().getLine(3))));
+            amount = Math.min(item.getMaxStackSize(), Math.max(1, Integer.parseInt(getSign().getLine(3))));
         } catch (Exception ignored) {
             amount = 1;
         }
         if (amount < 1) amount = 1;
 
-        item = ICUtil.getItem(getLine(2));
-        if(item == null)
-            item = new ItemStack(1, 1);
         item.setAmount(amount);
     }
 
@@ -76,7 +76,7 @@ public class ItemDispenser extends AbstractIC {
 
         if (chip.getInput(0)) {
             if (item.getTypeId() != 36) {
-                Location loc = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, 1,
+                Location loc = getBackBlock().getRelative(0, 1,
                         0).getLocation().add(0.5, 0.5, 0.5);
                 int maxY = 10;
 
@@ -85,7 +85,7 @@ public class ItemDispenser extends AbstractIC {
 
                         ItemStack stack = item.clone();
 
-                        BukkitUtil.toSign(getSign()).getWorld().dropItemNaturally(loc.getBlock().getRelative(0, y,
+                        BukkitUtil.toSign(getSign()).getWorld().dropItem(loc.getBlock().getRelative(0, y,
                                 0).getLocation(), stack);
                         return;
                     }
@@ -116,8 +116,7 @@ public class ItemDispenser extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"id:data", "amount"};
-            return lines;
+            return new String[] {"id:data", "amount"};
         }
     }
 }

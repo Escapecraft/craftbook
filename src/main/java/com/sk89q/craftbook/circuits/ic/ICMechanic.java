@@ -57,6 +57,21 @@ public class ICMechanic extends PersistentMechanic {
     }
 
     @Override
+    public boolean equals(Object o) {
+
+        if(o instanceof ICMechanic)
+            return ((ICMechanic) o).id.equals(id) && pos.getWorld().equals(((ICMechanic) o).pos.getWorld()) && pos.getBlockX() == ((ICMechanic) o).pos.getBlockX() && pos.getBlockY() == ((ICMechanic) o).pos.getBlockY() && pos.getBlockZ() == ((ICMechanic) o).pos.getBlockZ() && ic.getSignTitle().equalsIgnoreCase(((ICMechanic)o).ic.getSignTitle()) && ic.getTitle().equalsIgnoreCase(((ICMechanic)o).ic.getTitle());
+
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+
+        return (pos.getBlockX() * 1103515245 + 12345 ^ pos.getBlockY() * 1103515245 + 12345 ^ pos.getBlockZ() * 1103515245 + 12345 ^ id.hashCode() * 1103515245 + 12345 ^ ic.getSignTitle().hashCode() * 1103515245 + 12345 ^ pos.getWorld().hashCode() * 1103515245 + 12345) * 1103515245 + 12345;
+    }
+
+    @Override
     public void onBlockRedstoneChange(final SourcedBlockRedstoneEvent event) {
 
         BlockWorldVector pt = getTriggerPositions().get(0);
@@ -75,22 +90,28 @@ public class ICMechanic extends PersistentMechanic {
                 public void run() {
 
                     if (block.getTypeId() != BlockID.WALL_SIGN) return;
-                    ChipState chipState = family.detect(BukkitUtil.toWorldVector(source),
-                            BukkitUtil.toChangedSign(block));
-                    int cnt = 0;
-                    for (int i = 0; i < chipState.getInputCount(); i++) {
-                        if (chipState.isTriggered(i)) {
-                            cnt++;
+                    try {
+                        ChipState chipState = family.detect(BukkitUtil.toWorldVector(source),
+                                BukkitUtil.toChangedSign(block));
+                        int cnt = 0;
+                        for (int i = 0; i < chipState.getInputCount(); i++) {
+                            if (chipState.isTriggered(i)) {
+                                cnt++;
+                            }
                         }
-                    }
-                    if (cnt > 0) {
-                        ic.trigger(chipState);
+                        if (cnt > 0) {
+                            ic.trigger(chipState);
+                        }
+                    } catch (NullPointerException ex) {
+                        // Exclude these NPEs so that we don't spam consoles because of Bukkit
+                        if (ex.getMessage().contains("Null ChangedSign found")) return;
+                        ex.printStackTrace();
                     }
                 }
             };
             // FIXME: these should be registered with a global scheduler so we can end up with one runnable actually
             // running per set of inputs in a given time window.
-            CraftBookPlugin.server().getScheduler().scheduleSyncDelayedTask(CraftBookPlugin.inst(), runnable, 2);
+            CraftBookPlugin.server().getScheduler().runTaskLater(CraftBookPlugin.inst(), runnable, 2);
         }
     }
 
@@ -113,14 +134,12 @@ public class ICMechanic extends PersistentMechanic {
         Block block = BukkitUtil.toWorld(pt).getBlockAt(BukkitUtil.toLocation(pt));
 
         if (block.getTypeId() == BlockID.WALL_SIGN) {
-            if (block.getTypeId() == BlockID.WALL_SIGN) {
-                ChangedSign sign = BukkitUtil.toChangedSign(block);
 
-                Matcher matcher = RegexUtil.IC_PATTERN.matcher(sign.getLine(1));
+            ChangedSign sign = BukkitUtil.toChangedSign(block);
 
-                return matcher.matches() && matcher.group(1).equalsIgnoreCase(id) && ic instanceof PersistentIC && (
-                        (PersistentIC) ic).isActive();
-            }
+            Matcher matcher = RegexUtil.IC_PATTERN.matcher(sign.getLine(1));
+
+            return matcher.matches() && matcher.group(1).equalsIgnoreCase(id) && ic instanceof PersistentIC && ((PersistentIC) ic).isActive() && (!CraftBookPlugin.inst().getConfiguration().ICCached || ICManager.isCachedIC(pt) && ICManager.getCachedIC(pt).equals(ic));
         }
 
         return false;

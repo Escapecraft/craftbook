@@ -13,21 +13,20 @@ import org.bukkit.inventory.ItemStack;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.util.ICUtil;
-import com.sk89q.craftbook.util.SignUtil;
-import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.Vector;
 import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.ItemID;
 
-public class BonemealTerraformer extends AbstractIC {
+public class BonemealTerraformer extends AbstractSelfTriggeredIC {
 
     Vector radius;
+    Block location;
 
     public BonemealTerraformer(Server server, ChangedSign block, ICFactory factory) {
 
@@ -38,6 +37,11 @@ public class BonemealTerraformer extends AbstractIC {
     public void load() {
 
         radius = ICUtil.parseRadius(getSign());
+        if (getLine(2).contains("=")) {
+            location = ICUtil.parseBlockLocation(getSign(), 2);
+        } else {
+            location = getBackBlock();
+        }
     }
 
     @Override
@@ -60,16 +64,21 @@ public class BonemealTerraformer extends AbstractIC {
         }
     }
 
+    @Override
+    public void think(ChipState state) {
+
+        terraform(false);
+    }
+
     public void terraform(boolean overrideChance) {
 
-        BlockWorldVector position = getSign().getBlockVector();
         for (int x = -radius.getBlockX() + 1; x < radius.getBlockX(); x++) {
             for (int y = -radius.getBlockY() + 1; y < radius.getBlockY(); y++) {
                 for (int z = -radius.getBlockZ() + 1; z < radius.getBlockZ(); z++) {
                     if (overrideChance || CraftBookPlugin.inst().getRandom().nextInt(40) == 0) {
-                        int rx = position.getBlockX() - x;
-                        int ry = position.getBlockY() - y;
-                        int rz = position.getBlockZ() - z;
+                        int rx = location.getX() - x;
+                        int ry = location.getY() - y;
+                        int rz = location.getZ() - z;
                         Block b = BukkitUtil.toSign(getSign()).getWorld().getBlockAt(rx, ry, rz);
                         if (b.getTypeId() == BlockID.CROPS && b.getData() < 0x7) {
                             if (consumeBonemeal()) {
@@ -82,7 +91,11 @@ public class BonemealTerraformer extends AbstractIC {
                                 || b.getTypeId() == BlockID.MELON_STEM || b.getTypeId() == BlockID.PUMPKIN_STEM)
                                 && b.getData() < 0x7) {
                             if (consumeBonemeal()) {
-                                b.setData((byte) (b.getData() + 0x1));
+                                byte add = (byte) CraftBookPlugin.inst().getRandom().nextInt(3);
+                                if(b.getData() + add > 0x7)
+                                    b.setData((byte) 0x7);
+                                else
+                                    b.setData((byte) (b.getData() + add));
                             }
                             return;
                         }
@@ -200,7 +213,7 @@ public class BonemealTerraformer extends AbstractIC {
 
     public boolean consumeBonemeal() {
 
-        Block chest = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, 1, 0);
+        Block chest = getBackBlock().getRelative(0, 1, 0);
         if (chest.getTypeId() == BlockID.CHEST) {
             Chest c = (Chest) chest.getState();
             HashMap<Integer, ItemStack> over = c.getInventory().removeItem(new ItemStack(ItemID.INK_SACK, 1,
@@ -213,7 +226,7 @@ public class BonemealTerraformer extends AbstractIC {
 
     public boolean refundBonemeal() {
 
-        Block chest = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, 1, 0);
+        Block chest = getBackBlock().getRelative(0, 1, 0);
         if (chest.getTypeId() == BlockID.CHEST) {
             Chest c = (Chest) chest.getState();
             HashMap<Integer, ItemStack> over = c.getInventory().addItem(new ItemStack(ItemID.INK_SACK, 1, (short) 15));
@@ -320,8 +333,7 @@ public class BonemealTerraformer extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"radius", null};
-            return lines;
+            return new String[] {"+oradius=x:y:z", null};
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.sk89q.craftbook.circuits.gates.world.miscellaneous;
 
+import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -9,8 +10,8 @@ import org.bukkit.potion.PotionEffectType;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -19,13 +20,12 @@ import com.sk89q.craftbook.circuits.ic.RestrictedIC;
 import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.Vector;
 
 /**
  * @author Me4502
  */
-public class PotionInducer extends AbstractIC {
+public class PotionInducer extends AbstractSelfTriggeredIC {
 
     public PotionInducer(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -45,6 +45,7 @@ public class PotionInducer extends AbstractIC {
     }
 
     Vector radius;
+    Location offset;
     int effectID, effectAmount, effectTime;
     boolean mobs;
     boolean players;
@@ -53,7 +54,12 @@ public class PotionInducer extends AbstractIC {
     public void load() {
 
         String[] effectInfo = RegexUtil.COLON_PATTERN.split(getLine(2), 3);
-        effectID = Integer.parseInt(effectInfo[0]);
+        try {
+            effectID = Integer.parseInt(effectInfo[0]);
+        }
+        catch (Exception e) {
+            effectID = 1;
+        }
         try {
             effectAmount = Integer.parseInt(effectInfo[1]);
         } catch (Exception e) {
@@ -79,14 +85,15 @@ public class PotionInducer extends AbstractIC {
             mobs = false;
         }
         line4 = line4.replace("m", "").replace("p", "");
-        radius = ICUtil.parseRadius(getSign(), 3);
+        radius = ICUtil.parseRadius(line4);
+        offset = ICUtil.parseBlockLocation(getSign(), 3).getLocation();
     }
 
     public boolean induce() {
 
         boolean value = false;
         // chunks
-        for (Entity entity : LocationUtil.getNearbyEntities(SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getLocation(), radius)) {
+        for (Entity entity : LocationUtil.getNearbyEntities(offset, radius)) {
             if (entity.isValid() && entity instanceof LivingEntity) {
                 LivingEntity liv = (LivingEntity) entity;
                 if (!mobs && !(liv instanceof Player)) continue;
@@ -105,6 +112,12 @@ public class PotionInducer extends AbstractIC {
     public void trigger(ChipState chip) {
 
         if (chip.getInput(0)) chip.setOutput(0, induce());
+    }
+
+    @Override
+    public void think(ChipState state) {
+
+        state.setOutput(0, induce());
     }
 
     public static class Factory extends AbstractICFactory implements RestrictedIC {
@@ -143,11 +156,9 @@ public class PotionInducer extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {
-                    "id:level:time", "range (add a m to the end to only induce mobs or p for " +
-                            "players (pm for both))"
+            return new String[] {
+                    "id:level:time", "range (add a m to the end to only induce mobs or p for players (pm for both))"
             };
-            return lines;
         }
     }
 }

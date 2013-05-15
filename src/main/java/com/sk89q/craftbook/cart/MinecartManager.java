@@ -13,6 +13,7 @@ import org.bukkit.event.vehicle.VehicleMoveEvent;
 import com.sk89q.craftbook.bukkit.BukkitConfiguration;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.ItemInfo;
+import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
 
 public class MinecartManager {
@@ -26,8 +27,6 @@ public class MinecartManager {
 
     /**
      * Reloads or sets the configuration of the {@link MinecartManager}.
-     *
-     * @param cfg - The {@link VehiclesConfiguration} to read
      */
     public void reloadConfiguration() {
 
@@ -72,6 +71,8 @@ public class MinecartManager {
             if (thingy != null) {
                 Location from = event.getFrom();
                 Location to = event.getTo();
+                if(LocationUtil.getDistanceSquared(from, to) > 2*2) //Further than max distance
+                    return;
                 boolean crossesBlockBoundary = from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY()
                         && from.getBlockZ() == to.getBlockZ();
                 thingy.impact((Minecart) event.getVehicle(), cmb, crossesBlockBoundary);
@@ -83,17 +84,14 @@ public class MinecartManager {
 
     public void enter(VehicleEnterEvent event) {
 
+        if(!event.getVehicle().getLocation().getChunk().isLoaded()) return;
         try {
             Block block = event.getVehicle().getLocation().getBlock();
             CartMechanismBlocks cmb = CartMechanismBlocks.findByRail(block);
             cmb.setFromBlock(block); // WAI
             CartMechanism thingy = mechanisms.get(new ItemInfo(cmb.base.getTypeId(), cmb.base.getData()));
             if (thingy != null) {
-                Location to = event.getVehicle().getLocation();
-                Location from = event.getEntered().getLocation();
-                boolean crossesBlockBoundary = from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY()
-                        && from.getBlockZ() == to.getBlockZ();
-                thingy.enter((Minecart) event.getVehicle(), event.getEntered(), cmb, crossesBlockBoundary);
+                thingy.enter((Minecart) event.getVehicle(), event.getEntered(), cmb);
             }
         } catch (InvalidMechanismException ignored) {
             /* okay, so there's nothing interesting to see here. carry on then, eh? */
@@ -102,8 +100,7 @@ public class MinecartManager {
 
     public void impact(BlockRedstoneEvent event) {
 
-        CraftBookPlugin.server().getScheduler().scheduleSyncDelayedTask(CraftBookPlugin.inst(),
-                new DelayedImpact(event));
+        CraftBookPlugin.server().getScheduler().runTask(CraftBookPlugin.inst(), new DelayedImpact(event));
     }
 
     /**

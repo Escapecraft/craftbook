@@ -22,7 +22,6 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.CircuitCore;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.util.RegexUtil;
@@ -44,7 +43,6 @@ public abstract class AbstractIC implements IC {
         this.factory = factory;
         this.server = server;
         this.sign = sign;
-        if (sign != null) load();
     }
 
     protected Server getServer() {
@@ -52,7 +50,8 @@ public abstract class AbstractIC implements IC {
         return server;
     }
 
-    protected ChangedSign getSign() {
+    @Override
+    public ChangedSign getSign() {
 
         return sign;
     }
@@ -86,7 +85,7 @@ public abstract class AbstractIC implements IC {
     public void onRightClick(Player p) {
 
         if (p.isSneaking()) {
-            CircuitCore.inst().generateICDocs(p, RegexUtil.RIGHT_BRACKET_PATTERN.split(RegexUtil
+            ICDocsParser.generateICDocs(p, RegexUtil.RIGHT_BRACKET_PATTERN.split(RegexUtil
                     .LEFT_BRACKET_PATTERN.split(getSign
                             ().getLine(1))[1])[0]);
         }
@@ -102,5 +101,14 @@ public abstract class AbstractIC implements IC {
     @Override
     public void load() {
 
+    }
+
+    @Override
+    public boolean equals(Object o) {
+
+        if(o instanceof AbstractIC)
+            return getSignTitle().equalsIgnoreCase(((AbstractIC)o).getSignTitle()) && getTitle().equalsIgnoreCase(((AbstractIC)o).getTitle()) && sign.equals(((AbstractIC) o).sign);
+
+        return false;
     }
 }

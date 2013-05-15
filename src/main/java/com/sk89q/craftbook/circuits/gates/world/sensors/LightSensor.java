@@ -16,20 +16,18 @@
 
 package com.sk89q.craftbook.circuits.gates.world.sensors;
 
+import org.bukkit.Location;
 import org.bukkit.Server;
-import org.bukkit.block.Block;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
-import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.craftbook.util.SignUtil;
+import com.sk89q.craftbook.util.ICUtil;
 
-public class LightSensor extends AbstractIC {
+public class LightSensor extends AbstractSelfTriggeredIC {
 
     public LightSensor(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -57,19 +55,15 @@ public class LightSensor extends AbstractIC {
     }
 
     @Override
+    public void think(ChipState chip) {
+
+        chip.setOutput(0, getTargetLighted());
+    }
+
+    @Override
     public void load() {
 
-        try {
-            String[] st = RegexUtil.COLON_PATTERN.split(getSign().getLine(3));
-            if (st.length != 3) throw new Exception();
-            x = Integer.parseInt(st[0]);
-            y = Integer.parseInt(st[1]);
-            z = Integer.parseInt(st[2]);
-        } catch (Exception ignored) {
-            x = 0;
-            y = 1;
-            z = 0;
-        }
+        centre = ICUtil.parseBlockLocation(getSign()).getLocation();
 
         try {
             min = Byte.parseByte(getSign().getLine(2));
@@ -83,14 +77,12 @@ public class LightSensor extends AbstractIC {
         }
     }
 
-    int x;
-    int y;
-    int z;
+    Location centre;
     byte min;
 
     protected boolean getTargetLighted() {
 
-        return hasLight(min, x, y, z);
+        return hasLight(min);
     }
 
     /**
@@ -98,11 +90,9 @@ public class LightSensor extends AbstractIC {
      *
      * @return
      */
-    private boolean hasLight(byte specifiedLevel, int x, int y, int z) {
+    private boolean hasLight(byte specifiedLevel) {
 
-        Block signBlock = BukkitUtil.toSign(getSign()).getBlock();
-        Block backBlock = signBlock.getRelative(SignUtil.getBack(signBlock));
-        byte lightLevel = backBlock.getRelative(x, y, z).getLightLevel();
+        byte lightLevel = centre.getBlock().getLightLevel();
 
         return lightLevel >= specifiedLevel;
     }
@@ -129,8 +119,7 @@ public class LightSensor extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"minimum light", "x:y:z offset"};
-            return lines;
+            return new String[] {"minimum light", "x:y:z offset"};
         }
     }
 }

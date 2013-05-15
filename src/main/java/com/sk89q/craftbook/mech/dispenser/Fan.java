@@ -6,9 +6,11 @@ import org.bukkit.block.Dispenser;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.block.BlockDispenseEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.material.DirectionalContainer;
 import org.bukkit.material.MaterialData;
 import org.bukkit.util.Vector;
 
+import com.sk89q.craftbook.util.EntityUtil;
 import com.sk89q.worldedit.blocks.BlockID;
 
 /**
@@ -35,10 +37,11 @@ public class Fan extends Recipe {
 
         MaterialData d = dis.getBlock().getState().getData();
         BlockFace face = ((org.bukkit.material.Dispenser) d).getFacing();
-        Location dispenserLoc = dis.getBlock().getRelative(face).getLocation().add(0.5, 0.5, 0.5);
+        Location dispenserLoc = dis.getBlock().getRelative(face).getLocation();
         for (Entity e : dis.getWorld().getChunkAt(dispenserLoc).getEntities()) {
-            if (e.getLocation().distanceSquared(dispenserLoc) <= 2 * 2) {
-                e.setVelocity(e.getVelocity().add(velocity).multiply(10));
+            if (EntityUtil.isEntityInBlock(e, dispenserLoc.getBlock())) {
+                Vector dir = new Vector(((DirectionalContainer) dis.getData()).getFacing().getModX(),((DirectionalContainer) dis.getData()).getFacing().getModY(),((DirectionalContainer) dis.getData()).getFacing().getModZ());
+                e.setVelocity(e.getVelocity().add(dir).normalize().multiply(10));
             }
         }
         return true;

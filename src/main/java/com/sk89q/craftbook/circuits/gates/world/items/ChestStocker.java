@@ -1,25 +1,22 @@
 package com.sk89q.craftbook.circuits.gates.world.items;
 
+import org.bukkit.Location;
 import org.bukkit.Server;
-import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
 import com.sk89q.craftbook.util.ICUtil;
-import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.craftbook.util.SignUtil;
-import com.sk89q.worldedit.Vector;
+import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.worldedit.blocks.BlockID;
 
-public class ChestStocker extends AbstractIC {
+public class ChestStocker extends AbstractSelfTriggeredIC {
 
     public ChestStocker(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -27,28 +24,16 @@ public class ChestStocker extends AbstractIC {
     }
 
     ItemStack item;
-    Vector offset;
+    Location offset;
 
     @Override
     public void load() {
 
-        offset = new Vector(0, 2, 0);
-
-        item = ICUtil.getItem(getLine(2));
-
-        try {
-            String[] loc = RegexUtil.COLON_PATTERN.split(RegexUtil.EQUALS_PATTERN.split(getSign().getLine(3))[1]);
-            offset = new Vector(Integer.parseInt(loc[0]), Integer.parseInt(loc[1]), Integer.parseInt(loc[2]));
-            if (offset.getX() > 16) offset.setX(16);
-            if (offset.getY() > 16) offset.setY(16);
-            if (offset.getZ() > 16) offset.setZ(16);
-
-            if (offset.getX() < -16) offset.setX(-16);
-            if (offset.getY() < -16) offset.setY(-16);
-            if (offset.getZ() < -16) offset.setZ(-16);
-        } catch (Exception e) {
-            offset = new Vector(0, 2, 0);
-        }
+        if(getLine(3).isEmpty())
+            offset = getBackBlock().getRelative(0, 1, 0).getLocation();
+        else
+            offset = ICUtil.parseBlockLocation(getSign(), 3).getLocation();
+        item = ItemUtil.getItem(getLine(2));
     }
 
     @Override
@@ -69,15 +54,21 @@ public class ChestStocker extends AbstractIC {
         if (chip.getInput(0)) chip.setOutput(0, stock());
     }
 
+    @Override
+    public void think(ChipState chip) {
+
+        chip.setOutput(0, stock());
+    }
+
     public boolean stock() {
 
-        Block chest = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(offset.getBlockX(), offset.getBlockY(),
-                offset.getBlockZ());
+        if (offset.getBlock().getTypeId() == BlockID.CHEST) {
 
-        if (chest.getTypeId() == BlockID.CHEST) {
-
-            Chest c = (Chest) chest.getState();
-            if (c.getInventory().addItem(item.clone()).isEmpty()) return true;
+            Chest c = (Chest) offset.getBlock().getState();
+            if (c.getInventory().addItem(item.clone()).isEmpty()) {
+                c.update();
+                return true;
+            }
         }
         return false;
     }
@@ -104,8 +95,7 @@ public class ChestStocker extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"item id:data", "x:y:z offset"};
-            return lines;
+            return new String[] {"item id:data", "x:y:z offset"};
         }
     }
 }

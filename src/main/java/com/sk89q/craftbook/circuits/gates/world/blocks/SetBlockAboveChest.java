@@ -70,8 +70,7 @@ public class SetBlockAboveChest extends SetBlock {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"id:data", "forced or not"};
-            return lines;
+            return new String[] {"id{:data}", "+oFORCE if it should force"};
         }
     }
 }

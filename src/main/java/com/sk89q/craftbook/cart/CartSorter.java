@@ -8,8 +8,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.PoweredMinecart;
-import org.bukkit.entity.StorageMinecart;
+import org.bukkit.entity.minecart.PoweredMinecart;
+import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
@@ -101,7 +101,6 @@ public class CartSorter extends CartMechanism {
                     }
                     break;
                 default:
-                    cart.remove();
                     return;
             }
         } else {
@@ -155,7 +154,6 @@ public class CartSorter extends CartMechanism {
                     }
                     break;
                 default:
-                    cart.remove();
                     return;
             }
         }

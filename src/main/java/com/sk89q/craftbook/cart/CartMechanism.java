@@ -38,7 +38,7 @@ public abstract class CartMechanism {
      */
     public abstract void impact(Minecart cart, CartMechanismBlocks blocks, boolean minor);
 
-    public void enter(Minecart cart, Entity entity, CartMechanismBlocks blocks, boolean minor) {
+    public void enter(Minecart cart, Entity entity, CartMechanismBlocks blocks) {
 
     }
 
@@ -50,8 +50,8 @@ public abstract class CartMechanism {
     }
 
     public static final BlockFace[] powerSupplyOptions = new BlockFace[] {
-            BlockFace.NORTH, BlockFace.EAST,
-            BlockFace.SOUTH, BlockFace.WEST
+        BlockFace.NORTH, BlockFace.EAST,
+        BlockFace.SOUTH, BlockFace.WEST
     };
 
     /**
@@ -113,13 +113,7 @@ public abstract class CartMechanism {
 
         boolean isWired = false;
         for (BlockFace face : powerSupplyOptions) {
-            // System.out.println("\t\tdirection:"+face);
             Power p = RedstoneUtil.isPowered(block, face);
-            // switch (p) {
-            // case ON: System.out.println("\t\t\tpower:ON"); break;
-            // case NA: System.out.println("\t\t\tpower:NA"); break;
-            // case OFF: System.out.println("\t\t\tpower:OFF"); break;
-            // }
             switch (p) {
                 case ON:
                     return Power.ON;

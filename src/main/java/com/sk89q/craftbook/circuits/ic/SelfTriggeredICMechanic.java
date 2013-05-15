@@ -7,7 +7,7 @@
  * Software Foundation, either version 3 of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
-  * warranty of MERCHANTABILITY or
+ * warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License along with this program. If not,
@@ -25,13 +25,9 @@ import com.sk89q.worldedit.blocks.BlockID;
 
 public class SelfTriggeredICMechanic extends ICMechanic implements SelfTriggeringMechanic {
 
-    private final SelfTriggeredIC selfTrigIC;
-
-    public SelfTriggeredICMechanic(String id, SelfTriggeredIC ic, ICFamily family,
-                                   BlockWorldVector pos) {
+    public SelfTriggeredICMechanic(String id, SelfTriggeredIC ic, ICFamily family, BlockWorldVector pos) {
 
         super(id, ic, family, pos);
-        selfTrigIC = ic;
     }
 
     @Override
@@ -41,10 +37,11 @@ public class SelfTriggeredICMechanic extends ICMechanic implements SelfTriggerin
         Block block = BukkitUtil.toWorld(pt).getBlockAt(BukkitUtil.toLocation(pt));
 
         if (block.getTypeId() == BlockID.WALL_SIGN) {
+
+            ic.getSign().updateSign(BukkitUtil.toChangedSign(block));
             // Assuming that the plugin host isn't going wonky here
-            ChipState chipState = family.detectSelfTriggered(pt, BukkitUtil.toChangedSign(block));
-            selfTrigIC.think(chipState);
+            ChipState chipState = family.detectSelfTriggered(pt, ic.getSign());
+            ((SelfTriggeredIC) ic).think(chipState);
         }
     }
-
 }

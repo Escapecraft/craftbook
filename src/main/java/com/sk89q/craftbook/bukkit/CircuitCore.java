@@ -2,7 +2,6 @@ package com.sk89q.craftbook.bukkit;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -11,10 +10,8 @@ import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
 import com.sk89q.craftbook.LocalComponent;
-import com.sk89q.craftbook.Mechanic;
-import com.sk89q.craftbook.MechanicFactory;
-import com.sk89q.craftbook.MechanicManager;
 import com.sk89q.craftbook.bukkit.commands.CircuitCommands;
+import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.circuits.GlowStone;
 import com.sk89q.craftbook.circuits.JackOLantern;
 import com.sk89q.craftbook.circuits.Netherrack;
@@ -22,7 +19,6 @@ import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.gates.logic.AndGate;
 import com.sk89q.craftbook.circuits.gates.logic.Clock;
 import com.sk89q.craftbook.circuits.gates.logic.ClockDivider;
-import com.sk89q.craftbook.circuits.gates.logic.ClockST;
 import com.sk89q.craftbook.circuits.gates.logic.CombinationLock;
 import com.sk89q.craftbook.circuits.gates.logic.Counter;
 import com.sk89q.craftbook.circuits.gates.logic.DeMultiplexer;
@@ -54,7 +50,6 @@ import com.sk89q.craftbook.circuits.gates.logic.Pulser;
 import com.sk89q.craftbook.circuits.gates.logic.Random3Bit;
 import com.sk89q.craftbook.circuits.gates.logic.Random5Bit;
 import com.sk89q.craftbook.circuits.gates.logic.RandomBit;
-import com.sk89q.craftbook.circuits.gates.logic.RandomBitST;
 import com.sk89q.craftbook.circuits.gates.logic.RangedOutput;
 import com.sk89q.craftbook.circuits.gates.logic.Repeater;
 import com.sk89q.craftbook.circuits.gates.logic.RsNandLatch;
@@ -63,67 +58,43 @@ import com.sk89q.craftbook.circuits.gates.logic.ToggleFlipFlop;
 import com.sk89q.craftbook.circuits.gates.logic.XnorGate;
 import com.sk89q.craftbook.circuits.gates.logic.XorGate;
 import com.sk89q.craftbook.circuits.gates.world.blocks.BlockBreaker;
-import com.sk89q.craftbook.circuits.gates.world.blocks.BlockBreakerST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.BlockLauncher;
+import com.sk89q.craftbook.circuits.gates.world.blocks.BlockReplacer;
 import com.sk89q.craftbook.circuits.gates.world.blocks.BonemealTerraformer;
-import com.sk89q.craftbook.circuits.gates.world.blocks.BonemealTerraformerST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.CombineHarvester;
-import com.sk89q.craftbook.circuits.gates.world.blocks.CombineHarvesterST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.Cultivator;
-import com.sk89q.craftbook.circuits.gates.world.blocks.CultivatorST;
+import com.sk89q.craftbook.circuits.gates.world.blocks.Driller;
 import com.sk89q.craftbook.circuits.gates.world.blocks.FlexibleSetBlock;
 import com.sk89q.craftbook.circuits.gates.world.blocks.Irrigator;
-import com.sk89q.craftbook.circuits.gates.world.blocks.IrrigatorST;
-import com.sk89q.craftbook.circuits.gates.world.blocks.LavaSensor;
-import com.sk89q.craftbook.circuits.gates.world.blocks.LavaSensorST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.LiquidFlood;
-import com.sk89q.craftbook.circuits.gates.world.blocks.LiquidFloodST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.MultipleSetBlock;
 import com.sk89q.craftbook.circuits.gates.world.blocks.Planter;
-import com.sk89q.craftbook.circuits.gates.world.blocks.PlanterST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.Pump;
-import com.sk89q.craftbook.circuits.gates.world.blocks.PumpST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.SetBlockAbove;
 import com.sk89q.craftbook.circuits.gates.world.blocks.SetBlockAboveChest;
-import com.sk89q.craftbook.circuits.gates.world.blocks.SetBlockAboveChestST;
-import com.sk89q.craftbook.circuits.gates.world.blocks.SetBlockAboveST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.SetBlockBelow;
 import com.sk89q.craftbook.circuits.gates.world.blocks.SetBlockBelowChest;
-import com.sk89q.craftbook.circuits.gates.world.blocks.SetBlockBelowChestST;
-import com.sk89q.craftbook.circuits.gates.world.blocks.SetBlockBelowST;
 import com.sk89q.craftbook.circuits.gates.world.blocks.SetBridge;
 import com.sk89q.craftbook.circuits.gates.world.blocks.SetDoor;
 import com.sk89q.craftbook.circuits.gates.world.blocks.Spigot;
-import com.sk89q.craftbook.circuits.gates.world.blocks.WaterSensor;
-import com.sk89q.craftbook.circuits.gates.world.blocks.WaterSensorST;
 import com.sk89q.craftbook.circuits.gates.world.entity.AdvancedEntitySpawner;
+import com.sk89q.craftbook.circuits.gates.world.entity.AnimalBreeder;
 import com.sk89q.craftbook.circuits.gates.world.entity.AnimalHarvester;
-import com.sk89q.craftbook.circuits.gates.world.entity.AnimalHarvesterST;
 import com.sk89q.craftbook.circuits.gates.world.entity.CreatureSpawner;
 import com.sk89q.craftbook.circuits.gates.world.entity.EntityCannon;
-import com.sk89q.craftbook.circuits.gates.world.entity.EntityCannonST;
 import com.sk89q.craftbook.circuits.gates.world.entity.EntityTrap;
-import com.sk89q.craftbook.circuits.gates.world.entity.EntityTrapST;
 import com.sk89q.craftbook.circuits.gates.world.entity.TeleportReciever;
-import com.sk89q.craftbook.circuits.gates.world.entity.TeleportRecieverST;
 import com.sk89q.craftbook.circuits.gates.world.entity.TeleportTransmitter;
 import com.sk89q.craftbook.circuits.gates.world.items.AutomaticCrafter;
-import com.sk89q.craftbook.circuits.gates.world.items.AutomaticCrafterST;
 import com.sk89q.craftbook.circuits.gates.world.items.ChestStocker;
-import com.sk89q.craftbook.circuits.gates.world.items.ChestStockerST;
 import com.sk89q.craftbook.circuits.gates.world.items.ContainerCollector;
-import com.sk89q.craftbook.circuits.gates.world.items.ContainerCollectorST;
 import com.sk89q.craftbook.circuits.gates.world.items.ContainerDispenser;
-import com.sk89q.craftbook.circuits.gates.world.items.ContainerDispenserST;
 import com.sk89q.craftbook.circuits.gates.world.items.ContainerStacker;
-import com.sk89q.craftbook.circuits.gates.world.items.ContainerStackerST;
 import com.sk89q.craftbook.circuits.gates.world.items.Distributer;
-import com.sk89q.craftbook.circuits.gates.world.items.DistributerST;
 import com.sk89q.craftbook.circuits.gates.world.items.ItemDispenser;
 import com.sk89q.craftbook.circuits.gates.world.items.ItemFan;
-import com.sk89q.craftbook.circuits.gates.world.items.ItemFanST;
+import com.sk89q.craftbook.circuits.gates.world.items.RangedCollector;
 import com.sk89q.craftbook.circuits.gates.world.items.Sorter;
-import com.sk89q.craftbook.circuits.gates.world.items.SorterST;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.ArrowBarrage;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.ArrowShooter;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.FireBarrage;
@@ -134,9 +105,7 @@ import com.sk89q.craftbook.circuits.gates.world.miscellaneous.LightningSummon;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.Melody;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.MessageSender;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.ParticleEffect;
-import com.sk89q.craftbook.circuits.gates.world.miscellaneous.ParticleEffectST;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.PotionInducer;
-import com.sk89q.craftbook.circuits.gates.world.miscellaneous.PotionInducerST;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.ProgrammableFireworkShow;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.RadioPlayer;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.RadioStation;
@@ -144,37 +113,26 @@ import com.sk89q.craftbook.circuits.gates.world.miscellaneous.SoundEffect;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.TimedExplosion;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.Tune;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.WirelessReceiver;
-import com.sk89q.craftbook.circuits.gates.world.miscellaneous.WirelessReceiverST;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.WirelessTransmitter;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.XPSpawner;
 import com.sk89q.craftbook.circuits.gates.world.sensors.BlockSensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.BlockSensorST;
 import com.sk89q.craftbook.circuits.gates.world.sensors.ContentsSensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.ContentsSensorST;
 import com.sk89q.craftbook.circuits.gates.world.sensors.DaySensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.DaySensorST;
 import com.sk89q.craftbook.circuits.gates.world.sensors.EntitySensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.EntitySensorST;
 import com.sk89q.craftbook.circuits.gates.world.sensors.ItemNotSensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.ItemNotSensorST;
 import com.sk89q.craftbook.circuits.gates.world.sensors.ItemSensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.ItemSensorST;
+import com.sk89q.craftbook.circuits.gates.world.sensors.LavaSensor;
 import com.sk89q.craftbook.circuits.gates.world.sensors.LightSensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.LightSensorST;
 import com.sk89q.craftbook.circuits.gates.world.sensors.PlayerSensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.PlayerSensorST;
 import com.sk89q.craftbook.circuits.gates.world.sensors.PowerSensor;
-import com.sk89q.craftbook.circuits.gates.world.sensors.PowerSensorST;
+import com.sk89q.craftbook.circuits.gates.world.sensors.WaterSensor;
 import com.sk89q.craftbook.circuits.gates.world.weather.RainSensor;
-import com.sk89q.craftbook.circuits.gates.world.weather.RainSensorST;
 import com.sk89q.craftbook.circuits.gates.world.weather.ServerTimeModulus;
 import com.sk89q.craftbook.circuits.gates.world.weather.TStormSensor;
-import com.sk89q.craftbook.circuits.gates.world.weather.TStormSensorST;
 import com.sk89q.craftbook.circuits.gates.world.weather.TimeControl;
 import com.sk89q.craftbook.circuits.gates.world.weather.TimeControlAdvanced;
 import com.sk89q.craftbook.circuits.gates.world.weather.TimeFaker;
 import com.sk89q.craftbook.circuits.gates.world.weather.TimeSet;
-import com.sk89q.craftbook.circuits.gates.world.weather.TimeSetST;
 import com.sk89q.craftbook.circuits.gates.world.weather.WeatherControl;
 import com.sk89q.craftbook.circuits.gates.world.weather.WeatherControlAdvanced;
 import com.sk89q.craftbook.circuits.gates.world.weather.WeatherFaker;
@@ -206,8 +164,8 @@ public class CircuitCore implements LocalComponent {
 
     private static CircuitCore instance;
     private CraftBookPlugin plugin = CraftBookPlugin.inst();
-    private MechanicManager manager;
-    private ICManager ICManager;
+
+    private ICManager icManager;
 
     private YAMLICConfiguration icConfiguration;
 
@@ -249,9 +207,6 @@ public class CircuitCore implements LocalComponent {
         plugin.createDefaultConfiguration(new File(plugin.getDataFolder(), "ic-config.yml"), "ic-config.yml", false);
         icConfiguration = new YAMLICConfiguration(new YAMLProcessor(new File(plugin.getDataFolder(), "ic-config.yml"), true, YAMLFormat.EXTENDED), plugin.getLogger());
 
-        manager = new MechanicManager();
-        plugin.registerManager(manager, true, true, true, false);
-
         midiFolder = new File(plugin.getDataFolder(), "midi/");
         new File(getMidiFolder(), "playlists").mkdirs();
 
@@ -265,14 +220,15 @@ public class CircuitCore implements LocalComponent {
         try {
             icConfiguration.load();
         } catch (Throwable e) {
-            e.printStackTrace();
+            BukkitUtil.printStacktrace(e);
         }
     }
 
     @Override
     public void disable() {
 
-        icConfiguration.unload();
+        ICManager.emptyCache();
+        instance = null;
     }
 
     public File getFireworkFolder() {
@@ -309,14 +265,14 @@ public class CircuitCore implements LocalComponent {
 
         if (config.ICEnabled) {
             registerICs();
-            registerMechanic(ICFactory = new ICMechanicFactory(ICManager));
+            plugin.registerMechanic(ICFactory = new ICMechanicFactory(getIcManager()));
         }
 
         // Let's register mechanics!
-        if (config.netherrackEnabled) registerMechanic(new Netherrack.Factory());
-        if (config.pumpkinsEnabled) registerMechanic(new JackOLantern.Factory());
-        if (config.glowstoneEnabled) registerMechanic(new GlowStone.Factory());
-        if (config.pipesEnabled) registerMechanic(pipeFactory = new Pipes.Factory());
+        if (config.netherrackEnabled) plugin.registerMechanic(new Netherrack.Factory());
+        if (config.pumpkinsEnabled) plugin.registerMechanic(new JackOLantern.Factory());
+        if (config.glowstoneEnabled) plugin.registerMechanic(new GlowStone.Factory());
+        if (config.pipesEnabled) plugin.registerMechanic(pipeFactory = new Pipes.Factory());
     }
 
     private void registerICs() {
@@ -324,7 +280,7 @@ public class CircuitCore implements LocalComponent {
         Server server = plugin.getServer();
 
         // Let's register ICs!
-        ICManager = new ICManager();
+        icManager = new ICManager();
         ICFamily familySISO = FAMILY_SISO;
         ICFamily family3ISO = FAMILY_3ISO;
         ICFamily familySI3O = FAMILY_SI3O;
@@ -346,8 +302,7 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC1113", "tele-in", new TeleportReciever.Factory(server), familySISO, familyAISO);
         registerIC("MC1200", "spawner", new CreatureSpawner.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1201", "dispenser", new ItemDispenser.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC1202", "c dispense", new ContainerDispenser.Factory(server), familySISO,
-                familyAISO); // Restricted
+        registerIC("MC1202", "c dispense", new ContainerDispenser.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1203", "strike", new LightningSummon.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1204", "trap", new EntityTrap.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1205", "set above", new SetBlockAbove.Factory(server), familySISO, familyAISO); // Restricted
@@ -359,10 +314,9 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC1211", "set bridge", new SetBridge.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1212", "set door", new SetDoor.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1213", "sound", new SoundEffect.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC1215", "set a chest", new SetBlockAboveChest.Factory(server), familySISO,
-                familyAISO); // Restricted
-        registerIC("MC1216", "set b chest", new SetBlockBelowChest.Factory(server), familySISO,
-                familyAISO); // Restricted
+        registerIC("MC1214", "range coll", new RangedCollector.Factory(server), familySISO, familyAISO);
+        registerIC("MC1215", "set a chest", new SetBlockAboveChest.Factory(server), familySISO, familyAISO); // Restricted
+        registerIC("MC1216", "set b chest", new SetBlockBelowChest.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1217", "pot induce", new PotionInducer.Factory(server), familySISO, familyAISO);
         registerIC("MC1218", "block launch", new BlockLauncher.Factory(server), familySISO, familyAISO);
         registerIC("MC1219", "auto craft", new AutomaticCrafter.Factory(server), familySISO, familyAISO);
@@ -373,8 +327,7 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC1224", "time bomb", new TimedExplosion.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1225", "pump", new Pump.Factory(server), familySISO, familyAISO);
         registerIC("MC1226", "spigot", new Spigot.Factory(server), familySISO, familyAISO);
-        registerIC("MC1227", "avd spawner", new AdvancedEntitySpawner.Factory(server), familySISO,
-                familyAISO); // Restricted
+        registerIC("MC1227", "avd spawner", new AdvancedEntitySpawner.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1228", "ent cannon", new EntityCannon.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1229", "sorter", new Sorter.Factory(server), familySISO, familyAISO);
         registerIC("MC1230", "sense day", new DaySensor.Factory(server), familySISO, familyAISO);
@@ -395,11 +348,12 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC1245", "cont stacker", new ContainerStacker.Factory(server), familySISO, familyAISO);
         registerIC("MC1246", "xp spawner", new XPSpawner.Factory(server), familySISO, familyAISO); //Restricted
         //TODO Dyed Armour Spawner (MC1247) (Sign Title: DYE ARMOUR)
+        registerIC("MC1248", "driller", new Driller.Factory(server), familySISO, familyAISO); //Restricted
+        registerIC("MC1249", "replacer", new BlockReplacer.Factory(server), familySISO, familyAISO); //Restricted
         registerIC("MC1250", "shoot fire", new FireShooter.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1251", "shoot fires", new FireBarrage.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1252", "flame thower", new FlameThrower.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC1253", "firework show", new ProgrammableFireworkShow.Factory(server), familySISO,
-                familyAISO); // Restricted
+        registerIC("MC1253", "firework show", new ProgrammableFireworkShow.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1260", "sense water", new WaterSensor.Factory(server), familySISO, familyAISO);
         registerIC("MC1261", "sense lava", new LavaSensor.Factory(server), familySISO, familyAISO);
         registerIC("MC1262", "sense light", new LightSensor.Factory(server), familySISO, familyAISO);
@@ -416,8 +370,11 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC1275", "tune", new Tune.Factory(server), familySISO, familyAISO);
         registerIC("MC1276", "radio station", new RadioStation.Factory(server), familySISO, familyAISO);
         registerIC("MC1277", "radio player", new RadioPlayer.Factory(server), familySISO, familyAISO);
+        registerIC("MC1280", "animal breed", new AnimalBreeder.Factory(server), familySISO, familyAISO);
         registerIC("MC1420", "divide clock", new ClockDivider.Factory(server), familySISO, familyAISO);
         registerIC("MC1421", "clock", new Clock.Factory(server), familySISO, familyAISO);
+        registerIC("MC1422", "monostable", new Monostable.Factory(server), familySISO, familyAISO);
+        registerIC("MC1500", "range output", new RangedOutput.Factory(server), familySISO, familyAISO);
         registerIC("MC1510", "send message", new MessageSender.Factory(server), familySISO, familyAISO);
         registerIC("MC2100", "delayer", new Delayer.Factory(server), familySISO, familyAISO);
         registerIC("MC2101", "inv delayer", new NotDelayer.Factory(server), familySISO, familyAISO);
@@ -465,57 +422,6 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC5000", "perlstone", PlcFactory.fromLang(server, new Perlstone(), false), familyVIVO);
         registerIC("MC5001", "perlstone 3i3o", PlcFactory.fromLang(server, new Perlstone(), false), family3I3O);
 
-        // Self triggered
-        registerIC("MC0020", "random 1 st", new RandomBitST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0111", "receiver st", new WirelessReceiverST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0113", "tele-in st", new TeleportRecieverST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0202", "c dispense st", new ContainerDispenserST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0204", "trap st", new EntityTrapST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0205", "set above st", new SetBlockAboveST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0206", "set below st", new SetBlockBelowST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0209", "collector st", new ContainerCollectorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0210", "emitter st", new ParticleEffectST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0215", "set a chest st", new SetBlockAboveChestST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0216", "set b chest st", new SetBlockBelowChestST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0217", "pot induce st", new PotionInducerST.Factory(server), familySISO,
-                familyAISO); // Restricted
-        registerIC("MC0219", "auto craft st", new AutomaticCrafterST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0220", "a bl break st", new BlockBreakerST.Factory(server, false), familySISO, familyAISO);
-        registerIC("MC0221", "b bl break st", new BlockBreakerST.Factory(server, true), familySISO, familyAISO);
-        registerIC("MC0222", "liq flood st", new LiquidFloodST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0223", "terraform st", new BonemealTerraformerST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0225", "pump st", new PumpST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0228", "ent cannon st", new EntityCannonST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0229", "sorter st", new SorterST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0230", "sense day st", new DaySensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0232", "time set st", new TimeSetST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0233", "item fan st", new ItemFanST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0234", "planter st", new PlanterST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0235", "cultivator st", new CultivatorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0238", "irrigate st", new IrrigatorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0239", "harvester st", new CombineHarvesterST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0242", "stocker st", new ChestStockerST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0243", "distributer st", new DistributerST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0244", "animal harvest st", new AnimalHarvesterST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0245", "cont stacker st", new ContainerStackerST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0260", "sense water st", new WaterSensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0261", "sense lava st", new LavaSensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0262", "sense light st", new LightSensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0263", "sense block st", new BlockSensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0264", "sense item st", new ItemSensorST.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC0265", "sense n item s", new ItemNotSensorST.Factory(server), familySISO,
-                familyAISO); // Restricted
-        registerIC("MC0266", "sense power st", new PowerSensorST.Factory(server), familySISO, familyAISO); // Restricted
-        //FIXME registerIC("MC0267", "sense move st", new MovementSensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0268", "sense contents st", new ContentsSensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0270", "sense power st", new PowerSensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0271", "sense entit st", new EntitySensorST.Factory(server), familySISO,
-                familyAISO); // Restricted
-        registerIC("MC0272", "sense playe st", new PlayerSensorST.Factory(server), familySISO,
-                familyAISO); // Restricted
-        registerIC("MC0420", "clock st", new ClockST.Factory(server), familySISO, familyAISO);
-        registerIC("MC0421", "monostable", new Monostable.Factory(server), familySISO, familyAISO);
-        registerIC("MC0500", "range output", new RangedOutput.Factory(server), familySISO, familyAISO);
         // Xtra ICs
         // SISOs
         registerIC("MCX230", "rain sense", new RainSensor.Factory(server), familySISO, familyAISO);
@@ -523,13 +429,10 @@ public class CircuitCore implements LocalComponent {
         registerIC("MCX233", "weather set", new WeatherControl.Factory(server), familySISO, familyAISO);
         // 3ISOs
         registerIC("MCT233", "weather set ad", new WeatherControlAdvanced.Factory(server), family3ISO);
-        // Self triggered
-        registerIC("MCZ230", "rain sense st", new RainSensorST.Factory(server), familySISO, familyAISO);
-        registerIC("MCZ231", "storm sense st", new TStormSensorST.Factory(server), familySISO, familyAISO);
     }
 
     /**
-     * Register a mechanic if possible
+     * Register an ic if possible
      *
      * @param name
      * @param factory
@@ -537,117 +440,33 @@ public class CircuitCore implements LocalComponent {
      */
     public boolean registerIC(String name, String longName, ICFactory factory, ICFamily... families) {
 
-        if (CraftBookPlugin.inst().getConfiguration().disabledICs.contains(name)) return false;
-        return ICManager.register(name, longName, factory, families);
-    }
-
-    /**
-     * Register a mechanic if possible
-     *
-     * @param factory
-     */
-    public void registerMechanic(MechanicFactory<? extends Mechanic> factory) {
-
-        manager.register(factory);
-    }
-
-    /**
-     * Register a array of mechanics if possible
-     *
-     * @param factories
-     */
-    protected void registerMechanic(MechanicFactory<? extends Mechanic>[] factories) {
-
-        for (MechanicFactory<? extends Mechanic> aFactory : factories) {
-            registerMechanic(aFactory);
-        }
-    }
-
-    /**
-     * Unregister a mechanic if possible TODO Ensure no remnants are left behind
-     *
-     * @param factory
-     *
-     * @return true if the mechanic was successfully unregistered.
-     */
-    protected boolean unregisterMechanic(MechanicFactory<? extends Mechanic> factory) {
-
-        return manager.unregister(factory);
-    }
-
-    protected boolean unregisterAllMechanics() {
-
-        boolean ret = true;
-
-        Iterator<MechanicFactory<? extends Mechanic>> iterator = manager.factories.iterator();
-
-        while (iterator.hasNext()) {
-            if (!unregisterMechanic(iterator.next())) ret = false;
-        }
-
-        return ret;
+        for(String ic : CraftBookPlugin.inst().getConfiguration().disabledICs)
+            if(ic.equalsIgnoreCase(name))
+                return false;
+        return getIcManager().register(name, longName, factory, families);
     }
 
     public List<RegisteredICFactory> getICList() {
 
-        if(ICManager == null)
+        if(getIcManager() == null)
             return new ArrayList<RegisteredICFactory>();
         List<RegisteredICFactory> ics = new ArrayList<RegisteredICFactory>();
-        for (Map.Entry<String, RegisteredICFactory> e : ICManager.registered.entrySet()) {
+        for (Map.Entry<String, RegisteredICFactory> e : getIcManager().registered.entrySet()) {
             ics.add(e.getValue());
         }
         return ics;
     }
 
-    public void generateICDocs(Player player, String id) {
-
-        RegisteredICFactory ric = ICManager.registered.get(id.toLowerCase());
-        if (ric == null) {
-            try {
-                ric = ICManager.registered.get(getSearchID(player, id));
-                if (ric == null) {
-                    player.sendMessage(ChatColor.RED + "Invalid IC!");
-                    return;
-                }
-            } catch (Exception e) {
-                player.sendMessage(ChatColor.RED + "Invalid IC!");
-                return;
-            }
-        }
-        try {
-            IC ic = ric.getFactory().create(null);
-            player.sendMessage(" "); // To space the area
-            player.sendMessage(ChatColor.BLUE + ic.getTitle() + " (" + ric.getId() + ") Documentation");
-            if (plugin.getConfiguration().ICShortHandEnabled && ric.getShorthand() != null) {
-                player.sendMessage(ChatColor.YELLOW + "Shorthand: =" + ric.getShorthand());
-            }
-            player.sendMessage(ChatColor.YELLOW + "Desc: " + ric.getFactory().getShortDescription());
-            if (ric.getFactory().getLineHelp()[0] != null) {
-                player.sendMessage(ChatColor.YELLOW + "Line 3: " + ric.getFactory().getLineHelp()[0]);
-            } else {
-                player.sendMessage(ChatColor.YELLOW + "Line 3: Blank.");
-            }
-            if (ric.getFactory().getLineHelp()[1] != null) {
-                player.sendMessage(ChatColor.YELLOW + "Line 4: " + ric.getFactory().getLineHelp()[1]);
-            } else {
-                player.sendMessage(ChatColor.YELLOW + "Line 4: Blank.");
-            }
-            player.sendMessage(ChatColor.AQUA + "Wiki: " + "http://wiki.sk89q.com/wiki/CraftBook/" + ric.getId()
-                    .toUpperCase());
-        } catch (Exception ignored) {
-        }
-    }
-
     public String getSearchID(Player p, String search) {
 
         ArrayList<String> icNameList = new ArrayList<String>();
-        icNameList.addAll(ICManager.registered.keySet());
+        icNameList.addAll(getIcManager().registered.keySet());
 
         Collections.sort(icNameList);
 
         for (String ic : icNameList) {
             try {
-                RegisteredICFactory ric = ICManager.registered.get(ic);
+                RegisteredICFactory ric = getIcManager().registered.get(ic);
                 IC tic = ric.getFactory().create(null);
                 if (search != null && !tic.getTitle().toLowerCase().contains(search.toLowerCase())
                         && !ric.getId().toLowerCase().contains(search.toLowerCase())) continue;
@@ -670,7 +489,7 @@ public class CircuitCore implements LocalComponent {
     public String[] generateICText(Player p, String search, char[] parameters) {
 
         ArrayList<String> icNameList = new ArrayList<String>();
-        icNameList.addAll(ICManager.registered.keySet());
+        icNameList.addAll(getIcManager().registered.keySet());
 
         Collections.sort(icNameList);
 
@@ -680,7 +499,7 @@ public class CircuitCore implements LocalComponent {
             try {
                 thisIC:
                 {
-                RegisteredICFactory ric = ICManager.registered.get(ic);
+                RegisteredICFactory ric = getIcManager().registered.get(ic);
                 IC tic = ric.getFactory().create(null);
                 if (search != null && !tic.getTitle().toLowerCase().contains(search.toLowerCase())
                         && !ric.getId().toLowerCase().contains(search.toLowerCase())) continue;
@@ -725,5 +544,9 @@ public class CircuitCore implements LocalComponent {
         }
 
         return strings.toArray(new String[strings.size()]);
+    }
+
+    public ICManager getIcManager () {
+        return icManager;
     }
 }

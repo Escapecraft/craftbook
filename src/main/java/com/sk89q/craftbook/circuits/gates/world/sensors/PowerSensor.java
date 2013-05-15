@@ -4,8 +4,8 @@ import org.bukkit.Server;
 import org.bukkit.block.Block;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -15,7 +15,7 @@ import com.sk89q.craftbook.util.ICUtil;
 /**
  * @author Silthus
  */
-public class PowerSensor extends AbstractIC {
+public class PowerSensor extends AbstractSelfTriggeredIC {
 
     private Block center;
 
@@ -40,6 +40,12 @@ public class PowerSensor extends AbstractIC {
     public String getSignTitle() {
 
         return "POWER SENSOR";
+    }
+
+    @Override
+    public void think(ChipState state) {
+
+        state.setOutput(0, isPowered());
     }
 
     @Override
@@ -83,8 +89,7 @@ public class PowerSensor extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"x:y:z offset", null};
-            return lines;
+            return new String[] {"x:y:z offset", null};
         }
     }
 }

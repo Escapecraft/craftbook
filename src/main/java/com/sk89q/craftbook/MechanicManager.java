@@ -19,6 +19,8 @@ package com.sk89q.craftbook;
 import static com.sk89q.worldedit.bukkit.BukkitUtil.toWorldVector;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,11 +28,11 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.SignChangeEvent;
@@ -40,6 +42,7 @@ import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.craftbook.circuits.ic.ICMechanic;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
 import com.sk89q.craftbook.util.exceptions.ProcessedMechanismException;
 import com.sk89q.worldedit.BlockWorldVector;
@@ -57,8 +60,6 @@ import com.sk89q.worldedit.blocks.ItemID;
  * @author hash
  */
 public class MechanicManager {
-
-    public static final boolean DEBUG = false;
 
     /**
      * Logger for errors. The Minecraft namespace is required so that messages are part of Minecraft's root logger.
@@ -87,7 +88,7 @@ public class MechanicManager {
     /**
      * List of mechanics that think on a routine basis.
      */
-    private final Set<SelfTriggeringMechanic> thinkingMechanics = new LinkedHashSet<SelfTriggeringMechanic>();
+    public final Set<SelfTriggeringMechanic> thinkingMechanics = new LinkedHashSet<SelfTriggeringMechanic>();
 
     /**
      * Construct the manager.
@@ -123,6 +124,17 @@ public class MechanicManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Unregister a mechanic factory, using a iterator object.
+     *
+     * @param factory
+     */
+    public boolean unregister(Iterator<MechanicFactory<? extends Mechanic>> factory) {
+
+        factory.remove();
+        return true;
     }
 
     /**
@@ -186,15 +198,19 @@ public class MechanicManager {
         BlockWorldVector pos = toWorldVector(event.getBlock());
 
         try {
-            List<Mechanic> mechanics = load(pos);
+            HashSet<Mechanic> mechanics = load(pos, player);
+            if(mechanics.size() > 0) {
+                // A mechanic has been found, check if we can actually build here.
+                if (!plugin.canBuild(event.getPlayer(), event.getBlock().getLocation())) {
+                    player.printError("area.permissions");
+                    return 0;
+                }
+            }
             for (Mechanic aMechanic : mechanics) {
                 if (aMechanic != null) {
 
-                    // A mechanic has been found, check if we can actually build here.
-                    //FIXME if (!plugin.canBuild(event.getPlayer(), event.getBlock().getLocation())) {
-                    //    player.printError("area.permissions");
-                    //    return 0;
-                    //}
+                    if(plugin.getConfiguration().advancedBlockChecks && event.isCancelled())
+                        return returnValue;
 
                     aMechanic.onBlockBreak(event);
                     returnValue++;
@@ -229,14 +245,17 @@ public class MechanicManager {
         BlockWorldVector pos = toWorldVector(event.getClickedBlock());
 
         try {
-            List<Mechanic> mechanics = load(pos);
+            HashSet<Mechanic> mechanics = load(pos, player);
             for (Mechanic aMechanic : mechanics) {
                 if (aMechanic != null) {
 
-                    //FIXME if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation())) {
-                    //    player.printError("area.permissions");
-                    //    return 0;
-                    //}
+                    if(plugin.getConfiguration().advancedBlockChecks && event.isCancelled())
+                        return returnValue;
+
+                    if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace())) {
+                        player.printError("area.permissions");
+                        return 0;
+                    }
 
                     aMechanic.onRightClick(event);
                     returnValue++;
@@ -270,14 +289,17 @@ public class MechanicManager {
         // See if this event could be occurring on any mechanism's triggering blocks
         BlockWorldVector pos = toWorldVector(event.getClickedBlock());
         try {
-            List<Mechanic> mechanics = load(pos);
+            HashSet<Mechanic> mechanics = load(pos, player);
             for (Mechanic aMechanic : mechanics) {
                 if (aMechanic != null) {
 
-                    //FIXME if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation())) {
-                    //    player.printError("area.permissions");
-                    //    return 0;
-                    //}
+                    if(plugin.getConfiguration().advancedBlockChecks && event.isCancelled())
+                        return returnValue;
+
+                    if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace())) {
+                        player.printError("area.permissions");
+                        return 0;
+                    }
 
                     aMechanic.onLeftClick(event);
                     returnValue++;
@@ -307,7 +329,7 @@ public class MechanicManager {
         // See if this event could be occurring on any mechanism's triggering blocks
         BlockWorldVector pos = toWorldVector(event.getBlock());
         try {
-            List<Mechanic> mechanics = load(pos);
+            HashSet<Mechanic> mechanics = load(pos, null);
             for (Mechanic aMechanic : mechanics) {
                 if (aMechanic != null) {
                     aMechanic.onBlockRedstoneChange(event);
@@ -327,15 +349,18 @@ public class MechanicManager {
      * manager).
      *
      * @param pos
+     * @param player If a player is available, the player who is interacting.
      *
      * @return a list of all {@link Mechanic} at the location;
      *
      * @throws InvalidMechanismException if it appears that the position is intended to me a mechanism,
      *                                   but the mechanism is misconfigured and inoperable.
      */
-    protected List<Mechanic> load(BlockWorldVector pos) throws InvalidMechanismException {
+    public HashSet<Mechanic> load(BlockWorldVector pos, LocalPlayer player) throws InvalidMechanismException {
 
-        List<Mechanic> detectedMechanics = detect(pos);
+        HashSet<Mechanic> detectedMechanics = detect(pos);
+        if(player != null)
+            detectedMechanics.addAll(detect(pos,player));
 
         Mechanic ptMechanic = triggersManager.get(pos);
 
@@ -403,10 +428,10 @@ public class MechanicManager {
      * @throws InvalidMechanismException if it appears that the position is intended to me a mechanism,
      *                                   but the mechanism is misconfigured and inoperable.
      */
-    protected List<Mechanic> load(BlockWorldVector pos, LocalPlayer player,
+    protected HashSet<Mechanic> load(BlockWorldVector pos, LocalPlayer player,
             ChangedSign sign) throws InvalidMechanismException {
 
-        List<Mechanic> detectedMechanics = detect(pos, player, sign);
+        HashSet<Mechanic> detectedMechanics = detect(pos, player, sign);
 
         Mechanic ptMechanic = triggersManager.get(pos);
 
@@ -474,13 +499,39 @@ public class MechanicManager {
      * @throws InvalidMechanismException if it appears that the position is intended to me a mechanism,
      *                                   but the mechanism is misconfigured and inoperable.
      */
-    protected List<Mechanic> detect(BlockWorldVector pos) throws InvalidMechanismException {
+    protected HashSet<Mechanic> detect(BlockWorldVector pos) throws InvalidMechanismException {
 
-        List<Mechanic> mechanics = new ArrayList<Mechanic>();
+        HashSet<Mechanic> mechanics = new HashSet<Mechanic>();
 
         for (MechanicFactory<? extends Mechanic> factory : factories) {
             Mechanic mechanic;
             if ((mechanic = factory.detect(pos)) != null) {
+                mechanics.add(mechanic);
+            }
+        }
+        return mechanics;
+    }
+
+    /**
+     * Attempt to detect a mechanic at a location. This is only called in response to events for which a trigger
+     * block for an existing
+     * PersistentMechanic cannot be found.
+     *
+     * @param pos
+     * @param player
+     *
+     * @return a {@link Mechanic} if a mechanism could be found at the location; null otherwise
+     *
+     * @throws InvalidMechanismException if it appears that the position is intended to me a mechanism,
+     *                                   but the mechanism is misconfigured and inoperable.
+     */
+    protected HashSet<Mechanic> detect(BlockWorldVector pos, LocalPlayer player) throws InvalidMechanismException {
+
+        HashSet<Mechanic> mechanics = new HashSet<Mechanic>();
+
+        for (MechanicFactory<? extends Mechanic> factory : factories) {
+            Mechanic mechanic;
+            if ((mechanic = factory.detect(pos, player)) != null) {
                 mechanics.add(mechanic);
             }
         }
@@ -498,10 +549,10 @@ public class MechanicManager {
      * @throws InvalidMechanismException if it appears that the position is intended to me a mechanism,
      *                                   but the mechanism is misconfigured and inoperable.
      */
-    protected List<Mechanic> detect(BlockWorldVector pos, LocalPlayer player,
+    protected HashSet<Mechanic> detect(BlockWorldVector pos, LocalPlayer player,
             ChangedSign sign) throws InvalidMechanismException {
 
-        List<Mechanic> mechanics = new ArrayList<Mechanic>();
+        HashSet<Mechanic> mechanics = new HashSet<Mechanic>();
 
         for (MechanicFactory<? extends Mechanic> factory : factories) {
             try {
@@ -526,7 +577,9 @@ public class MechanicManager {
      */
     protected boolean passesFilter(Event event) {
 
-        // TODO FIXME
+        if(event instanceof Cancellable && ((Cancellable) event).isCancelled() && CraftBookPlugin.inst().getConfiguration().advancedBlockChecks)
+            return false;
+
         return true;
     }
 
@@ -542,24 +595,23 @@ public class MechanicManager {
                 if (state == null) continue;
                 if (state instanceof Sign) {
                     try {
-                        load(toWorldVector(state.getBlock()));
+                        load(BukkitUtil.toWorldVector(state.getBlock()), null);
                     } catch (InvalidMechanismException ignored) {
-                    } catch (Exception t) {
+                    } catch (Throwable t) {
                         BukkitUtil.printStacktrace(t);
                     }
                 }
             }
         } catch (Throwable error) {
 
-            error.printStackTrace();
-            Bukkit.getLogger().severe("A corruption issue has been found at chunk ("
+            BukkitUtil.printStacktrace(error);
+            CraftBookPlugin.logger().severe("A corruption issue has been found at chunk ("
                     + chunk.getX() + ", " + chunk.getZ() + ") Self-Triggering mechanics " +
                     "may not work as expected until this is resolved!");
             // TODO This probably needs formatted better
-            Bukkit.getLogger().severe("Chunk (" + chunk.getX() + ", " + chunk.getZ() + ") starts at " +
+            CraftBookPlugin.logger().severe("Chunk (" + chunk.getX() + ", " + chunk.getZ() + ") starts at " +
                     chunk.getBlock(0, 0, 0).getLocation().toString() + " and ends at " +
                     chunk.getBlock(15, 255, 15).getLocation().toString() + '.');
-
         }
     }
 
@@ -574,6 +626,27 @@ public class MechanicManager {
         applicable.addAll(watchBlockManager.getByChunk(chunk));
 
         for (Mechanic m : applicable) {
+            if (event != null && event.isCancelled())
+                return;
+            unload(m, event);
+        }
+    }
+
+    /**
+     * Unloads the mechanics at the given position.
+     * 
+     * @param position
+     * @param event
+     */
+    public void unload(BlockWorldVector position, ChunkUnloadEvent event) {
+
+        Set<PersistentMechanic> applicable = new HashSet<PersistentMechanic>();
+        applicable.add(triggersManager.get(position));
+        applicable.addAll(watchBlockManager.get(position));
+
+        for (Mechanic m : applicable) {
+            if (event != null && event.isCancelled())
+                return;
             unload(m, event);
         }
     }
@@ -590,14 +663,26 @@ public class MechanicManager {
             return;
         }
 
+
+        if(CraftBookPlugin.inst().getConfiguration().ICKeepLoaded && mechanic instanceof ICMechanic && event != null && ((PersistentMechanic) mechanic).isActive()) {
+            event.setCancelled(true);
+            return;
+        }
+
         try {
+            if (event != null) {
+                mechanic.unloadWithEvent(event);
+                if(event.isCancelled())
+                    return;
+            }
             mechanic.unload();
-            if (event != null) mechanic.unloadWithEvent(event);
         } catch (Throwable t) { // Mechanic failed to unload for some reason
-            logger.log(Level.WARNING, "CraftBook mechanic: Failed to unload " + mechanic.getClass().getCanonicalName
-                    (), t);
+            logger.log(Level.WARNING, "CraftBook mechanic: Failed to unload " + mechanic.getClass().getSimpleName());
             BukkitUtil.printStacktrace(t);
         }
+
+        if (event != null && event.isCancelled())
+            return;
 
         synchronized (this) {
             thinkingMechanics.remove(mechanic);
@@ -627,12 +712,17 @@ public class MechanicManager {
                 try {
                     mechanic.think();
                 } catch (Throwable t) { // Mechanic failed to think for some reason
-                    logger.log(Level.WARNING, "CraftBook mechanic: Failed to think for " + mechanic.getClass()
-                            .getCanonicalName(), t);
+                    logger.log(Level.WARNING, "CraftBook mechanic: Failed to think for " + mechanic.getClass().getSimpleName());
                     BukkitUtil.printStacktrace(t);
                 }
             } else {
                 unload(mechanic, null);
+                if(mechanic instanceof ICMechanic) {
+                    try {
+                        load(((ICMechanic) mechanic).getIC().getSign().getBlockVector(), null);
+                    } catch (InvalidMechanismException e) {
+                    }
+                }
             }
         }
     }

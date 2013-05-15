@@ -130,7 +130,7 @@ public class ICManager {
      */
     public static boolean isCachedIC(BlockWorldVector pt) {
 
-        return CraftBookPlugin.inst().getConfiguration().ICCached && cachedICs.containsKey(pt);
+        return cachedICs.containsKey(pt);
     }
 
     /**
@@ -178,6 +178,23 @@ public class ICManager {
     public static void unloadIC(BlockWorldVector pt) {
 
         removeCachedIC(pt);
+    }
+
+    /**
+     * Clears the IC cache.
+     *
+     */
+    public static void emptyCache() {
+
+        cachedICs.clear();
+    }
+
+    /**
+     * Gets the IC Cache map.
+     */
+    public static Map<BlockWorldVector, IC> getCachedICs() {
+
+        return cachedICs;
     }
 
     public boolean hasCustomPrefix(String prefix) {

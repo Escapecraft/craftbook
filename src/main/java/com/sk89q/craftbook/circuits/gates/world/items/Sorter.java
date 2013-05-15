@@ -16,8 +16,8 @@ import org.bukkit.material.PistonBaseMaterial;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.CircuitCore;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
@@ -27,7 +27,7 @@ import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.blocks.BlockID;
 
-public class Sorter extends AbstractIC implements PipeInputIC {
+public class Sorter extends AbstractSelfTriggeredIC implements PipeInputIC {
 
     public Sorter(Server server, ChangedSign sign, ICFactory factory) {
 
@@ -40,7 +40,7 @@ public class Sorter extends AbstractIC implements PipeInputIC {
     @Override
     public void load() {
 
-        chestBlock = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(0, 1, 0);
+        chestBlock = getBackBlock().getRelative(0, 1, 0);
         inverted = getSign().getLine(2).equalsIgnoreCase("invert");
     }
 
@@ -60,6 +60,12 @@ public class Sorter extends AbstractIC implements PipeInputIC {
     public void trigger(ChipState chip) {
 
         if (chip.getInput(0)) chip.setOutput(0, sort());
+    }
+
+    @Override
+    public void think(ChipState state) {
+
+        state.setOutput(0, sort());
     }
 
     public boolean sort() {
@@ -84,7 +90,7 @@ public class Sorter extends AbstractIC implements PipeInputIC {
                 BlockFace back = SignUtil.getBack(BukkitUtil.toSign(getSign()).getBlock());
                 Block b;
 
-                if (isInAboveChest(stack) || inverted) {
+                if (isInAboveChest(stack) ^ inverted) {
                     b = SignUtil.getRightBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(back);
                 } else {
                     b = SignUtil.getLeftBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(back);
@@ -101,8 +107,8 @@ public class Sorter extends AbstractIC implements PipeInputIC {
 
                         List<ItemStack> items = new ArrayList<ItemStack>();
                         items.add(item.getItemStack());
-                        if (((CircuitCore) CircuitCore.inst()).getPipeFactory() != null)
-                            if (((CircuitCore) CircuitCore.inst()).getPipeFactory().detect(BukkitUtil.toWorldVector(b),
+                        if (CircuitCore.inst().getPipeFactory() != null)
+                            if (CircuitCore.inst().getPipeFactory().detectWithItems(BukkitUtil.toWorldVector(b),
                                     items) != null) {
                                 item.remove();
                                 pipes = true;
@@ -140,8 +146,8 @@ public class Sorter extends AbstractIC implements PipeInputIC {
 
                 List<ItemStack> items = new ArrayList<ItemStack>();
                 items.add(item);
-                if (((CircuitCore) CircuitCore.inst()).getPipeFactory() != null)
-                    if (((CircuitCore) CircuitCore.inst()).getPipeFactory().detect(BukkitUtil.toWorldVector(b),
+                if (CircuitCore.inst().getPipeFactory() != null)
+                    if (CircuitCore.inst().getPipeFactory().detectWithItems(BukkitUtil.toWorldVector(b),
                             items) != null) {
                         pipes = true;
                     }
@@ -184,8 +190,7 @@ public class Sorter extends AbstractIC implements PipeInputIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {"invert - to invert output sides", null};
-            return lines;
+            return new String[] {"invert - to invert output sides", null};
         }
     }
 

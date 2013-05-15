@@ -6,13 +6,11 @@ import org.bukkit.block.Chest;
 import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
+import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
-import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.util.yaml.YAMLProcessor;
 import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.ItemID;
@@ -20,7 +18,7 @@ import com.sk89q.worldedit.blocks.ItemID;
 /**
  * @author Me4502
  */
-public class Pump extends AbstractIC {
+public class Pump extends AbstractSelfTriggeredIC {
 
     public Pump(Server server, ChangedSign block, ICFactory factory) {
 
@@ -47,12 +45,20 @@ public class Pump extends AbstractIC {
         }
     }
 
+    @Override
+    public void think(ChipState state) {
+
+        if (state.getInput(0)) {
+            state.setOutput(0, scan());
+        }
+    }
+
     /**
      * @return water found
      */
     public boolean scan() {
 
-        Block pump = SignUtil.getBackBlock(BukkitUtil.toSign(getSign()).getBlock());
+        Block pump = getBackBlock();
         if (!(pump.getRelative(0, 1, 0).getTypeId() == BlockID.CHEST)) return false;
         Chest c = (Chest) pump.getRelative(0, 1, 0).getState();
         for (int y = 0; y > -10; y--) {
@@ -133,8 +139,7 @@ public class Pump extends AbstractIC {
         @Override
         public String[] getLineHelp() {
 
-            String[] lines = new String[] {null, null};
-            return lines;
+            return new String[] {null, null}; //TODO allow offsets.
         }
 
         @Override
