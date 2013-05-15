@@ -1,6 +1,9 @@
 package com.sk89q.craftbook.cart;
 
+import org.bukkit.Location;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.minecart.ExplosiveMinecart;
 import org.bukkit.entity.minecart.HopperMinecart;
@@ -8,6 +11,7 @@ import org.bukkit.entity.minecart.PoweredMinecart;
 import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.material.Sign;
 
 import com.sk89q.craftbook.util.RailUtil;
 import com.sk89q.craftbook.util.RedstoneUtil.Power;
@@ -135,12 +139,29 @@ public class CartDispenser extends CartMechanism {
         }
     }
 
+    //is rail clear of other carts.
+    private boolean isRailClear(Location l){
+        for(Entity e : l.getChunk().getEntities()){
+            if(e instanceof Minecart){
+                if(l.distance(e.getLocation()) <2.0){
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
     /**
      * @param blocks nuff said
      * @param inv    the inventory to remove a cart item from, or null if we don't care.
      */
     private void dispense(CartMechanismBlocks blocks, Inventory inv, CartType type) {
-
+        
+        //Get the rail 2 blocks ahead of us.
+        BlockFace direction =  new Sign(blocks.sign.getTypeId(),blocks.sign.getData()).getFacing().getOppositeFace();
+        Location loc = blocks.rail.getRelative(direction,2).getLocation();
+        
+        if(!isRailClear(loc)){return;}//Check for a clear rail, no carts nearby
+        
         if (inv != null) {
             if (type.equals(CartType.Minecart)) {
                 if (!inv.contains(ItemType.MINECART.getID())) return;
@@ -159,7 +180,9 @@ public class CartDispenser extends CartMechanism {
                 inv.removeItem(new ItemStack(ItemType.HOPPER_MINECART.getID(), 1));
             }
         }
-        blocks.rail.getWorld().spawn(BukkitUtil.center(blocks.rail.getLocation()), type.toClass());
+        
+        
+        blocks.rail.getWorld().spawn(BukkitUtil.center(loc), type.toClass());
     }
 
     public enum CartType {
