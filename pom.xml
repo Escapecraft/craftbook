@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.sk89q.craftbook</groupId>
     <artifactId>craftbook</artifactId>
-    <version>3.6-SNAPSHOT</version>
+    <version>3.6-1.5.2-ec</version>
     <name>CraftBook</name>
     <description>CraftBook adds fun mechanics and redstone-powered contraptions to Minecraft</description>
     <licenses>
@@ -22,8 +22,18 @@
     </scm>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <bukkit.group>org.spigotmc</bukkit.group>
+        <bukkit.artifact>spigot-api</bukkit.artifact>
+        <bukkit.version>1.5.2-R0.2-ec</bukkit.version>
+        <craftbukkit.group>org.spigotmc</craftbukkit.group>
+        <craftbukkit.artifact>spigot</craftbukkit.artifact>
+        <craftbukkit.version>1.5.2-R0.2-ec</craftbukkit.version>
     </properties>
     <repositories>
+        <repository>
+            <id>ec-repo</id>
+            <url>http://dev.escapecraft.com/maven</url>
+        </repository>
         <repository>
             <id>bukkit-repo</id>
             <url>http://repo.bukkit.org/content/groups/public</url>
@@ -42,22 +52,22 @@
         <dependency>
             <groupId>com.sk89q</groupId>
             <artifactId>worldedit</artifactId>
-            <version>5.5.7-SNAPSHOT</version>
+            <version>5.5.7-1.5.2-ec</version>
         </dependency>
         <dependency>
             <groupId>com.sk89q</groupId>
             <artifactId>worldguard</artifactId>
-            <version>5.7.6-SNAPSHOT</version>
+            <version>5.7.6-1.5.2-ec</version>
         </dependency>
         <dependency>
-            <groupId>org.bukkit</groupId>
-            <artifactId>bukkit</artifactId>
-            <version>1.5.2-R0.2-SNAPSHOT</version>
+            <groupId>${bukkit.group}</groupId>
+            <artifactId>${bukkit.artifact}</artifactId>
+            <version>${bukkit.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.bukkit</groupId>
-            <artifactId>craftbukkit</artifactId>
-            <version>1.5.2-R0.2-SNAPSHOT</version>
+            <groupId>${craftbukkit.group}</groupId>
+            <artifactId>${craftbukkit.artifact}</artifactId>
+            <version>${craftbukkit.version}</version>
         </dependency>
         <dependency>
             <groupId>net.milkbowl.vault</groupId>
