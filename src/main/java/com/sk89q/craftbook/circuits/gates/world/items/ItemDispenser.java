@@ -28,6 +28,7 @@ import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
+import com.sk89q.craftbook.util.ItemSyntax;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.worldedit.blocks.BlockType;
 
@@ -39,23 +40,28 @@ public class ItemDispenser extends AbstractIC {
     }
 
     ItemStack item;
+    int times = 1;
 
     @Override
     public void load() {
 
         int amount = 1;
 
-        item = ItemUtil.getItem(getLine(2));
+        item = ItemUtil.makeItemValid(ItemSyntax.getItem(getLine(2)));
         if(item == null)
             item = new ItemStack(1, 1);
 
         try {
-            amount = Math.min(item.getMaxStackSize(), Math.max(1, Integer.parseInt(getSign().getLine(3))));
+            amount = Math.max(1, Integer.parseInt(getSign().getLine(3)));
         } catch (Exception ignored) {
             amount = 1;
         }
         if (amount < 1) amount = 1;
 
+        if(amount > item.getMaxStackSize()) {
+            times = amount;
+            amount = 1;
+        }
         item.setAmount(amount);
     }
 
@@ -83,10 +89,8 @@ public class ItemDispenser extends AbstractIC {
                 for (int y = 1; y <= maxY; y++) {
                     if (BlockType.canPassThrough(loc.getBlock().getRelative(0, y, 0).getTypeId())) {
 
-                        ItemStack stack = item.clone();
-
-                        BukkitUtil.toSign(getSign()).getWorld().dropItem(loc.getBlock().getRelative(0, y,
-                                0).getLocation(), stack);
+                        for(int i = 0; i < times; i++)
+                            BukkitUtil.toSign(getSign()).getWorld().dropItem(loc.getBlock().getRelative(0, y, 0).getLocation(), item.clone());
                         return;
                     }
                 }

@@ -9,6 +9,7 @@ import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
+import com.sk89q.craftbook.circuits.ic.ConfigurableIC;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.util.yaml.YAMLProcessor;
@@ -61,7 +62,7 @@ public class Pump extends AbstractSelfTriggeredIC {
         Block pump = getBackBlock();
         if (!(pump.getRelative(0, 1, 0).getTypeId() == BlockID.CHEST)) return false;
         Chest c = (Chest) pump.getRelative(0, 1, 0).getState();
-        for (int y = 0; y > -10; y--) {
+        for (int y = -1; y > -11; y--) {
             Block liquid = pump.getRelative(0, y, 0);
             if (check(c, liquid, 0)) return true;
         }
@@ -70,9 +71,7 @@ public class Pump extends AbstractSelfTriggeredIC {
 
     public boolean searchNear(Chest c, Block block, int depth) {
 
-        return depth <= 5
-                && (check(c, block.getRelative(0, 0, 1), depth) || check(c, block.getRelative(0, 0, -1), depth)
-                        || check(c, block.getRelative(1, 0, 0), depth) || check(c, block.getRelative(-1, 0, 0), depth));
+        return depth <= 5 && (check(c, block.getRelative(0, 0, 1), depth) || check(c, block.getRelative(0, 0, -1), depth) || check(c, block.getRelative(1, 0, 0), depth) || check(c, block.getRelative(-1, 0, 0), depth));
     }
 
     public boolean check(Chest c, Block liquid, int depth) {
@@ -92,18 +91,15 @@ public class Pump extends AbstractSelfTriggeredIC {
         if (((Factory) getFactory()).buckets) {
             if (c.getInventory().contains(ItemID.BUCKET)) {
                 c.getInventory().remove(ItemID.BUCKET);
-                if (c.getInventory().addItem(new ItemStack(parse(liquid.getTypeId()) == BlockID.LAVA ? ItemID
-                        .LAVA_BUCKET : ItemID.WATER_BUCKET, 1))
-                        .size() < 1) {
+                if (c.getInventory().addItem(new ItemStack(parse(liquid.getTypeId()) == BlockID.LAVA ? ItemID.LAVA_BUCKET : ItemID.WATER_BUCKET, 1)).isEmpty()) {
                     return true;
                 } else {
                     c.getInventory().addItem(new ItemStack(ItemID.BUCKET));
                     return false;
                 }
             } else return false;
-        } else {
-            if (c.getInventory().addItem(new ItemStack(parse(liquid.getTypeId()))).size() < 1) return true;
-        }
+        } else
+            if (c.getInventory().addItem(new ItemStack(parse(liquid.getTypeId()))).isEmpty()) return true;
 
         return false;
     }
@@ -115,7 +111,7 @@ public class Pump extends AbstractSelfTriggeredIC {
         return BlockID.AIR;
     }
 
-    public static class Factory extends AbstractICFactory {
+    public static class Factory extends AbstractICFactory implements ConfigurableIC {
 
         public boolean buckets;
 
@@ -146,12 +142,6 @@ public class Pump extends AbstractSelfTriggeredIC {
         public void addConfiguration(YAMLProcessor config, String path) {
 
             buckets = config.getBoolean(path + "requires-buckets", false);
-        }
-
-        @Override
-        public boolean needsConfiguration() {
-
-            return true;
         }
     }
 }

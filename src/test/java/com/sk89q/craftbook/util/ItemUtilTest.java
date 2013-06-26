@@ -101,13 +101,13 @@ public class ItemUtilTest {
 
         Item entity = mock(Item.class);
         when(entity.isDead()).thenReturn(true);
-        assertTrue(!ItemUtil.takeFromEntity(null, 1));
-        assertTrue(!ItemUtil.takeFromEntity(entity, 1));
+        assertTrue(!ItemUtil.takeFromItemEntity(null, 1));
+        assertTrue(!ItemUtil.takeFromItemEntity(entity, 1));
         when(entity.isDead()).thenReturn(false);
-        when(entity.getItemStack()).thenReturn(ItemUtil.getItem("2:0*20"));
-        assertTrue(!ItemUtil.takeFromEntity(entity, 21));
-        assertTrue(ItemUtil.takeFromEntity(entity, 2));
-        assertTrue(ItemUtil.takeFromEntity(entity, 18));
+        when(entity.getItemStack()).thenReturn(ItemSyntax.getItem("2:0*20"));
+        assertTrue(!ItemUtil.takeFromItemEntity(entity, 21));
+        assertTrue(ItemUtil.takeFromItemEntity(entity, 2));
+        assertTrue(ItemUtil.takeFromItemEntity(entity, 18));
         verify(entity).remove();
     }
 
@@ -116,8 +116,6 @@ public class ItemUtilTest {
 
         ItemStack ingredient = newMockItemStack(ItemID.RAW_CHICKEN, (byte) 0, 1);
         assertTrue(ItemUtil.isCookable(ingredient));
-        when(ingredient.hasItemMeta()).thenReturn(true);
-        assertTrue(!ItemUtil.isCookable(ingredient));
     }
 
     @Test
@@ -125,26 +123,24 @@ public class ItemUtilTest {
 
         ItemStack ingredient = newMockItemStack(ItemID.CLAY_BALL, (byte) 0, 1);
         assertTrue(ItemUtil.isSmeltable(ingredient));
-        when(ingredient.hasItemMeta()).thenReturn(true);
-        assertTrue(!ItemUtil.isSmeltable(ingredient));
     }
 
     @Test
     public void testGetItem() {
 
-        ItemStack ret1 = ItemUtil.getItem("2");
+        ItemStack ret1 = ItemSyntax.getItem("2");
         assertTrue(ret1.getTypeId() == 2);
         assertTrue(ret1.getData().getData() == -1);
         assertTrue(ret1.getAmount() == 1);
-        ret1 = ItemUtil.getItem("2:5");
+        ret1 = ItemSyntax.getItem("2:5");
         assertTrue(ret1.getTypeId() == 2);
         assertTrue(ret1.getData().getData() == 5);
         assertTrue(ret1.getAmount() == 1);
-        ret1 = ItemUtil.getItem("2:5*4");
+        ret1 = ItemSyntax.getItem("2:5*4");
         assertTrue(ret1.getTypeId() == 2);
         assertTrue(ret1.getData().getData() == 5);
         assertTrue(ret1.getAmount() == 4);
-        ret1 = ItemUtil.getItem("2*4");
+        ret1 = ItemSyntax.getItem("2*4");
         assertTrue(ret1.getTypeId() == 2);
         assertTrue(ret1.getData().getData() == -1);
         assertTrue(ret1.getAmount() == 4);

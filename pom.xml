@@ -47,17 +47,17 @@
         <dependency>
             <groupId>com.sk89q</groupId>
             <artifactId>worldguard</artifactId>
-            <version>5.7.4-SNAPSHOT</version>
+            <version>5.7.6-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.bukkit</groupId>
             <artifactId>bukkit</artifactId>
-            <version>1.5.2-R0.2-SNAPSHOT</version>
+            <version>1.5.2-R1.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.bukkit</groupId>
             <artifactId>craftbukkit</artifactId>
-            <version>1.5.2-R0.2-SNAPSHOT</version>
+            <version>1.5.2-R1.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>net.milkbowl.vault</groupId>
@@ -67,7 +67,7 @@
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
             <artifactId>ProtocolLib</artifactId>
-            <version>2.4.1</version>
+            <version>2.4.3</version>
         </dependency>
         <dependency>
 	        <groupId>org.powermock</groupId>
@@ -121,6 +121,7 @@
                     <include>books.txt</include>
                     <include>cauldron-recipes.txt</include>
                     <include>cauldron-recipes.yml</include>
+                    <include>command-items.yml</include>
                     <include>crafting-recipes.yml</include>
                     <include>custom-block-drops.txt</include>
                     <include>custom-ics.txt</include>

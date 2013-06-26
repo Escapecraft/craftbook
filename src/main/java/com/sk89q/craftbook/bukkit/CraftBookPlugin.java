@@ -12,6 +12,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.jar.JarFile;
 import java.util.logging.Logger;
@@ -30,10 +31,13 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -42,8 +46,6 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.comphenix.protocol.ProtocolLibrary;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import com.sk89q.bukkit.util.CommandsManagerRegistration;
 import com.sk89q.craftbook.LanguageManager;
 import com.sk89q.craftbook.LocalComponent;
@@ -56,6 +58,8 @@ import com.sk89q.craftbook.bukkit.BukkitMetrics.Graph;
 import com.sk89q.craftbook.bukkit.BukkitMetrics.Plotter;
 import com.sk89q.craftbook.bukkit.commands.TopLevelCommands;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.craftbook.util.RegexUtil;
+import com.sk89q.craftbook.util.Tuple2;
 import com.sk89q.craftbook.util.config.VariableConfiguration;
 import com.sk89q.minecraft.util.commands.CommandException;
 import com.sk89q.minecraft.util.commands.CommandPermissionsException;
@@ -140,14 +144,9 @@ public class CraftBookPlugin extends JavaPlugin {
     private MechanicClock mechanicClock;
 
     /**
-     * The map used to store versions, useful for auto updaters and /cb about.
-     */
-    public BiMap<String, String> versionConverter = HashBiMap.create();
-
-    /**
      * Stores the variables used in VariableStore.
      */
-    public HashMap<String, String> variableStore = new HashMap<String, String>();
+    protected HashMap<Tuple2<String, String>, String> variableStore = new HashMap<Tuple2<String, String>, String>();
 
     /**
      * Construct objects. Actual loading occurs when the plugin is enabled, so
@@ -157,36 +156,21 @@ public class CraftBookPlugin extends JavaPlugin {
 
         // Set the instance
         instance = this;
-
-        // Set the version converter contents. It really only needs the current versions stuff... but just incase you are using a release version that isn't on bukkit dev yet, this is here.
-        versionConverter.put("3.4.1", "1541");
-        versionConverter.put("3.5",   "1680");
-        versionConverter.put("3.5.1", "1718");
-        versionConverter.put("3.5.2", "1749");
-        versionConverter.put("3.5.3", "1766");
-        versionConverter.put("3.5.4", "1795");
-        versionConverter.put("3.5.5b1","1816");
-        versionConverter.put("3.5.5", "1828");
-        versionConverter.put("3.5.6", "1839");
-        versionConverter.put("3.5.7", "1853");
-        versionConverter.put("3.6b1", "1859");
-        versionConverter.put("3.6b2", "1873");
-        versionConverter.put("3.6b3", "1886");
-        versionConverter.put("3.6b4", "1921");
-        versionConverter.put("3.6",   "1955");
-        versionConverter.put("3.6.1", "1999");
-        versionConverter.put("3.6.2", "2051");
-        versionConverter.put("3.6.3", "2118");
-        versionConverter.put("3.6.3r3", "2123");
-        versionConverter.put("3.6.4", "2153");
     }
 
-    public String parseVariables(String line) {
+    public static String getVersion() {
 
-        for(String key : variableStore.keySet())
-            line = line.replace("%" + key + "%", variableStore.get(key));
+        return "3.7b1";
+    }
 
-        return line;
+    /**
+     * Gets the build equivalent of the last stable version.
+     * 
+     * @return the build number
+     */
+    public static String getStableBuild() {
+
+        return "2340";
     }
 
     /**
@@ -215,10 +199,16 @@ public class CraftBookPlugin extends JavaPlugin {
         }
 
         // Resolve ProtocolLib
-        checkPlugin = getServer().getPluginManager().getPlugin("ProtocolLib");
-        if (checkPlugin != null && checkPlugin instanceof ProtocolLibrary) {
-            protocolLib = (ProtocolLibrary) checkPlugin;
-        } else protocolLib = null;
+        try {
+            checkPlugin = getServer().getPluginManager().getPlugin("ProtocolLib");
+            if (checkPlugin != null && checkPlugin instanceof ProtocolLibrary) {
+                protocolLib = (ProtocolLibrary) checkPlugin;
+            } else protocolLib = null;
+        } catch(Exception e){
+            protocolLib = null;
+            getLogger().severe("You have a corrupt version of ProtocolLib! Please redownload it!");
+            BukkitUtil.printStacktrace(e);
+        }
 
         // Resolve WorldGuard
         checkPlugin = getServer().getPluginManager().getPlugin("WorldGuard");
@@ -233,8 +223,7 @@ public class CraftBookPlugin extends JavaPlugin {
         // Setup Config and the Commands Manager
         final CraftBookPlugin plugin = this;
         createDefaultConfiguration(new File(getDataFolder(), "config.yml"), "config.yml", false);
-        config = new BukkitConfiguration(new YAMLProcessor(new File(getDataFolder(), "config.yml"), true,
-                YAMLFormat.EXTENDED), this);
+        config = new BukkitConfiguration(new YAMLProcessor(new File(getDataFolder(), "config.yml"), true, YAMLFormat.EXTENDED), this);
         commands = new CommandsManager<CommandSender>() {
 
             @Override
@@ -312,6 +301,39 @@ public class CraftBookPlugin extends JavaPlugin {
     public MechanicManager getManager() {
 
         return manager;
+    }
+
+    public boolean hasVariable(String variable, String namespace) {
+
+        if(!config.variablesEnabled)
+            return false;
+        return variableStore.containsKey(new Tuple2<String, String>(variable, namespace));
+    }
+
+    public String getVariable(String variable, String namespace) {
+
+        if(!config.variablesEnabled)
+            return "Variables Are Disabled!";
+        return variableStore.get(new Tuple2<String, String>(variable, namespace));
+    }
+
+    public String setVariable(String variable, String namespace, String value) {
+
+        if(!config.variablesEnabled)
+            return "Variables Are Disabled!";
+        return variableStore.put(new Tuple2<String, String>(variable, namespace), value);
+    }
+
+    public String removeVariable(String variable, String namespace) {
+
+        if(!config.variablesEnabled)
+            return "Variables Are Disabled!";
+        return variableStore.remove(new Tuple2<String, String>(variable, namespace));
+    }
+
+    public HashMap<Tuple2<String, String>, String> getVariableStore() {
+
+        return variableStore;
     }
 
     /**
@@ -417,7 +439,7 @@ public class CraftBookPlugin extends JavaPlugin {
             final Updater updater = new Updater(this, "CraftBook", getFile(), Updater.UpdateType.NO_DOWNLOAD, false); // Start Updater but just do a version check
             updateAvailable = updater.getResult() == Updater.UpdateResult.UPDATE_AVAILABLE; // Determine if there is an update ready for us
             latestVersion = updater.getLatestVersionString(); // Get the latest version
-            getLogger().info(latestVersion + " is the latest version available, and the updatability of it is: " + updater.getResult().name());
+            getLogger().info(latestVersion + " is the latest version available, and the updatability of it is: " + updater.getResult().name() + ". You currently have version " + updater.getCurrentVersionString() + " installed.");
             updateSize = updater.getFileSize(); // Get latest size
 
             if(updateAvailable) {
@@ -448,13 +470,15 @@ public class CraftBookPlugin extends JavaPlugin {
     public void startComponents() {
 
         // VariableStore
-        try {
-            File varFile = new File(getDataFolder(), "variables.yml");
-            if(!varFile.exists())
-                varFile.createNewFile();
-            variableConfiguration = new VariableConfiguration(new YAMLProcessor(varFile, true, YAMLFormat.EXTENDED), logger());
-            variableConfiguration.load();
-        } catch(Exception e){}
+        if(config.variablesEnabled) {
+            try {
+                File varFile = new File(getDataFolder(), "variables.yml");
+                if(!varFile.exists())
+                    varFile.createNewFile();
+                variableConfiguration = new VariableConfiguration(new YAMLProcessor(varFile, true, YAMLFormat.EXTENDED), logger());
+                variableConfiguration.load();
+            } catch(Exception ignored){}
+        }
 
         // Mechanics
         if (config.enableMechanisms) {
@@ -487,7 +511,8 @@ public class CraftBookPlugin extends JavaPlugin {
         for (LocalComponent component : components) {
             component.disable();
         }
-        variableConfiguration.save();
+        if(config.variablesEnabled)
+            variableConfiguration.save();
         components.clear();
     }
 
@@ -831,6 +856,8 @@ public class CraftBookPlugin extends JavaPlugin {
         for (LocalComponent component : components) {
             component.disable();
         }
+        if(config.variablesEnabled)
+            variableConfiguration.save();
         components.clear();
         getServer().getScheduler().cancelTasks(inst());
         HandlerList.unregisterAll(inst());
@@ -896,7 +923,7 @@ public class CraftBookPlugin extends JavaPlugin {
 
                 try {
                     file.close();
-                } catch (IOException e) {
+                } catch (IOException ignored) {
                 }
 
                 try {
@@ -972,9 +999,9 @@ public class CraftBookPlugin extends JavaPlugin {
      *
      * @see GlobalRegionManager#canBuild(org.bukkit.entity.Player, org.bukkit.Location)
      */
-    public boolean canBuild(Player player, Location loc) {
+    public boolean canBuild(Player player, Location loc, boolean build) {
 
-        return canBuild(player,loc.getBlock());
+        return canBuild(player,loc.getBlock(), build);
     }
 
     /**
@@ -983,23 +1010,28 @@ public class CraftBookPlugin extends JavaPlugin {
      *
      * @param player The player to check
      * @param block  The block to check at.
+     * @param build True for build, false for break
      *
      * @return whether {@code player} can build at {@code block}'s location
      *
      * @see GlobalRegionManager#canBuild(org.bukkit.entity.Player, org.bukkit.block.Block)
      */
-    public boolean canBuild(Player player, Block block) {
+    public boolean canBuild(Player player, Block block, boolean build) {
 
         if (config.advancedBlockChecks) {
 
-            BlockPlaceEvent event = new BlockPlaceEvent(block, block.getState(), block.getRelative(0, -1, 0), player.getItemInHand(), player, true);
+            BlockEvent event;
+            if(build)
+                event = new BlockPlaceEvent(block, block.getState(), block.getRelative(0, -1, 0), player.getItemInHand(), player, true);
+            else
+                event = new BlockBreakEvent(block, player);
+            MechanicListenerAdapter.ignoredEvents.add(event);
             getServer().getPluginManager().callEvent(event);
-            if(event.isCancelled() || !event.canBuild())
+            if(((Cancellable) event).isCancelled() || event instanceof BlockPlaceEvent && !((BlockPlaceEvent) event).canBuild())
                 return false;
         }
         if (!config.obeyWorldguard) return true;
-        if (worldGuardPlugin == null) return true;
-        return worldGuardPlugin.canBuild(player, block);
+        return worldGuardPlugin == null || worldGuardPlugin.canBuild(player, block);
     }
 
     /**
@@ -1013,19 +1045,18 @@ public class CraftBookPlugin extends JavaPlugin {
      *
      * @see GlobalRegionManager#canBuild(org.bukkit.entity.Player, org.bukkit.Location)
      */
-    public boolean canUse(Player player, Location loc, BlockFace face) {
+    public boolean canUse(Player player, Location loc, BlockFace face, Action action) {
 
         if (config.advancedBlockChecks) {
 
-            PlayerInteractEvent event = new PlayerInteractEvent(player, Action.RIGHT_CLICK_BLOCK, player.getItemInHand(), loc.getBlock(), face == null ? BlockFace.SELF : face);
+            PlayerInteractEvent event = new PlayerInteractEvent(player, action == null ? Action.RIGHT_CLICK_BLOCK : action, player.getItemInHand(), loc.getBlock(), face == null ? BlockFace.SELF : face);
             MechanicListenerAdapter.ignoredEvents.add(event);
             getServer().getPluginManager().callEvent(event);
             if(event.isCancelled())
                 return false;
         }
         if (!config.obeyWorldguard) return true;
-        if (worldGuardPlugin == null) return true;
-        return worldGuardPlugin.getGlobalRegionManager().allows(DefaultFlag.USE, loc, worldGuardPlugin.wrapPlayer(player));
+        return worldGuardPlugin == null || worldGuardPlugin.getGlobalRegionManager().allows(DefaultFlag.USE, loc, worldGuardPlugin.wrapPlayer(player));
     }
 
     /**
@@ -1059,15 +1090,37 @@ public class CraftBookPlugin extends JavaPlugin {
 
     public static boolean isDebugFlagEnabled(String flag) {
 
+        if(inst() == null) return false;
+
         if(!inst().getConfiguration().debugMode || inst().getConfiguration().debugFlags == null || inst().getConfiguration().debugFlags.isEmpty())
             return false;
 
-        for(String testflag : inst().getConfiguration().debugFlags) {
+        String[] flagBits = RegexUtil.PERIOD_PATTERN.split(flag);
 
-            if(testflag.equalsIgnoreCase(flag))
-                return true;
+        String tempFlag = "";
+
+        for(int i = 0; i < flagBits.length; i++) {
+
+            if(i == 0)
+                tempFlag = flagBits[i];
+            else
+                tempFlag = tempFlag + "." + flagBits[i];
+
+            for(String testflag : inst().getConfiguration().debugFlags) {
+
+                if(testflag.toLowerCase(Locale.ENGLISH).equals(tempFlag))
+                    return true;
+            }
         }
 
         return false;
+    }
+
+    public static void logDebugMessage(String message, String code) {
+
+        if(!isDebugFlagEnabled(code))
+            return;
+
+        logger().info("[Debug][" + code + "] " + message);
     }
 }

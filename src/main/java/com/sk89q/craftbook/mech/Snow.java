@@ -22,6 +22,7 @@ import org.bukkit.potion.PotionEffectType;
 
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
+import com.sk89q.craftbook.bukkit.MechanicListenerAdapter;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.worldedit.blocks.BlockID;
@@ -45,7 +46,7 @@ public class Snow implements Listener {
             Block block = event.getEntity().getLocation().getBlock();
             if (event.getEntity().getShooter() != null && event.getEntity().getShooter() instanceof Player) {
 
-                if (!CraftBookPlugin.inst().canBuild((Player)event.getEntity().getShooter(), block.getLocation())) {
+                if (CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !CraftBookPlugin.inst().canBuild((Player)event.getEntity().getShooter(), block.getLocation(), true)) {
                     return;
                 }
 
@@ -59,6 +60,8 @@ public class Snow implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
 
+        if(MechanicListenerAdapter.ignoredEvents.contains(event))
+            return;
         if(event.getBlock().getTypeId() == BlockID.SNOW && ItemUtil.isStackValid(event.getPlayer().getItemInHand())) {
 
             if(event.getPlayer().getItemInHand().getTypeId() == ItemID.WOOD_SHOVEL
@@ -96,13 +99,13 @@ public class Snow implements Listener {
         if (CraftBookPlugin.inst().getRandom().nextInt(30) == 0) {
             Block b = event.getPlayer().getWorld().getBlockAt(event.getPlayer().getLocation());
             if (b.getTypeId() == 78) {
-                if (!CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getPlayer().getLocation())) return;
+                if (CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getPlayer().getLocation(), false)) return;
                 lowerData(b);
             }
 
             b = event.getPlayer().getWorld().getBlockAt(event.getPlayer().getLocation().subtract(0, 1, 0));
             if (b.getTypeId() == 78) {
-                if (!CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getPlayer().getLocation())) return;
+                if (CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getPlayer().getLocation(), false)) return;
                 lowerData(b);
             }
         }
@@ -122,9 +125,8 @@ public class Snow implements Listener {
 
         if (block.getTypeId() != BlockID.SNOW_BLOCK && block.getTypeId() != BlockID.SNOW) {
             Location blockLoc = block.getLocation().subtract(0, 1, 0);
-            if (block.getWorld().getBlockAt(blockLoc).getTypeId() == BlockID.SNOW_BLOCK && !CraftBookPlugin.inst()
-                    .getConfiguration().snowHighPiles
-                    || block.getWorld().getBlockAt(blockLoc).getTypeId() == BlockID.SNOW) return;
+            if (block.getWorld().getBlockAt(blockLoc).getTypeId() == BlockID.SNOW_BLOCK && !CraftBookPlugin.inst().getConfiguration().snowHighPiles || block.getWorld().getBlockAt(blockLoc).getTypeId() == BlockID.SNOW)
+                return;
             schedule(block.getLocation());
         }
     }
@@ -185,8 +187,7 @@ public class Snow implements Listener {
 
     public void lowerData(Block block) {
 
-        if (block.getRelative(0, -1, 0).getTypeId() == BlockID.WATER || block.getRelative(0, -1,
-                0).getTypeId() == BlockID.STATIONARY_WATER) {
+        if (block.getRelative(0, -1, 0).getTypeId() == BlockID.WATER || block.getRelative(0, -1, 0).getTypeId() == BlockID.STATIONARY_WATER) {
             block.getRelative(0, -1, 0).setTypeId(BlockID.ICE, false);
         }
 
@@ -215,6 +216,8 @@ public class Snow implements Listener {
         if (isValidBlock(block.getRelative(0, -1, 0).getTypeId()) && block.getRelative(0, -1, 0).getData() < 0x7) {
             if (block.getRelative(0, -1, 0).getData() < block.getData() || block.getRelative(0, -1,
                     0).getTypeId() != BlockID.SNOW) {
+                if(!canLandOn(block.getRelative(0, -2, 0).getTypeId()))
+                    return false;
                 incrementData(block.getRelative(0, -1, 0), depth+1);
                 if (remove) lowerData(block);
                 return true;
@@ -223,6 +226,8 @@ public class Snow implements Listener {
 
         if (isValidBlock(block.getRelative(1, 0, 0).getTypeId()) && block.getRelative(1, 0, 0).getData() < 0x7) {
             if (block.getRelative(1, 0, 0).getData() < block.getData() || block.getRelative(1, 0,0).getTypeId() != BlockID.SNOW) {
+                if(!canLandOn(block.getRelative(1, -1, 0).getTypeId()))
+                    return false;
                 incrementData(block.getRelative(1, 0, 0), depth+1);
                 if (remove) lowerData(block);
                 return true;
@@ -232,6 +237,8 @@ public class Snow implements Listener {
         if (isValidBlock(block.getRelative(-1, 0, 0).getTypeId()) && block.getRelative(-1, 0, 0).getData() < 0x7) {
             if (block.getRelative(-1, 0, 0).getData() < block.getData() || block.getRelative(-1, 0,
                     0).getTypeId() != BlockID.SNOW) {
+                if(!canLandOn(block.getRelative(-1, -1, 0).getTypeId()))
+                    return false;
                 incrementData(block.getRelative(-1, 0, 0), depth+1);
                 if (remove) lowerData(block);
                 return true;
@@ -241,6 +248,8 @@ public class Snow implements Listener {
         if (isValidBlock(block.getRelative(0, 0, 1).getTypeId()) && block.getRelative(0, 0, 1).getData() < 0x7) {
             if (block.getRelative(0, 0, 1).getData() < block.getData() || block.getRelative(0, 0,
                     1).getTypeId() != BlockID.SNOW) {
+                if(!canLandOn(block.getRelative(0, -1, 1).getTypeId()))
+                    return false;
                 incrementData(block.getRelative(0, 0, 1), depth+1);
                 if (remove) lowerData(block);
                 return true;
@@ -250,6 +259,8 @@ public class Snow implements Listener {
         if (isValidBlock(block.getRelative(0, 0, -1).getTypeId()) && block.getRelative(0, 0, -1).getData() < 0x7) {
             if (block.getRelative(0, 0, -1).getData() < block.getData() || block.getRelative(0, 0,
                     -1).getTypeId() != BlockID.SNOW) {
+                if(!canLandOn(block.getRelative(0, -1, -1).getTypeId()))
+                    return false;
                 incrementData(block.getRelative(0, 0, -1), depth+1);
                 if (remove) lowerData(block);
                 return true;
@@ -267,6 +278,9 @@ public class Snow implements Listener {
         if (block.getRelative(0, -1, 0).getTypeId() == BlockID.WATER || block.getRelative(0, -1, 0).getTypeId() == BlockID.STATIONARY_WATER) {
             block.getRelative(0, -1, 0).setTypeId(BlockID.ICE, false);
         }
+
+        if(!canLandOn(block.getRelative(0, -1, 0).getTypeId()))
+            return;
 
         if (!isValidBlock(block.getTypeId()) && isValidBlock(block.getRelative(0, 1, 0).getTypeId())) {
             incrementData(block.getRelative(0, 1, 0), depth+1);
@@ -330,6 +344,26 @@ public class Snow implements Listener {
         for (Player p : block.getWorld().getPlayers()) {
             if (LocationUtil.getDistanceSquared(p.getLocation(), block.getLocation()) < CraftBookPlugin.inst().getServer().getViewDistance() * 16 * CraftBookPlugin.inst().getServer().getViewDistance() * 16)
                 p.sendBlockChange(block.getLocation(), block.getTypeId(), data);
+        }
+    }
+
+    public boolean canLandOn(int id) {
+
+        switch(id) {
+
+            case BlockID.STEP:
+            case BlockID.WOODEN_STEP:
+            case BlockID.MINECART_TRACKS:
+            case BlockID.ACTIVATOR_RAIL:
+            case BlockID.CAKE_BLOCK:
+            case BlockID.DAYLIGHT_SENSOR:
+            case BlockID.REDSTONE_REPEATER_OFF:
+            case BlockID.REDSTONE_REPEATER_ON:
+            case BlockID.COMPARATOR_OFF:
+            case BlockID.COMPARATOR_ON:
+                return false;
+            default:
+                return true;
         }
     }
 

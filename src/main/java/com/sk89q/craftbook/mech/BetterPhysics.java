@@ -17,9 +17,6 @@ public class BetterPhysics implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
     public void onBlockPlace(BlockPlaceEvent event) {
 
-        if(!CraftBookPlugin.inst().getConfiguration().physicsEnabled)
-            return;
-
         if(event.getBlock().getTypeId() == BlockID.LADDER && CraftBookPlugin.inst().getConfiguration().physicsLadders)
             Bukkit.getScheduler().runTaskLater(CraftBookPlugin.inst(), new FallingLadders(event.getBlock()), 1L);
     }
@@ -27,14 +24,11 @@ public class BetterPhysics implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
     public void onBlockPhysics(BlockPhysicsEvent event) {
 
-        if(!CraftBookPlugin.inst().getConfiguration().physicsEnabled)
-            return;
-
         if(event.getBlock().getTypeId() == BlockID.LADDER && CraftBookPlugin.inst().getConfiguration().physicsLadders)
             Bukkit.getScheduler().runTaskLater(CraftBookPlugin.inst(), new FallingLadders(event.getBlock()), 1L);
     }
 
-    public class FallingLadders implements Runnable {
+    public static class FallingLadders implements Runnable {
 
         Block ladder;
 

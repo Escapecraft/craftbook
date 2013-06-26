@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -33,7 +34,7 @@ public class PaintingSwitch implements Listener {
 
         String player = paintings.get(paint);
         if (player != null && players.get(player) != null) {
-            Player p = plugin.getServer().getPlayer(player);
+            Player p = plugin.getServer().getPlayerExact(player);
             return p != null && !p.isDead();
         }
         return false;
@@ -46,7 +47,7 @@ public class PaintingSwitch implements Listener {
             LocalPlayer player = plugin.wrapPlayer(event.getPlayer());
             if (!plugin.getConfiguration().paintingsEnabled) return;
             Painting paint = (Painting) event.getRightClicked();
-            if (!plugin.canBuild(event.getPlayer(), paint.getLocation())) return;
+            if (!plugin.canUse(event.getPlayer(), paint.getLocation(), null, Action.RIGHT_CLICK_BLOCK)) return;
             if (player.hasPermission("craftbook.mech.paintingswitch.use")) {
                 if (!isBeingEdited(paint)) {
                     paintings.put(paint, player.getName());

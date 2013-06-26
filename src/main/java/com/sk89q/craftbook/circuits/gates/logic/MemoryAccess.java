@@ -2,7 +2,8 @@ package com.sk89q.craftbook.circuits.gates.logic;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 
 import org.bukkit.Server;
 
@@ -51,10 +52,13 @@ public class MemoryAccess extends AbstractIC {
                 f.createNewFile();
                 return false;
             }
-            BufferedReader br = new BufferedReader(new FileReader(f));
+            BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(f), "UTF-8"));
             String line = br.readLine();
             for (int i = 0; i < chip.getOutputCount(); i++) {
-                chip.setOutput(i, line.charAt(i) == '1');
+                if(line.length() < i+1)
+                    chip.setOutput(i, false);
+                else
+                    chip.setOutput(i, line.charAt(i) == '1');
             }
             br.close();
         } catch (Exception e) {

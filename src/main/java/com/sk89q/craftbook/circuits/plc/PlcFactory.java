@@ -25,7 +25,6 @@ import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.util.yaml.YAMLProcessor;
 
 public class PlcFactory<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements ICFactory {
 
@@ -51,7 +50,7 @@ public class PlcFactory<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> 
     public void verify(ChangedSign sign) throws ICVerificationException {
 
         new PlcIC<StateT, CodeT, Lang>(sign, lang); // Huge ugly hack!!
-        sign.setLine(2, "id:" + Math.abs(CraftBookPlugin.inst().getRandom().nextInt()));
+        sign.setLine(2, "id:" + CraftBookPlugin.inst().getRandom().nextInt());
         if (!sign.getLine(3).isEmpty()) {
             String line = sign.getLine(3);
             if (!RegexUtil.PLC_NAME_PATTERN.matcher(line).matches())
@@ -86,20 +85,12 @@ public class PlcFactory<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> 
     }
 
     @Override
-    public void addConfiguration(YAMLProcessor config, String path) {
-
-    }
-
-    @Override
-    public boolean needsConfiguration() {
-
-        return false;
-    }
-
-    @Override
     public String getLongDescription () {
 
-        //TODO make this better.
         return "A Programmable Logic Chip is an IC that uses a language known as Perlstone to allow for custom logic to be written and ran.";
+    }
+
+    @Override
+    public void unload () {
     }
 }

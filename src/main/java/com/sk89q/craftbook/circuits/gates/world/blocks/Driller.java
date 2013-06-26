@@ -16,6 +16,7 @@ import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
+import com.sk89q.craftbook.circuits.ic.ConfigurableIC;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
@@ -129,7 +130,7 @@ public class Driller extends AbstractSelfTriggeredIC {
             BlockFace back = SignUtil.getBack(BukkitUtil.toSign(getSign()).getBlock());
             Block pipe = getBackBlock().getRelative(back);
 
-            if(Pipes.Factory.setupPipes(pipe, getBackBlock(), toDrop) != null)
+            if(Pipes.Factory.setupPipes(pipe, getBackBlock(), toDrop.toArray(new ItemStack[toDrop.size()])) != null)
                 continue;
 
             if (!toDrop.isEmpty()) {
@@ -152,7 +153,7 @@ public class Driller extends AbstractSelfTriggeredIC {
         if (chip.getInput(0)) chip.setOutput(0, drill());
     }
 
-    public static class Factory extends AbstractICFactory implements RestrictedIC {
+    public static class Factory extends AbstractICFactory implements RestrictedIC, ConfigurableIC {
 
         boolean breakNonNatural;
 
@@ -183,12 +184,6 @@ public class Driller extends AbstractSelfTriggeredIC {
         public void addConfiguration(YAMLProcessor config, String path) {
 
             breakNonNatural = config.getBoolean(path + "break-unnatural-blocks", false);
-        }
-
-        @Override
-        public boolean needsConfiguration() {
-
-            return true;
         }
     }
 }

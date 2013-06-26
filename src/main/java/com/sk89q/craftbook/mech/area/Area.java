@@ -1,6 +1,7 @@
 package com.sk89q.craftbook.mech.area;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 
@@ -95,7 +96,7 @@ public class Area extends AbstractMechanic {
                         // check if the namespace and area exists
                         isValidArea(sign);
                         boolean save = sign.getLine(1).equalsIgnoreCase("[SaveArea]");
-                        return new Area(pt, save);
+                        return new Area(save);
                     }
                 }
             }
@@ -105,8 +106,8 @@ public class Area extends AbstractMechanic {
         private void isValidArea(ChangedSign sign) throws InvalidMechanismException {
 
             String namespace = sign.getLine(0).trim();
-            String areaOn = sign.getLine(2).trim().toLowerCase();
-            String areaOff = sign.getLine(3).trim().toLowerCase();
+            String areaOn = sign.getLine(2).trim().toLowerCase(Locale.ENGLISH);
+            String areaOff = sign.getLine(3).trim().toLowerCase(Locale.ENGLISH);
             if (CopyManager.isExistingArea(plugin.getDataFolder(), namespace, areaOn)) {
                 if (areaOff == null || areaOff.isEmpty() || areaOff.equals("--")) return;
                 if (CopyManager.isExistingArea(plugin.getDataFolder(), namespace, areaOff)) return;
@@ -116,7 +117,6 @@ public class Area extends AbstractMechanic {
     }
 
     private static CraftBookPlugin plugin = CraftBookPlugin.inst();
-    private final BlockWorldVector pt;
     private boolean toggledOn;
     private boolean saveOnToggle = false;
 
@@ -135,14 +135,8 @@ public class Area extends AbstractMechanic {
             return;
         }
 
-        // check if the sign still exists
-        Sign sign = null;
-        if (BukkitUtil.toBlock(pt).getState() instanceof Sign) {
-            sign = (Sign) BukkitUtil.toBlock(pt).getState();
-        }
-        if (sign == null) return;
         // toggle the area on or off
-        toggle(sign);
+        toggle(BukkitUtil.toChangedSign(event.getClickedBlock()));
 
         event.setCancelled(true);
     }
@@ -157,14 +151,8 @@ public class Area extends AbstractMechanic {
 
         if (!plugin.getConfiguration().areaAllowRedstone) return;
 
-        // check if the sign still exists
-        Sign sign = null;
-        if (BukkitUtil.toBlock(pt).getState() instanceof Sign) {
-            sign = (Sign) BukkitUtil.toBlock(pt).getState();
-        }
-        if (sign == null) return;
         // toggle the area
-        toggle(sign);
+        toggle(BukkitUtil.toChangedSign(event.getBlock()));
     }
 
     /**
@@ -174,10 +162,9 @@ public class Area extends AbstractMechanic {
      *
      * @throws InvalidMechanismException
      */
-    private Area(BlockWorldVector pt, boolean save) throws InvalidMechanismException {
+    private Area(boolean save) throws InvalidMechanismException {
 
         super();
-        this.pt = pt;
         saveOnToggle = save;
     }
 
@@ -186,16 +173,16 @@ public class Area extends AbstractMechanic {
         return toggledOn;
     }
 
-    private boolean toggle(Sign sign) {
+    private boolean toggle(ChangedSign sign) {
 
         if (!checkSign(sign)) return false;
         checkToggleState(sign);
 
         try {
-            World world = sign.getWorld();
+            World world = BukkitUtil.toSign(sign).getWorld();
             String namespace = sign.getLine(0);
-            String id = sign.getLine(2).replace("-", "").toLowerCase();
-            String inactiveID = sign.getLine(3).replace("-", "").toLowerCase();
+            String id = sign.getLine(2).replace("-", "").toLowerCase(Locale.ENGLISH);
+            String inactiveID = sign.getLine(3).replace("-", "").toLowerCase(Locale.ENGLISH);
 
             CuboidCopy copy;
 
@@ -241,7 +228,7 @@ public class Area extends AbstractMechanic {
         return false;
     }
 
-    public static boolean toggleCold(Sign sign) {
+    public static boolean toggleCold(ChangedSign sign) {
 
         if (!checkSign(sign)) return false;
 
@@ -249,10 +236,10 @@ public class Area extends AbstractMechanic {
         boolean save = sign.getLine(1).equalsIgnoreCase("[SaveArea]");
 
         try {
-            World world = sign.getWorld();
+            World world = BukkitUtil.toSign(sign).getWorld();
             String namespace = sign.getLine(0);
-            String id = sign.getLine(2).replace("-", "").toLowerCase();
-            String inactiveID = sign.getLine(3).replace("-", "").toLowerCase();
+            String id = sign.getLine(2).replace("-", "").toLowerCase(Locale.ENGLISH);
+            String inactiveID = sign.getLine(3).replace("-", "").toLowerCase(Locale.ENGLISH);
 
             CuboidCopy copy;
 
@@ -297,10 +284,10 @@ public class Area extends AbstractMechanic {
         return false;
     }
 
-    private static boolean checkSign(Sign sign) {
+    private static boolean checkSign(ChangedSign sign) {
 
         String namespace = sign.getLine(0);
-        String id = sign.getLine(2).toLowerCase();
+        String id = sign.getLine(2).toLowerCase(Locale.ENGLISH);
 
         if (id == null || id.isEmpty() || id.length() < 1) return false;
         if (namespace == null || namespace.isEmpty() || namespace.length() < 1) return false;
@@ -311,24 +298,24 @@ public class Area extends AbstractMechanic {
     // pattern to check where the markers for on and off state are
     private static final Pattern pattern = Pattern.compile("^\\-[A-Za-z0-9_]*?\\-$");
 
-    private void checkToggleState(Sign sign) {
+    private void checkToggleState(ChangedSign sign) {
 
         toggledOn = coldCheckToggleState(sign);
     }
 
-    private static boolean coldCheckToggleState(Sign sign) {
+    private static boolean coldCheckToggleState(ChangedSign sign) {
 
-        String line3 = sign.getLine(2).toLowerCase();
-        String line4 = sign.getLine(3).toLowerCase();
+        String line3 = sign.getLine(2).toLowerCase(Locale.ENGLISH);
+        String line4 = sign.getLine(3).toLowerCase(Locale.ENGLISH);
         return pattern.matcher(line3).matches() || !(line4.equals("--") || pattern.matcher(line4).matches());
     }
 
-    private static void setToggledState(Sign sign, boolean state) {
+    private static void setToggledState(ChangedSign sign, boolean state) {
 
         int toToggleOn = state ? 2 : 3;
         int toToggleOff = state ? 3 : 2;
         sign.setLine(toToggleOff, sign.getLine(toToggleOff).replace("-", ""));
         sign.setLine(toToggleOn, "-" + sign.getLine(toToggleOn) + "-");
-        sign.update();
+        sign.update(false);
     }
 }

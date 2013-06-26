@@ -1,6 +1,7 @@
 package com.sk89q.craftbook.bukkit;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.block.Block;
@@ -11,8 +12,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Minecart;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.Vehicle;
-import org.bukkit.entity.minecart.PoweredMinecart;
 import org.bukkit.entity.minecart.RideableMinecart;
 import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.event.EventHandler;
@@ -20,6 +21,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.vehicle.VehicleCreateEvent;
 import org.bukkit.event.vehicle.VehicleDestroyEvent;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
@@ -28,6 +30,7 @@ import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.bukkit.event.vehicle.VehicleMoveEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.material.Attachable;
 import org.bukkit.util.Vector;
 
 import com.sk89q.craftbook.LocalComponent;
@@ -123,8 +126,8 @@ public class VehicleCore implements LocalComponent {
             Entity entity = event.getEntity();
 
             enterOnImpact: {
-                if (plugin.getConfiguration().minecartEnterOnImpact && vehicle instanceof Minecart) {
-                    if (!vehicle.isEmpty() || vehicle instanceof StorageMinecart || vehicle instanceof PoweredMinecart) break enterOnImpact;
+                if (plugin.getConfiguration().minecartEnterOnImpact && vehicle instanceof RideableMinecart) {
+                    if (!vehicle.isEmpty()) break enterOnImpact;
                     if (!(event.getEntity() instanceof LivingEntity)) break enterOnImpact;
                     vehicle.setPassenger(event.getEntity());
 
@@ -203,6 +206,32 @@ public class VehicleCore implements LocalComponent {
             }
         }
 
+        @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+        public void onPlayerMove(PlayerMoveEvent event) {
+
+            if(!event.getPlayer().isInsideVehicle())
+                return;
+
+            if(!(event.getPlayer().getVehicle() instanceof Minecart))
+                return;
+
+            if(!plugin.getConfiguration().minecartLookDirection)
+                return;
+
+            if(Math.abs(event.getFrom().getYaw() - event.getTo().getYaw()) < 3)
+                return;
+
+            if(RailUtil.isTrack(event.getPlayer().getVehicle().getLocation().getBlock().getTypeId()))
+                return;
+
+            Vector direction = event.getPlayer().getLocation().getDirection();
+            direction = direction.normalize();
+            direction.setY(0);
+            direction = direction.multiply(event.getPlayer().getVehicle().getVelocity().length());
+            direction.setY(event.getPlayer().getVehicle().getVelocity().getY());
+            event.getPlayer().getVehicle().setVelocity(direction);
+        }
+
         /**
          * Called when a vehicle is created.
          */
@@ -233,11 +262,17 @@ public class VehicleCore implements LocalComponent {
         @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
         public void onVehicleEnter(VehicleEnterEvent event) {
 
-            if(!event.getVehicle().getWorld().isChunkLoaded(event.getVehicle().getLocation().getChunk()))
+            if(!event.getVehicle().getWorld().isChunkLoaded(event.getVehicle().getLocation().getBlockX() >> 4, event.getVehicle().getLocation().getBlockZ() >> 4))
                 return;
+
             Vehicle vehicle = event.getVehicle();
 
             if (!(vehicle instanceof Minecart)) return;
+
+            if(plugin.getConfiguration().minecartBlockAnimalEntry && !(event.getEntered() instanceof Player)) {
+                event.setCancelled(true);
+                return;
+            }
 
             cartman.enter(event);
         }
@@ -280,14 +315,13 @@ public class VehicleCore implements LocalComponent {
                 }
             }
 
-            if (plugin.getConfiguration().minecartPressurePlateIntersection) {
-
-                if (event.getTo().getBlock().getTypeId() == BlockID.STONE_PRESSURE_PLATE || event.getTo().getBlock().getTypeId() == BlockID.WOODEN_PRESSURE_PLATE) {
-
+            if (plugin.getConfiguration().minecartPressurePlateIntersection)
+                if (event.getTo().getBlock().getTypeId() == BlockID.STONE_PRESSURE_PLATE || event.getTo().getBlock().getTypeId() == BlockID.WOODEN_PRESSURE_PLATE || event.getTo().getBlock().getTypeId() == BlockID.PRESSURE_PLATE_HEAVY || event.getTo().getBlock().getTypeId() == BlockID.PRESSURE_PLATE_LIGHT)
                     event.getVehicle().setVelocity(event.getVehicle().getVelocity().normalize().multiply(4));
-                }
 
-            }
+            if (plugin.getConfiguration().minecartVerticalRail)
+                if (event.getTo().getBlock().getTypeId() == BlockID.LADDER)
+                    event.getVehicle().setVelocity(event.getVehicle().getVelocity().add(new Vector(((Attachable) event.getTo().getBlock().getState().getData()).getAttachedFace().getModX(),0.5,((Attachable) event.getTo().getBlock().getState().getData()).getAttachedFace().getModY())));
 
             if (plugin.getConfiguration().minecartConstantSpeed > 0 && RailUtil.isTrack(event.getTo().getBlock()
                     .getTypeId())
@@ -385,12 +419,12 @@ public class VehicleCore implements LocalComponent {
                         }
                     }
                     if (!found) continue;
-                    if (!mech.verify(BukkitUtil.toChangedSign((Sign) event.getBlock().getState(), lines), player)) {
+                    if (!mech.verify(BukkitUtil.toChangedSign((Sign) event.getBlock().getState(), lines, player), player)) {
                         block.breakNaturally();
                         event.setCancelled(true);
                         return;
                     }
-                    player.checkPermission("craftbook.vehicles." + mech.getName().toLowerCase());
+                    player.checkPermission("craftbook.vehicles." + mech.getName().toLowerCase(Locale.ENGLISH));
                     event.setLine(lineNum, "[" + lineFound + "]");
                     player.print(mech.getName() + " Created!");
                 }

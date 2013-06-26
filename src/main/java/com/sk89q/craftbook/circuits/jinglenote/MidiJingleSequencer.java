@@ -19,6 +19,7 @@ import javax.sound.midi.Sequence;
 import javax.sound.midi.Sequencer;
 import javax.sound.midi.ShortMessage;
 
+import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 
 /**
@@ -45,21 +46,17 @@ public class MidiJingleSequencer implements JingleSequencer {
         0, 0, 0, 0, 0, 0, 0, 0, // 112
         1, 1, 1, 3, 1, 1, 1, 5, // 120
         1, 1, 1, 1, 1, 2, 4, 3, // 128
-
-        // 16
     };
 
 
-    private static int[] percussion = {
-        1, 1, 1, 2, 3, 2,
-        1, 3, 1, 3, 1, 3,
-        1, 1, 3, 1, 3, 3,
-        3, 3, 3, 0, 3, 3,
-        3, 1, 1, 1, 1, 1,
-        1, 1, 3, 3, 3, 3,
-        4, 4, 3, 3, 3, 3,
-        3, 1, 1, 3, 3, 2,
-        4, 4, 3, 1, 1,
+    private static final int[] percussion = {
+        3, 3, 4, 4, 3, 2, 3, 2, //8 - Electric Snare
+        2, 2, 2, 2, 2, 2, 2, 2, //16 - Hi Mid Tom
+        3, 2, 3, 3, 3, 0, 3, 3, //24 - Cowbell
+        3, 3, 3, 2, 2, 3, 3, 3, //32 - Low Conga
+        2, 2, 0, 0, 2, 2, 0, 0, //40 - Long Whistle
+        3, 3, 3, 3, 3, 3, 5, 5, //48 - Open Cuica
+        3, 3,                   //50 - Open Triangle
     };
 
 
@@ -122,10 +119,10 @@ public class MidiJingleSequencer implements JingleSequencer {
                         int n = msg.getData1();
                         if (chan == 9) { // Percussion
                             // Sounds like utter crap
-                            // notePlayer.play(toMCPercussion(patches.get(chan)), 10);
+                            if(CraftBookPlugin.inst().getConfiguration().ICMidiUsePercussion)
+                                notePlayer.play(new Note(toMCSound(toMCPercussion(patches.get(chan))), toMCNote(n),  10 * (msg.getData2() / 127f)));
                         } else {
-                            notePlayer.play(new Note(toMCSound(toMCInstrument(patches.get(chan))), toMCNote(n),
-                                    msg.getData2()));
+                            notePlayer.play(new Note(toMCSound(toMCInstrument(patches.get(chan))), toMCNote(n), 10 * (msg.getData2() / 127f)));
                         }
                     }
                 }
@@ -141,7 +138,7 @@ public class MidiJingleSequencer implements JingleSequencer {
                     sequencer.start();
                 }
             }
-            catch(Exception e){}
+            catch(Exception ignored){}
 
             while (sequencer.isRunning()) {
                 Thread.sleep(1000);
@@ -203,14 +200,17 @@ public class MidiJingleSequencer implements JingleSequencer {
         }
     }
 
-    protected static int toMCPercussion(int note) {
+    protected static byte toMCPercussion(Integer patch) {
 
-        int i = note - 35;
+        if(patch == null)
+            return 0;
+
+        int i = patch - 33;
         if (i < 0 || i >= percussion.length) {
             return 1;
         }
 
-        return percussion[i];
+        return (byte) percussion[i];
     }
 
 

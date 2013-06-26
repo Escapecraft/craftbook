@@ -1,6 +1,5 @@
 package com.sk89q.craftbook.circuits.gates.world.blocks;
 
-import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
@@ -16,6 +15,7 @@ import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.util.ICUtil;
+import com.sk89q.craftbook.util.ItemSyntax;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.worldedit.Vector;
@@ -46,7 +46,7 @@ public class Planter extends AbstractSelfTriggeredIC {
     @Override
     public void load() {
 
-        item = ItemUtil.getItem(getLine(2));
+        item = ItemSyntax.getItem(getLine(2));
 
         onBlock = getBackBlock();
 
@@ -105,7 +105,7 @@ public class Planter extends AbstractSelfTriggeredIC {
                 }
             }
         } else {
-            for (Entity ent : target.getChunk().getEntities()) {
+            for (Entity ent : LocationUtil.getNearbyEntities(target.getLocation(), radius)) {
                 if (!(ent instanceof Item)) continue;
 
                 Item itemEnt = (Item) ent;
@@ -113,17 +113,12 @@ public class Planter extends AbstractSelfTriggeredIC {
                 if (!ItemUtil.isStackValid(itemEnt.getItemStack())) continue;
 
                 if (item == null || ItemUtil.areItemsIdentical(item, itemEnt.getItemStack())) {
-                    Location loc = itemEnt.getLocation();
 
-                    if (LocationUtil.isWithinRadius(target.getLocation(), loc, radius)) {
-
-                        Block b = null;
-
-                        if ((b = searchBlocks(itemEnt.getItemStack())) != null) {
-                            if (ItemUtil.takeFromEntity(itemEnt, 1)) {
-                                b.setTypeIdAndData(getBlockByItem(itemEnt.getItemStack().getTypeId()), (byte) itemEnt.getItemStack().getDurability(), true);
-                                return true;
-                            }
+                    Block b = null;
+                    if ((b = searchBlocks(itemEnt.getItemStack())) != null) {
+                        if (ItemUtil.takeFromItemEntity(itemEnt, 1)) {
+                            b.setTypeIdAndData(getBlockByItem(itemEnt.getItemStack().getTypeId()), (byte) itemEnt.getItemStack().getDurability(), true);
+                            return true;
                         }
                     }
                 }

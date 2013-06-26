@@ -1,9 +1,6 @@
 package com.sk89q.craftbook.circuits;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -25,6 +22,7 @@ import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.circuits.ic.ICMechanic;
 import com.sk89q.craftbook.circuits.ic.PipeInputIC;
 import com.sk89q.craftbook.util.InventoryUtil;
+import com.sk89q.craftbook.util.ItemSyntax;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.RegexUtil;
@@ -50,7 +48,7 @@ public class Pipes extends AbstractMechanic {
          * @param items The items to send to the pipe.
          * @return The pipe constructed, otherwise null.
          */
-        public static Pipes setupPipes(Block pipe, Block source, List<ItemStack> items) {
+        public static Pipes setupPipes(Block pipe, Block source, ItemStack ... items) {
 
             if (pipe.getTypeId() == BlockID.PISTON_STICKY_BASE) {
 
@@ -58,7 +56,7 @@ public class Pipes extends AbstractMechanic {
                 Block fac = pipe.getRelative(p.getFacing());
                 if (fac.getLocation().equals(source.getLocation()))
                     if (CircuitCore.inst().getPipeFactory() != null)
-                        return CircuitCore.inst().getPipeFactory().detectWithItems(BukkitUtil.toWorldVector(pipe), items);
+                        return CircuitCore.inst().getPipeFactory().detectWithItems(BukkitUtil.toWorldVector(pipe), Arrays.asList(items));
             }
 
             return null;
@@ -115,7 +113,9 @@ public class Pipes extends AbstractMechanic {
             sign = (Sign) block.getRelative(face).getState();
             if(sign.getBlock().getTypeId() != BlockID.SIGN_POST && (face == BlockFace.UP || face == BlockFace.DOWN))
                 continue;
-            if(!SignUtil.getBackBlock(sign.getBlock()).getLocation().equals(block.getLocation()))
+            else if (sign.getBlock().getTypeId() == BlockID.SIGN_POST && face != BlockFace.UP && face != BlockFace.DOWN)
+                continue;
+            if(sign.getBlock().getTypeId() != BlockID.SIGN_POST && !SignUtil.getBackBlock(sign.getBlock()).getLocation().equals(block.getLocation()))
                 continue;
             if(sign != null && sign.getLine(1).equalsIgnoreCase("[Pipe]"))
                 return sign;
@@ -138,6 +138,7 @@ public class Pipes extends AbstractMechanic {
         scanSign(sign);
 
         if(items != null && !items.isEmpty()) {
+            fromIC = true;
             this.items.addAll(items);
             startPipe(BukkitUtil.toBlock(pt));
         }
@@ -149,16 +150,16 @@ public class Pipes extends AbstractMechanic {
 
             for(String line3 : RegexUtil.COMMA_PATTERN.split(sign.getLine(2))) {
 
-                filters.add(ItemUtil.getItem(line3.trim()));
+                filters.add(ItemSyntax.getItem(line3.trim()));
             }
             for(String line4 : RegexUtil.COMMA_PATTERN.split(sign.getLine(3))) {
 
-                exceptions.add(ItemUtil.getItem(line4.trim()));
+                exceptions.add(ItemSyntax.getItem(line4.trim()));
             }
         }
 
-        while(filters.remove(null)){}
-        while(exceptions.remove(null)){}
+        filters.removeAll(Collections.singleton(null));
+        exceptions.removeAll(Collections.singleton(null));
     }
 
     private HashSet<ItemStack> filters = new HashSet<ItemStack>();
@@ -166,6 +167,14 @@ public class Pipes extends AbstractMechanic {
 
     private List<ItemStack> items = new ArrayList<ItemStack>();
     private List<BlockVector> visitedPipes = new ArrayList<BlockVector>();
+
+    private boolean fromIC = false;
+
+    public List<ItemStack> getItems() {
+
+        items.removeAll(Collections.singleton(null));
+        return items;
+    }
 
     public void searchNearbyPipes(Block block) {
 
@@ -244,14 +253,14 @@ public class Pipes extends AbstractMechanic {
                 if(sign != null) {
 
                     for(String line3 : RegexUtil.COMMA_PATTERN.split(sign.getLine(2))) {
-                        pFilters.add(ItemUtil.getItem(line3.trim()));
+                        pFilters.add(ItemSyntax.getItem(line3.trim()));
                     }
                     for(String line4 : RegexUtil.COMMA_PATTERN.split(sign.getLine(3))) {
-                        pExceptions.add(ItemUtil.getItem(line4.trim()));
+                        pExceptions.add(ItemSyntax.getItem(line4.trim()));
                     }
 
-                    while(pFilters.remove(null)){}
-                    while(pExceptions.remove(null)){}
+                    pFilters.removeAll(Collections.singleton(null));
+                    pExceptions.removeAll(Collections.singleton(null));
                 }
 
                 List<ItemStack> filteredItems = new ArrayList<ItemStack>(VerifyUtil.<ItemStack>withoutNulls(ItemUtil.filterItems(items, pFilters, pExceptions)));
@@ -278,6 +287,9 @@ public class Pipes extends AbstractMechanic {
                     } catch (Exception e) {
                         BukkitUtil.printStacktrace(e);
                     }
+                } else {
+
+                    newItems.addAll(filteredItems);
                 }
 
                 items.removeAll(filteredItems);
@@ -348,7 +360,7 @@ public class Pipes extends AbstractMechanic {
                 } else f.getInventory().setResult(null);
             } else if (!items.isEmpty()) {
                 searchNearbyPipes(block);
-                if (!items.isEmpty())
+                if (!items.isEmpty() && !fromIC) //IC's should handle their own leftovers.
                     for (ItemStack item : items) {
                         if (!ItemUtil.isStackValid(item)) continue;
                         block.getWorld().dropItemNaturally(block.getLocation().add(0.5, 0.5, 0.5), item);

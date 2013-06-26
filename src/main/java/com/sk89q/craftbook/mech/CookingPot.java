@@ -1,6 +1,6 @@
 package com.sk89q.craftbook.mech;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.bukkit.block.Block;
@@ -80,9 +80,7 @@ public class CookingPot extends PersistentMechanic implements SelfTriggeringMech
          * @throws ProcessedMechanismException
          */
         @Override
-        public CookingPot detect(BlockWorldVector pt, LocalPlayer player,
-                ChangedSign sign) throws InvalidMechanismException,
-                ProcessedMechanismException {
+        public CookingPot detect(BlockWorldVector pt, LocalPlayer player, ChangedSign sign) throws InvalidMechanismException, ProcessedMechanismException {
 
             if (sign.getLine(1).equalsIgnoreCase("[Cook]")) {
                 if (!player.hasPermission("craftbook.mech.cook")) throw new InsufficientPermissionsException();
@@ -146,7 +144,9 @@ public class CookingPot extends PersistentMechanic implements SelfTriggeringMech
                             if (cooked == null) continue;
                         }
                         if (chest.getInventory().addItem(cooked).isEmpty()) {
-                            chest.getInventory().removeItem(new ItemStack(i.getType(), 1, i.getDurability()));
+                            ItemStack toRemove = i.clone();
+                            toRemove.setAmount(1);
+                            chest.getInventory().removeItem(toRemove);
                             chest.update();
                             lastTick -= 50;
                             break;
@@ -267,9 +267,7 @@ public class CookingPot extends PersistentMechanic implements SelfTriggeringMech
     @Override
     public List<BlockWorldVector> getWatchedPositions() {
 
-        List<BlockWorldVector> bwv = new ArrayList<BlockWorldVector>();
-        bwv.add(pt);
-        return bwv;
+        return Arrays.asList(pt);
     }
 
     private enum Ingredients {

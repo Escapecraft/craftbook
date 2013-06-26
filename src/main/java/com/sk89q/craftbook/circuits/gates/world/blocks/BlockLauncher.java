@@ -4,6 +4,7 @@ import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.entity.FallingBlock;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.sk89q.craftbook.ChangedSign;
@@ -13,14 +14,16 @@ import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
+import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
+import com.sk89q.craftbook.util.ItemSyntax;
+import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 
 public class BlockLauncher extends AbstractIC {
 
     Vector velocity;
-    int id;
-    byte data;
+    ItemStack block;
 
     public BlockLauncher(Server server, ChangedSign block, ICFactory factory) {
 
@@ -50,22 +53,16 @@ public class BlockLauncher extends AbstractIC {
     @Override
     public void load() {
 
-        try {
-            String[] split = RegexUtil.COLON_PATTERN.split(getSign().getLine(2));
-            id = Integer.parseInt(split[0]);
-            data = Byte.parseByte(split[1]);
-        } catch (Exception ignored) {
-            id = 12;
-            data = 0;
-        }
+        block = ItemUtil.makeItemValid(ItemSyntax.getItem(getLine(2)));
 
-        try {
+        if(getLine(2).isEmpty() || block == null)
+            block = new ItemStack(12,1);
+
+        if(getLine(3).isEmpty())
+            velocity = new Vector(0,0.5,0);
+        else {
             String[] split2 = RegexUtil.COLON_PATTERN.split(getSign().getLine(3));
-            velocity = new Vector(Double.parseDouble(split2[0]), Double.parseDouble(split2[1]),
-                    Double.parseDouble(split2[2]));
-
-        } catch (Exception ignored) {
-            velocity = new Vector(0, 0.5, 0);
+            velocity = new Vector(Double.parseDouble(split2[0]), Double.parseDouble(split2[1]), Double.parseDouble(split2[2]));
         }
     }
 
@@ -90,9 +87,7 @@ public class BlockLauncher extends AbstractIC {
         if(!new Location(BukkitUtil.toSign(getSign()).getWorld(), above.getX() + 0.5D, y, above.getZ() + 0.5D).getChunk().isLoaded())
             return;
 
-        FallingBlock block = BukkitUtil.toSign(getSign()).getWorld()
-                .spawnFallingBlock(new Location(BukkitUtil.toSign(getSign()).getWorld(), above.getX() + 0.5D, y,
-                        above.getZ() + 0.5D), id, data);
+        FallingBlock block = BukkitUtil.toSign(getSign()).getWorld().spawnFallingBlock(new Location(BukkitUtil.toSign(getSign()).getWorld(), above.getX() + 0.5D, y, above.getZ() + 0.5D), this.block.getTypeId(), this.block.getData().getData());
         block.setVelocity(velocity);
     }
 
@@ -107,6 +102,18 @@ public class BlockLauncher extends AbstractIC {
         public IC create(ChangedSign sign) {
 
             return new BlockLauncher(getServer(), sign, this);
+        }
+
+        @Override
+        public void verify(ChangedSign sign) throws ICVerificationException {
+            if(!sign.getLine(3).isEmpty()) {
+                try {
+                    String[] split2 = RegexUtil.COLON_PATTERN.split(sign.getLine(3));
+                    new Vector(Double.parseDouble(split2[0]), Double.parseDouble(split2[1]), Double.parseDouble(split2[2]));
+                } catch (Exception ignored) {
+                    throw new ICVerificationException("Velocity must be in x:y:z format!");
+                }
+            }
         }
 
         @Override

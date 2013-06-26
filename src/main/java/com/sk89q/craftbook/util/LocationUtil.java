@@ -55,6 +55,8 @@ public final class LocationUtil {
             for (int chZ = 0 - chunkRadiusZ; chZ <= chunkRadiusZ; chZ++) {
                 int x = (int) l.getX(), y = (int) l.getY(), z = (int) l.getZ();
                 for (Entity e : new Location(l.getWorld(), x + chX * 16, y, z + chZ * 16).getChunk().getEntities()) {
+                    if(e == null || e.isDead() || !e.isValid())
+                        continue;
                     if(isWithinRadius(l,e.getLocation(),radius))
                         radiusEntities.add(e);
                 }
@@ -267,5 +269,10 @@ public final class LocationUtil {
     public static BlockFace[] getDirectFaces() {
 
         return new BlockFace[] {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST};
+    }
+
+    public static BlockFace[] getIndirectFaces() {
+
+        return new BlockFace[] {BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH_EAST, BlockFace.NORTH_WEST, BlockFace.SOUTH_EAST, BlockFace.SOUTH_WEST};
     }
 }

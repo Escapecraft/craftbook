@@ -16,11 +16,18 @@
 
 package com.sk89q.craftbook.bukkit;
 
+import java.util.Arrays;
+import java.util.Locale;
+
 import org.apache.commons.lang.Validate;
 import org.bukkit.block.Sign;
 
 import com.sk89q.craftbook.ChangedSign;
+import com.sk89q.craftbook.LocalPlayer;
+import com.sk89q.craftbook.bukkit.commands.VariableCommands;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.craftbook.util.ParsingUtil;
+import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.LocalWorld;
 
@@ -28,6 +35,34 @@ public class BukkitChangedSign implements ChangedSign {
 
     private Sign sign;
     private String[] lines;
+
+    public BukkitChangedSign(Sign sign, String[] lines, LocalPlayer player) {
+
+        Validate.notNull(sign);
+
+        this.sign = sign;
+        this.lines = lines;
+
+        if(lines != null) {
+            for(int i = 0; i < 4; i++) {
+
+                String line = lines[i];
+                for(String var : ParsingUtil.getPossibleVariables(line)) {
+
+                    String key;
+
+                    if(var.contains("|")) {
+                        String[] bits = RegexUtil.PIPE_PATTERN.split(var);
+                        key = bits[0];
+                    } else
+                        key = "global";
+
+                    if(!VariableCommands.hasVariablePermission(((BukkitPlayer) player).getPlayer(), key, var, "use"))
+                        setLine(i,line.replace("%" + key + "|" + var + "%", ""));
+                }
+            }
+        }
+    }
 
     public BukkitChangedSign(Sign sign, String[] lines) {
 
@@ -99,7 +134,7 @@ public class BukkitChangedSign implements ChangedSign {
     @Override
     public String getLine(int index) throws IndexOutOfBoundsException {
 
-        return CraftBookPlugin.inst().parseVariables(lines[index]);
+        return ParsingUtil.parseLine(lines[index], null);
     }
 
     @Override
@@ -153,7 +188,7 @@ public class BukkitChangedSign implements ChangedSign {
                     break;
                 }
         }
-        catch(Exception e){}
+        catch(Exception ignored){}
         return ret;
     }
 
@@ -193,6 +228,8 @@ public class BukkitChangedSign implements ChangedSign {
                 return false;
             if(((BukkitChangedSign) o).getZ() != getZ())
                 return false;
+            if(!((BukkitChangedSign) o).getLocalWorld().getName().equals(getLocalWorld().getName()))
+                return false;
             return true;
         }
 
@@ -200,8 +237,21 @@ public class BukkitChangedSign implements ChangedSign {
     }
 
     @Override
+    public int hashCode() {
+
+        return (getTypeId() * 1103515245 + 12345
+                ^ Arrays.hashCode(getLines()) * 1103515245 + 12345
+                ^ getX() * 1103515245 + 12345
+                ^ getY() * 1103515245 + 12345
+                ^ getZ() * 1103515245 + 12345
+                ^ getLocalWorld().getName().hashCode() * 1103515245 + 12345
+                ^ getRawData() * 1103515245 + 12345) * 1103515245 + 12345;
+    }
+
+    @Override
     public boolean hasVariable(String var) {
 
-        return lines[0].contains("%" + var + "%") || lines[1].contains("%" + var + "%") || lines[2].contains("%" + var + "%") || lines[3].contains("%" + var + "%");
+        var = var.toLowerCase(Locale.ENGLISH);
+        return lines[0].toLowerCase(Locale.ENGLISH).contains("%" + var + "%") || lines[1].toLowerCase(Locale.ENGLISH).contains("%" + var + "%") || lines[2].toLowerCase(Locale.ENGLISH).contains("%" + var + "%") || lines[3].toLowerCase(Locale.ENGLISH).contains("%" + var + "%");
     }
 }

@@ -16,22 +16,35 @@
 
 package com.sk89q.craftbook.circuits.gates.world.miscellaneous;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+import org.bukkit.ChatColor;
 import org.bukkit.Server;
+import org.bukkit.command.CommandSender;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
+import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.circuits.ic.AbstractIC;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.ChipState;
+import com.sk89q.craftbook.circuits.ic.CommandIC;
+import com.sk89q.craftbook.circuits.ic.ConfigurableIC;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
-import com.sk89q.craftbook.util.HistoryHashMap;
+import com.sk89q.craftbook.circuits.ic.PersistentDataIC;
+import com.sk89q.minecraft.util.commands.CommandContext;
 import com.sk89q.util.yaml.YAMLProcessor;
 
 public class WirelessTransmitter extends AbstractIC {
 
-    protected static final HistoryHashMap<String, Boolean> memory = new HistoryHashMap<String, Boolean>(100);
+    protected static final Set<String> memory = new LinkedHashSet<String>();
 
     protected String band;
 
@@ -69,15 +82,18 @@ public class WirelessTransmitter extends AbstractIC {
 
     public static Boolean getValue(String band) {
 
-        return memory.get(band);
+        return memory.contains(band);
     }
 
     public static void setValue(String band, boolean val) {
 
-        memory.put(band, val);
+        if(!val) //List preening
+            memory.remove(band);
+        else
+            memory.add(band);
     }
 
-    public static class Factory extends AbstractICFactory {
+    public static class Factory extends AbstractICFactory implements PersistentDataIC, ConfigurableIC, CommandIC {
 
         public boolean requirename;
 
@@ -118,9 +134,53 @@ public class WirelessTransmitter extends AbstractIC {
         }
 
         @Override
-        public boolean needsConfiguration() {
+        public void loadPersistentData (DataInputStream stream) throws IOException {
 
-            return true;
+            memory.clear();
+            int length = stream.readInt();
+            for(int i = 0; i < length; i++)
+                memory.add(stream.readUTF());
+            stream.close();
+        }
+
+        @Override
+        public void savePersistentData (DataOutputStream stream) throws IOException {
+            stream.writeInt(memory.size());
+            for(String band : memory) {
+                stream.writeUTF(band);
+            }
+            stream.close();
+        }
+
+        @Override
+        public File getStorageFile () {
+            return new File(CraftBookPlugin.inst().getDataFolder(), "wireless-bands.dat");
+        }
+
+        @Override
+        public void onICCommand (CommandContext args, CommandSender sender) {
+
+            if (args.getString(1).equalsIgnoreCase("get")) {
+
+                if(memory.contains(args.getString(1)))
+                    sender.sendMessage("Wireless-Band-State: TRUE");
+                else
+                    sender.sendMessage("Wireless-Band-State: FALSE");
+            } else if (args.getString(1).equalsIgnoreCase("set") && args.argsLength() > 3) {
+
+                if (args.getString(3).equalsIgnoreCase("true"))
+                    memory.add(args.getString(2));
+                else if (args.getString(3).equalsIgnoreCase("false"))
+                    memory.remove(args.getString(2));
+                else
+                    sender.sendMessage(ChatColor.RED + "Invalid Boolean Argument!");
+            } else
+                sender.sendMessage(ChatColor.RED + "Usage: /ic ic mc1110 <get/set> <band> <state>");
+        }
+
+        @Override
+        public int getMinCommandArgs () {
+            return 2;
         }
     }
 }

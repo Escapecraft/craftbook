@@ -1,5 +1,7 @@
 package com.sk89q.craftbook.circuits.gates.world.entity;
 
+import java.util.Locale;
+
 import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
@@ -20,6 +22,7 @@ import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
 import com.sk89q.craftbook.util.ICUtil;
+import com.sk89q.craftbook.util.ItemSyntax;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
@@ -52,7 +55,7 @@ public class AdvancedEntitySpawner extends AbstractIC {
     public void load() {
 
         String[] splitLine3 = RegexUtil.ASTERISK_PATTERN.split(getSign().getLine(3).trim());
-        type = EntityType.fromName(splitLine3[0].trim().toLowerCase());
+        type = EntityType.fromName(splitLine3[0].trim().toLowerCase(Locale.ENGLISH));
         if (type == null) {
             type = EntityType.PIG;
         }
@@ -94,16 +97,22 @@ public class AdvancedEntitySpawner extends AbstractIC {
                     for (int s = 0; s < 4; s++) {
                         String bit = armourSign.getLine(s);
 
-                        ItemStack slot = ItemUtil.makeItemValid(ItemUtil.getItem(bit));
+                        ItemStack slot = ItemUtil.makeItemValid(ItemSyntax.getItem(bit));
 
-                        if (s == 0)
-                            ((LivingEntity) ent).getEquipment().setHelmet(slot);
-                        if (s == 1)
-                            ((LivingEntity) ent).getEquipment().setChestplate(slot);
-                        if (s == 2)
-                            ((LivingEntity) ent).getEquipment().setLeggings(slot);
-                        if (s == 3)
-                            ((LivingEntity) ent).getEquipment().setBoots(slot);
+                        switch (s) {
+                            case 0:
+                                ((LivingEntity) ent).getEquipment().setHelmet(slot);
+                                break;
+                            case 1:
+                                ((LivingEntity) ent).getEquipment().setChestplate(slot);
+                                break;
+                            case 2:
+                                ((LivingEntity) ent).getEquipment().setLeggings(slot);
+                                break;
+                            case 3:
+                                ((LivingEntity) ent).getEquipment().setBoots(slot);
+                                break;
+                        }
                     }
                 }
             }
@@ -126,9 +135,7 @@ public class AdvancedEntitySpawner extends AbstractIC {
                         for (int a = 1; a < data.length; a++) {
                             try {
                                 String[] potionBits = RegexUtil.SEMICOLON_PATTERN.split(data[a]);
-                                PotionEffect effect = new PotionEffect(PotionEffectType.getById(Integer.parseInt
-                                        (potionBits[0])),
-                                        Integer.parseInt(potionBits[1]), Integer.parseInt(potionBits[2]));
+                                PotionEffect effect = new PotionEffect(PotionEffectType.getById(Integer.parseInt(potionBits[0])), Integer.parseInt(potionBits[1]), Integer.parseInt(potionBits[2]));
                                 ((LivingEntity) ent).addPotionEffect(effect, true);
                             } catch (Exception ignored) {
                             }
@@ -146,7 +153,7 @@ public class AdvancedEntitySpawner extends AbstractIC {
                     } else if (data[0].equalsIgnoreCase("s")) {
                         if (!(ent instanceof LivingEntity)) continue;
 
-                        ItemStack slot = ItemUtil.makeItemValid(ItemUtil.getItem(bit.replace("s:", "")));
+                        ItemStack slot = ItemUtil.makeItemValid(ItemSyntax.getItem(bit.replace("s:", "")));
                         ((LivingEntity) ent).getEquipment().setItemInHand(slot);
                     }
                 }
@@ -202,9 +209,9 @@ public class AdvancedEntitySpawner extends AbstractIC {
         public void verify(ChangedSign sign) throws ICVerificationException {
 
             String[] splitLine3 = RegexUtil.ASTERISK_PATTERN.split(sign.getLine(3).trim());
-            if (EntityType.fromName(splitLine3[0].trim().toLowerCase()) == null) {
+            if (EntityType.fromName(splitLine3[0].trim().toLowerCase(Locale.ENGLISH)) == null) {
                 throw new ICVerificationException("Invalid Entity! See bukkit EntityType list!");
-            } else if (!EntityType.fromName(splitLine3[0].trim().toLowerCase()).isSpawnable()) {
+            } else if (!EntityType.fromName(splitLine3[0].trim().toLowerCase(Locale.ENGLISH)).isSpawnable()) {
                 throw new ICVerificationException("Entity is not spawnable!");
             }
         }

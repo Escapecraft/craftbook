@@ -22,6 +22,7 @@ import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
+import com.sk89q.craftbook.circuits.ic.ConfigurableIC;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
@@ -98,7 +99,7 @@ public class Clock extends AbstractSelfTriggeredIC {
         }
     }
 
-    public static class Factory extends AbstractICFactory {
+    public static class Factory extends AbstractICFactory implements ConfigurableIC {
 
         public boolean inverted = false;
 
@@ -120,11 +121,10 @@ public class Clock extends AbstractSelfTriggeredIC {
             try {
                 interval = Integer.parseInt(sign.getLine(2));
             } catch (NumberFormatException e) {
-                throw new ICVerificationException("The third line must be a number between 5 and 150.");
+                throw new ICVerificationException("The third line must be a number between 5 and 500.");
             }
 
-            interval = Math.max(interval, 5);
-            interval = Math.min(interval, 150);
+            interval = Math.max(Math.min(interval, 500), 5);
 
             sign.setLine(2, Integer.toString(interval));
 
@@ -158,12 +158,6 @@ public class Clock extends AbstractSelfTriggeredIC {
         public void addConfiguration(YAMLProcessor config, String path) {
 
             inverted = config.getBoolean(path + "inverted", false);
-        }
-
-        @Override
-        public boolean needsConfiguration() {
-
-            return true;
         }
     }
 }

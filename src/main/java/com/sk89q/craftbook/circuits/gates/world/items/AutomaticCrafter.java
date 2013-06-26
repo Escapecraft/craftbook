@@ -1,19 +1,16 @@
 package com.sk89q.craftbook.circuits.gates.world.items;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Dispenser;
 import org.bukkit.block.Dropper;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -124,22 +121,27 @@ public class AutomaticCrafter extends AbstractSelfTriggeredIC implements PipeInp
         }
         disp.getInventory().clear();
 
-        boolean pipes = false;
+        CraftBookPlugin.logDebugMessage("AutoCrafter is dispensing a " + result.getTypeId() + " with data: " + result.getDurability() + " and amount: " + result.getAmount(), "ic-mc1219");
 
-        if(CraftBookPlugin.isDebugFlagEnabled("ic-mc1219")) {
-            CraftBookPlugin.logger().info("AutoCrafter is dispensing a " + result.getTypeId() + " with data: " + result.getDurability() + " and amount: " + result.getAmount());
+        List<ItemStack> items = new ArrayList<ItemStack>();
+        items.add(result);
+
+        Pipes pp = Pipes.Factory.setupPipes(((BlockState) disp).getBlock().getRelative(((org.bukkit.material.Directional) ((BlockState) disp).getData()).getFacing()), ((BlockState) disp).getBlock(), items.toArray(new ItemStack[items.size()]));
+
+        if (pp != null) {
+            items.clear();
+            items.addAll(pp.getItems());
         }
 
-        if(Pipes.Factory.setupPipes(((BlockState) disp).getBlock().getRelative(((org.bukkit.material.Directional) ((BlockState) disp).getData()).getFacing()), ((BlockState) disp).getBlock(), Arrays.asList(result)) != null)
-            pipes = true;
-
-        if (!pipes) {
-            if(disp.getInventory().addItem(result).isEmpty())
-                for(int i = 0; i < result.getAmount(); i++)
-                    if(disp instanceof Dispenser)
-                        ((Dispenser) disp).dispense();
-                    else if(disp instanceof Dropper)
-                        ((Dropper) disp).drop();
+        if(!items.isEmpty()) {
+            for(ItemStack stack : items) {
+                if(disp.getInventory().addItem(stack).isEmpty())
+                    for(int i = 0; i < stack.getAmount(); i++)
+                        if(disp instanceof Dispenser)
+                            ((Dispenser) disp).dispense();
+                        else if(disp instanceof Dropper)
+                            ((Dropper) disp).drop();
+            }
         }
         disp.getInventory().setContents(replace);
         return true;
@@ -147,43 +149,35 @@ public class AutomaticCrafter extends AbstractSelfTriggeredIC implements PipeInp
 
     public boolean collect(InventoryHolder disp) {
 
-        outer:
-            for (Entity en : BukkitUtil.toSign(getSign()).getChunk().getEntities()) {
-                if (!(en instanceof Item)) {
-                    continue;
-                }
-                Item item = (Item) en;
-                if (!ItemUtil.isStackValid(item.getItemStack()) || item.isDead() || !item.isValid()) {
-                    continue;
-                }
-                Location loc = item.getLocation();
-                int ix = loc.getBlockX();
-                int iy = loc.getBlockY();
-                int iz = loc.getBlockZ();
-                boolean delete = true;
-                if (ix == getSign().getX() && iy == getSign().getY() && iz == getSign().getZ()) {
-                    int newAmount = item.getItemStack().getAmount();
-                    for (int i = 0; i < item.getItemStack().getAmount(); i++) {
-                        ItemStack it = ItemUtil.getSmallestStackOfType(disp.getInventory().getContents(),
-                                item.getItemStack());
-                        if (it == null) continue outer;
-                        if (it.getAmount() < it.getMaxStackSize()) {
-                            it.setAmount(it.getAmount() + 1);
-                            newAmount -= 1;
-                        } else if (newAmount > 0) {
-                            delete = false;
-                            break;
-                        }
-                    }
+        for (Item item : ItemUtil.getItemsAtBlock(BukkitUtil.toSign(getSign()).getBlock())) {
 
-                    item.getItemStack().setAmount(newAmount);
+            boolean delete = true;
 
-                    if (newAmount > 0) delete = false;
+            ItemStack stack = item.getItemStack();
 
-                    if (delete) item.remove();
+            int newAmount = stack.getAmount();
+            for (int i = 0; i < stack.getAmount(); i++) {
+                ItemStack it = ItemUtil.getSmallestStackOfType(disp.getInventory().getContents(), stack);
+                if (it == null) break;
+                if (it.getAmount() < 64) {
+                    it.setAmount(it.getAmount() + 1);
+                    newAmount -= 1;
+                } else if (newAmount > 0) {
+                    delete = false;
+                    break;
                 }
             }
-    return false;
+
+            if (newAmount > 0) delete = false;
+
+            if (delete) {
+                item.remove();
+            } else {
+                stack.setAmount(newAmount);
+                item.setItemStack(stack);
+            }
+        }
+        return false;
     }
 
     /**
@@ -325,7 +319,7 @@ public class AutomaticCrafter extends AbstractSelfTriggeredIC implements PipeInp
                 for (int i = 0; i < ite.getAmount(); i++) {
                     ItemStack it = ItemUtil.getSmallestStackOfType(disp.getInventory().getContents(), ite);
                     if (!ItemUtil.isStackValid(it) || !ItemUtil.areItemsIdentical(ite, it)) continue;
-                    if (it.getAmount() < it.getMaxStackSize()) {
+                    if (it.getAmount() < 64) {
                         it.setAmount(it.getAmount() + 1);
                         newAmount -= 1;
                     } else {

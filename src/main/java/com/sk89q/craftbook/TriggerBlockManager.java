@@ -57,8 +57,7 @@ class TriggerBlockManager {
         if(CraftBookPlugin.isDebugFlagEnabled("triggers")) {
             for (BlockWorldVector p : m.getTriggerPositions()) {
                 if (triggers.get(p) != null)
-                    throw new CraftbookRuntimeException(new IllegalStateException(p + " has already been claimed by " +
-                            "another Mechanic"));
+                    throw new CraftbookRuntimeException(new IllegalStateException(p + " has already been claimed by " + "another Mechanic"));
             }
         }
 
@@ -125,8 +124,8 @@ class TriggerBlockManager {
                 continue;
             }
 
-            int curChunkX = (int) Math.floor(pos.getBlockX() / 16.0);
-            int curChunkZ = (int) Math.floor(pos.getBlockZ() / 16.0);
+            int curChunkX = pos.getBlockX() >> 4;
+            int curChunkZ = pos.getBlockZ() >> 4;
             // Not involved in this chunk!
             if (curChunkX != chunkX || curChunkZ != chunkZ) {
                 continue;

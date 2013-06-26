@@ -1,5 +1,6 @@
 package com.sk89q.craftbook;
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
 
 import com.sk89q.craftbook.mech.CustomDropManager;
@@ -12,15 +13,22 @@ import com.sk89q.craftbook.util.ItemInfo;
 public abstract class LocalConfiguration {
 
 
+    // Common
+    // Common - Variables
+    public boolean variablesEnabled;
+    public boolean variablesDefaultGlobal;
+
     // Circuits
     // Circuits - IC
     public boolean ICEnabled;
     public boolean ICCached;
     public boolean ICShortHandEnabled;
     public int ICMaxRange;
-    public List<String> disabledICs;
+    public List<String> ICsDisabled;
     public boolean ICKeepLoaded;
     public LocationCheckType ICdefaultCoordinate;
+    public boolean ICSavePersistentData;
+    public boolean ICMidiUsePercussion;
 
     // Circuits - Wiring
     public boolean netherrackEnabled;
@@ -53,17 +61,17 @@ public abstract class LocalConfiguration {
     // Mechanics - BetterPhysics
     public boolean physicsEnabled;
     public boolean physicsLadders;
-    public boolean physicsPots;
     // Mechanics - BetterPistons
     public int pistonMaxDistance;
     public boolean pistonsEnabled;
     public boolean pistonsCrusher;
     public boolean pistonsCrusherInstaKill;
     public List<Integer> pistonsCrusherBlacklist;
+    public boolean pistonsSuperPush;
     public boolean pistonsSuperSticky;
+    public List<Integer> pistonsMovementBlacklist;
     public boolean pistonsBounce;
     public List<Integer> pistonsBounceBlacklist;
-    public boolean pistonsSuperPush;
     // Mechanics - Bookcase
     public boolean bookcaseEnabled;
     public boolean bookcaseReadWhenSneaking;
@@ -82,10 +90,13 @@ public abstract class LocalConfiguration {
     public boolean chairSneak;
     public boolean chairHealth;
     public List<Integer> chairBlocks;
+    public boolean chairFacing;
     // Mechanics - Chunk Anchor
     public boolean chunkAnchorEnabled;
     public boolean chunkAnchorRedstone;
     public boolean chunkAnchorCheck;
+    // Mechanics - Command Items
+    public boolean commandItemsEnabled;
     // Mechanics - Command Signs
     public boolean commandSignEnabled;
     // Mechanics - Cooking Pot
@@ -113,6 +124,8 @@ public abstract class LocalConfiguration {
     public boolean elevatorEnabled;
     public boolean elevatorButtonEnabled;
     public boolean elevatorLoop;
+    public boolean elevatorSlowMove;
+    public double elevatorMoveSpeed;
     // Mechanics - Footprints
     public boolean footprintsEnabled;
     public List<Integer> footprintsBlocks;
@@ -131,6 +144,8 @@ public abstract class LocalConfiguration {
     public boolean headDropsMiningDrops;
     public double headDropsDropRate;
     public double headDropsLootingRateModifier;
+    public HashMap<String, Double> headDropsCustomDropRate;
+    public HashMap<String, String> headDropsCustomSkins;
     // Mechanics - Hidden Switch
     public boolean hiddenSwitchEnabled;
     public boolean hiddenSwitchAnyside;
@@ -166,6 +181,13 @@ public abstract class LocalConfiguration {
     public boolean teleporterEnabled;
     public boolean teleporterRequireSign;
     public int teleporterMaxRange;
+    // Mechanis - TreeLopper
+    public boolean treeLopperEnabled;
+    public List<Integer> treeLopperBlocks;
+    public List<Integer> treeLopperItems;
+    public int treeLopperMaxSize;
+    public boolean treeLopperAllowDiagonals;
+    public boolean treeLopperEnforceData;
     // Mechanics - XPStorer
     public boolean xpStorerEnabled;
     public int xpStorerBlock;
@@ -200,6 +222,9 @@ public abstract class LocalConfiguration {
     public boolean minecartPickupItemsOnCollision;
     public boolean minecartPressurePlateIntersection;
     public boolean minecartStoragePlaceRails;
+    public boolean minecartBlockAnimalEntry;
+    public boolean minecartLookDirection;
+    public boolean minecartVerticalRail;
     // Vehicles - Minecart Fall Modifier
     public boolean minecartFallModifierEnabled;
     public double minecartFallVerticalSpeed;

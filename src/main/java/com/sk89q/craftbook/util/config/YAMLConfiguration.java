@@ -6,6 +6,7 @@ package com.sk89q.craftbook.util.config;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.logging.Logger;
 
 import com.sk89q.craftbook.LocalConfiguration;
@@ -31,31 +32,77 @@ public class YAMLConfiguration extends LocalConfiguration {
         this.logger = logger;
     }
 
+    @SuppressWarnings("serial")
     @Override
     public void load() {
+
+        /* Common Configuration */
+
+        // Variable Configuration Listener
+        config.setComment("common.variables.enable", "Enables the variable system.");
+        variablesEnabled = config.getBoolean("common.variables.enable", true);
+
+        config.setComment("common.variables.default-to-global", "When a variable is accessed via command, if no namespace is provided... It will default to global. If this is false, it will use the players name.");
+        variablesDefaultGlobal = config.getBoolean("common.variables.default-to-global", true);
 
         /* Circuits Configuration */
 
         // IC Configuration Listener.
+        config.setComment("circuits.ics.enable", "Enabled IC mechanics.");
         ICEnabled = config.getBoolean("circuits.ics.enable", true);
+
+        config.setComment("circuits.ics.cache", "Saves many CPU cycles with a VERY small cost to memory (Highly Recommended)");
         ICCached = config.getBoolean("circuits.ics.cache", true);
+
+        config.setComment("circuits.ics.max-radius", "The max radius IC's with a radius setting can use.");
         ICMaxRange = config.getInt("circuits.ics.max-radius", 15);
+
+        config.setComment("circuits.ics.allow-short-hand", "Allows the usage of IC Shorthand, which is an easier way to create ICs.");
         ICShortHandEnabled = config.getBoolean("circuits.ics.allow-short-hand", true);
+
+        config.setComment("circuits.ics.keep-loaded", "Keep any chunk with an ST IC in it loaded.");
         ICKeepLoaded = config.getBoolean("circuits.ics.keep-loaded", false);
-        disabledICs = config.getStringList("circuits.ics.disallowed-ics", new ArrayList<String>());
+
+        config.setComment("circuits.ics.disallowed-ics", "A list of IC's which are never loaded. They will not work or show up in /ic list.");
+        ICsDisabled = config.getStringList("circuits.ics.disallowed-ics", new ArrayList<String>());
+
+        config.setComment("circuits.ics.default-coordinate-system", "The default coordinate system for ICs. This changes the way IC offsets work.");
         ICdefaultCoordinate = LocationCheckType.getTypeFromName(config.getString("circuits.ics.default-coordinate-system", "RELATIVE"));
 
+        config.setComment("circuits.ics.save-persistent-data", "Saves extra data to the CraftBook folder that allows some ICs to work better on server restart.");
+        ICSavePersistentData = config.getBoolean("circuits.ics.save-persistent-data", true);
+
+        config.setComment("circuits.ics.midi-use-percussion", "Plays the MIDI percussion channel when using a MIDI playing IC. Note: This may sound horrible on some songs.");
+        ICMidiUsePercussion = config.getBoolean("circuits.ics.midi-use-percussion", false);
+
+
         // Circuits Configuration Listener
+        config.setComment("circuits.wiring.netherrack-enabled", "Enables the redstone netherrack mechanic, which lights netherrack when it is powered.");
         netherrackEnabled = config.getBoolean("circuits.wiring.netherrack-enabled", false);
+
+        config.setComment("circuits.wiring.pumpkins-enabled", "Enables the redstone pumpkins mechanic, which toggles pumpkins and Jack O Lanterns depending on power state.");
         pumpkinsEnabled = config.getBoolean("circuits.wiring.pumpkins-enabled", false);
+
+        config.setComment("circuits.wiring.glowstone-enabled", "Enables the redstone glowstone mechanic, which toggles glowstone and a configurable block depending on power state.");
         glowstoneEnabled = config.getBoolean("circuits.wiring.glowstone-enabled", false);
+
+        config.setComment("circuits.wiring.glowstone-off-block", "Sets the block that the redstone glowstone mechanic turns into when turned off.");
         glowstoneOffBlock = config.getInt("circuits.wiring.glowstone-off-block", BlockID.GLASS);
 
         // Pipes Configuration Listener
+        config.setComment("circuits.pipes.enable", "Enables the pipe mechanic.");
         pipesEnabled = config.getBoolean("circuits.pipes.enable", true);
+
+        config.setComment("circuits.pipes.allow-diagonal", "Allow pipes to work diagonally.");
         pipesDiagonal = config.getBoolean("circuits.pipes.allow-diagonal", false);
+
+        config.setComment("circuits.pipes.insulator-block", "When pipes work diagonally, this block allows the pipe to be insulated to not work diagonally.");
         pipeInsulator = config.getInt("circuits.pipes.insulator-block", BlockID.CLOTH);
+
+        config.setComment("circuits.pipes.stack-per-move", "This option stops the pipes taking the entire chest on power, and makes it just take a single stack.");
         pipeStackPerPull = config.getBoolean("circuits.pipes.stack-per-move", true);
+
+        config.setComment("circuits.pipes.require-sign", "Requires pipes to have a [Pipe] sign connected to them. This is the only way to require permissions to make pipes.");
         pipeRequireSign = config.getBoolean("circuits.pipes.require-sign", false);
 
         /* Mechanism Configuration */
@@ -85,10 +132,11 @@ public class YAMLConfiguration extends LocalConfiguration {
         pistonsEnabled = config.getBoolean("mechanics.better-pistons.enable", true);
         pistonsCrusher = config.getBoolean("mechanics.better-pistons.crushers", true);
         pistonsCrusherInstaKill = config.getBoolean("mechanics.better-pistons.crushers-kill-mobs", false);
-        pistonsCrusherBlacklist = config.getIntList("mechanics.better-pistons.crusher-blacklist", new ArrayList<Integer>());
+        pistonsCrusherBlacklist = config.getIntList("mechanics.better-pistons.crusher-blacklist", new ArrayList<Integer>(){{ add(BlockID.OBSIDIAN); add(BlockID.BEDROCK);}});
         pistonsSuperSticky = config.getBoolean("mechanics.better-pistons.super-sticky", true);
+        pistonsMovementBlacklist = config.getIntList("mechanics.better-pistons.movement-blacklist", new ArrayList<Integer>(){{ add(BlockID.OBSIDIAN); add(BlockID.BEDROCK);}});
         pistonsBounce = config.getBoolean("mechanics.better-pistons.bounce", true);
-        pistonsBounceBlacklist = config.getIntList("mechanics.better-pistons.bounce-blacklist", new ArrayList<Integer>());
+        pistonsBounceBlacklist = config.getIntList("mechanics.better-pistons.bounce-blacklist", new ArrayList<Integer>(){{ add(BlockID.OBSIDIAN); add(BlockID.BEDROCK);}});
         pistonsSuperPush = config.getBoolean("mechanics.better-pistons.super-push", true);
         pistonMaxDistance = config.getInt("mechanics.better-pistons.max-distance", 12);
 
@@ -112,13 +160,16 @@ public class YAMLConfiguration extends LocalConfiguration {
         chairEnabled = config.getBoolean("mechanics.chair.enable", true);
         chairSneak = config.getBoolean("mechanics.chair.require-sneak", true);
         chairHealth = config.getBoolean("mechanics.chair.regen-health", true);
-        chairBlocks = config.getIntList("mechanics.chair.blocks", Arrays.asList(53, 67, 108, 109, 114, 128, 134, 135,
-                136, 156));
+        chairBlocks = config.getIntList("mechanics.chair.blocks", Arrays.asList(53, 67, 108, 109, 114, 128, 134, 135, 136, 156));
+        chairFacing = config.getBoolean("mechanics.chair.face-correct-direction", true);
 
         // Chunk Anchor Configuration Listener
         chunkAnchorEnabled = config.getBoolean("mechanics.chunk-anchor.enable", true);
         chunkAnchorRedstone = config.getBoolean("mechanics.chunk-anchor.enable-redstone", true);
         chunkAnchorCheck = config.getBoolean("mechanics.chunk-anchor.check-chunks", true);
+
+        // Command Items Configuration Listener
+        commandItemsEnabled = config.getBoolean("mechanics.command-items.enable", true);
 
         // Command Sign Configuration Listener
         commandSignEnabled = config.getBoolean("mechanics.command-sign.enable", true);
@@ -153,6 +204,8 @@ public class YAMLConfiguration extends LocalConfiguration {
         elevatorEnabled = config.getBoolean("mechanics.elevator.enable", true);
         elevatorButtonEnabled = config.getBoolean("mechanics.elevator.enable-buttons", true);
         elevatorLoop = config.getBoolean("mechanics.elevator.allow-looping", false);
+        elevatorSlowMove = config.getBoolean("mechanics.elevator.smooth-movement", false);
+        elevatorMoveSpeed = config.getDouble("mechanics.elevator.smooth-movement-speed", 0.5);
 
         // Footprints Configuration Listener
         footprintsEnabled = config.getBoolean("mechanics.footprints.enable", false);
@@ -174,6 +227,14 @@ public class YAMLConfiguration extends LocalConfiguration {
         headDropsMiningDrops = config.getBoolean("mechanics.head-drops.drop-head-when-mined", true);
         headDropsDropRate = config.getDouble("mechanics.head-drops.drop-rate", 0.05);
         headDropsLootingRateModifier = config.getDouble("mechanics.head-drops.looting-rate-modifier", 0.05);
+        headDropsCustomDropRate = new HashMap<String, Double>();
+        if(config.getKeys("mechanics.head-drops.drop-rates") != null)
+            for(String key : config.getKeys("mechanics.head-drops.drop-rates"))
+                headDropsCustomDropRate.put(key, config.getDouble("mechanics.head-drops.drop-rates." + key));
+        headDropsCustomSkins = new HashMap<String, String>();
+        if(config.getKeys("mechanics.head-drops.custom-mob-skins") != null)
+            for(String key : config.getKeys("mechanics.head-drops.custom-mob-skins"))
+                headDropsCustomSkins.put(key, config.getString("mechanics.head-drops.custom-mob-skins." + key));
 
         // Hidden Switch Configuration Listener
         hiddenSwitchEnabled = config.getBoolean("mechanics.hidden-switch.enable", true);
@@ -220,6 +281,14 @@ public class YAMLConfiguration extends LocalConfiguration {
         teleporterRequireSign = config.getBoolean("mechanics.teleporter.require-sign", false);
         teleporterMaxRange = config.getInt("mechanics.teleporter.max-range", 0);
 
+        // TreeLopper Configuration Listener
+        treeLopperEnabled = config.getBoolean("mechanics.tree-lopper.enable", false);
+        treeLopperBlocks = config.getIntList("mechanics.tree-lopper.block-list", Arrays.asList(BlockID.LOG));
+        treeLopperItems = config.getIntList("mechanics.tree-lopper.tool-list", Arrays.asList(ItemID.WOOD_AXE, ItemID.STONE_AXE, ItemID.IRON_AXE, ItemID.GOLD_AXE, ItemID.DIAMOND_AXE));
+        treeLopperMaxSize = config.getInt("mechanics.tree-lopper.max-size", 30);
+        treeLopperAllowDiagonals = config.getBoolean("mechanics.tree-lopper.allow-diagonals", false);
+        treeLopperEnforceData = config.getBoolean("mechanics.tree-lopper.enforce-data", false);
+
         // XPStorer Configuration Listener
         xpStorerEnabled = config.getBoolean("mechanics.xp-storer.enable", true);
         xpStorerBlock = config.getInt("mechanics.xp-storer.block", BlockID.MOB_SPAWNER);
@@ -256,6 +325,9 @@ public class YAMLConfiguration extends LocalConfiguration {
         minecartPickupItemsOnCollision = config.getBoolean("vehicles.minecart.item-pickup-collision", false);
         minecartPressurePlateIntersection = config.getBoolean("vehicles.minecart.pressure-plate-intersection", false);
         minecartStoragePlaceRails = config.getBoolean("vehicles.minecart.storage-place-rails", false);
+        minecartBlockAnimalEntry = config.getBoolean("vehicles.minecart.block-animal-entry", false);
+        minecartLookDirection = config.getBoolean("vehicles.minecart.vision-based-steering", false);
+        minecartVerticalRail = config.getBoolean("vehicles.minecart.ladder-vertical-rail", false);
 
         // Vehicles Minecart Fall Speed Listener
         minecartFallModifierEnabled = config.getBoolean("vehicles.minecart.fall-speed.enable", false);

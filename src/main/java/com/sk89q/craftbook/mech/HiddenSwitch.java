@@ -12,7 +12,6 @@ import com.sk89q.craftbook.AbstractMechanicFactory;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
-import com.sk89q.craftbook.util.exceptions.InsufficientPermissionsException;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.Vector;
@@ -24,8 +23,7 @@ public class HiddenSwitch extends AbstractMechanic {
     public static class Factory extends AbstractMechanicFactory<HiddenSwitch> {
 
         @Override
-        public HiddenSwitch detect(BlockWorldVector pos, LocalPlayer player,
-                ChangedSign sign) throws InvalidMechanismException {
+        public HiddenSwitch detect(BlockWorldVector pos, LocalPlayer player, ChangedSign sign) throws InvalidMechanismException {
             // int myBlock = BukkitUtil.toWorld(pos).getBlockTypeIdAt(BukkitUtil.toLocation(pos));
             // FIXME In the future add a check here to test if you can actually build wall signs on this block.
             // World wrd = BukkitUtil.toWorld(pos);
@@ -75,11 +73,9 @@ public class HiddenSwitch extends AbstractMechanic {
 
         LocalPlayer player = CraftBookPlugin.inst().wrapPlayer(event.getPlayer());
 
-        try {
-            player.checkPermission("craftbook.mech.hiddenswitch.use");
-        } catch (InsufficientPermissionsException e) {
+        if(!player.hasPermission("craftbook.mech.hiddenswitch.use"))
             return;
-        }
+
         if (!(event.getBlockFace() == BlockFace.EAST || event.getBlockFace() == BlockFace.WEST
                 || event.getBlockFace() == BlockFace.NORTH || event.getBlockFace() == BlockFace.SOUTH
                 || event.getBlockFace() == BlockFace.UP || event.getBlockFace() == BlockFace.DOWN))

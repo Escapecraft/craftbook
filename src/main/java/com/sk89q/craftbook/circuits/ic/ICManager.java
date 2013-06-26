@@ -16,13 +16,19 @@
 
 package com.sk89q.craftbook.circuits.ic;
 
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
+import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.worldedit.BlockWorldVector;
 
@@ -85,25 +91,38 @@ public class ICManager {
         // this is needed so we dont have two patterns
         String id2 = "[" + id + "]";
         // lets check if the IC ID has already been registered
-        if (registered.containsKey(id.toLowerCase())) return false;
+        if (registered.containsKey(id.toLowerCase(Locale.ENGLISH))) return false;
         // check if the ic matches the requirements
         Matcher matcher = RegexUtil.IC_PATTERN.matcher(id2);
         if (!matcher.matches()) return false;
-        String prefix = matcher.group(2).toLowerCase();
+        String prefix = matcher.group(2).toLowerCase(Locale.ENGLISH);
         // lets get the custom prefix
         customPrefix.add(prefix);
 
         RegisteredICFactory registration = new RegisteredICFactory(id, longId, factory, families);
         // Lowercase the ID so that we can do case in-sensitive lookups
-        registered.put(id.toLowerCase(), registration);
+        registered.put(id.toLowerCase(Locale.ENGLISH), registration);
 
         if (longId != null) {
-            String toRegister = longId.toLowerCase();
+            String toRegister = longId.toLowerCase(Locale.ENGLISH);
             if (toRegister.length() > 15) {
                 toRegister = toRegister.substring(0, 15);
             }
             longRegistered.put(toRegister, id);
         }
+
+        if(factory instanceof PersistentDataIC && CraftBookPlugin.inst().getConfiguration().ICSavePersistentData) {
+            try {
+                if(((PersistentDataIC) factory).getStorageFile().exists())
+                    ((PersistentDataIC) factory).loadPersistentData(new DataInputStream(new FileInputStream(((PersistentDataIC) factory).getStorageFile())));
+            } catch (FileNotFoundException e) {
+                BukkitUtil.printStacktrace(e);
+            } catch (IOException e) {
+                CraftBookPlugin.logger().severe("An invalid ic save file was found!");
+                BukkitUtil.printStacktrace(e);
+            }
+        }
+
         return true;
     }
 
@@ -118,7 +137,7 @@ public class ICManager {
      */
     public RegisteredICFactory get(String id) {
 
-        return registered.get(id.toLowerCase());
+        return registered.get(id.toLowerCase(Locale.ENGLISH));
     }
 
     /**
@@ -199,6 +218,6 @@ public class ICManager {
 
     public boolean hasCustomPrefix(String prefix) {
 
-        return customPrefix.contains(prefix.toLowerCase());
+        return customPrefix.contains(prefix.toLowerCase(Locale.ENGLISH));
     }
 }

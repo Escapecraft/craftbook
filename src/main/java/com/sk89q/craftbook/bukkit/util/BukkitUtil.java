@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Vehicle;
 
 import com.sk89q.craftbook.ChangedSign;
+import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.BukkitChangedSign;
 import com.sk89q.craftbook.bukkit.BukkitVehicle;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
@@ -51,10 +52,6 @@ import com.sk89q.worldedit.bukkit.entity.BukkitPainting;
 
 public class BukkitUtil {
 
-    private BukkitUtil() {
-
-    }
-
     public static void printStacktrace(Throwable e) {
 
         CraftBookPlugin.inst().getLogger().severe(CraftBookPlugin.getStackTrace(e));
@@ -77,6 +74,11 @@ public class BukkitUtil {
     }
 
     public static ChangedSign toChangedSign(Sign sign, String[] lines) {
+
+        return new BukkitChangedSign(sign, lines);
+    }
+
+    public static ChangedSign toChangedSign(Sign sign, String[] lines, LocalPlayer player) {
 
         return new BukkitChangedSign(sign, lines);
     }

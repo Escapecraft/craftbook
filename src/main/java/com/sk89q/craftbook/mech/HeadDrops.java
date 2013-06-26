@@ -1,5 +1,9 @@
 package com.sk89q.craftbook.mech;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.block.Skull;
@@ -18,6 +22,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.material.MaterialData;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
+import com.sk89q.craftbook.bukkit.MechanicListenerAdapter;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.ItemID;
@@ -34,6 +39,9 @@ public class HeadDrops implements Listener {
             return;
 
         double chance = Math.min(1, CraftBookPlugin.inst().getConfiguration().headDropsDropRate);
+        if(CraftBookPlugin.inst().getConfiguration().headDropsCustomDropRate.containsKey(event.getEntityType().getName()))
+            chance = Math.min(1, CraftBookPlugin.inst().getConfiguration().headDropsCustomDropRate.get(event.getEntityType().getName()));
+
         if(event.getEntity().getKiller() != null && event.getEntity().getKiller().getItemInHand() != null && event.getEntity().getKiller().getItemInHand().containsEnchantment(Enchantment.LOOT_BONUS_MOBS))
             chance = Math.min(1, chance + CraftBookPlugin.inst().getConfiguration().headDropsLootingRateModifier * event.getEntity().getKiller().getItemInHand().getEnchantmentLevel(Enchantment.LOOT_BONUS_MOBS));
 
@@ -79,13 +87,17 @@ public class HeadDrops implements Listener {
                 if(!CraftBookPlugin.inst().getConfiguration().headDropsMobs)
                     return;
                 MobSkullType type = MobSkullType.getFromEntityType(event.getEntityType());
-                if(type == null)
+                String mobName = null;
+                if(type != null)
+                    mobName = type.getPlayerName();
+                if(CraftBookPlugin.inst().getConfiguration().headDropsCustomSkins.containsKey(event.getEntityType().name()))
+                    mobName = CraftBookPlugin.inst().getConfiguration().headDropsCustomSkins.get(event.getEntityType().name());
+                if(mobName == null || mobName.isEmpty())
                     break;
-                String mobName = type.getPlayerName();
                 toDrop = new ItemStack(ItemID.HEAD, 1, (short)3);
                 toDrop.setData(new MaterialData(ItemID.HEAD,(byte)3));
                 SkullMeta itemMeta = (SkullMeta) toDrop.getItemMeta();
-                itemMeta.setDisplayName(ChatColor.RESET + EntityType.valueOf(type.name()).getName() + " Head");
+                itemMeta.setDisplayName(ChatColor.RESET + EntityType.valueOf(event.getEntityType().name()).getName() + " Head");
                 itemMeta.setOwner(mobName);
                 toDrop.setItemMeta(itemMeta);
                 break;
@@ -101,6 +113,8 @@ public class HeadDrops implements Listener {
 
         if(!CraftBookPlugin.inst().getConfiguration().headDropsEnabled) return;
         if(!CraftBookPlugin.inst().getConfiguration().headDropsMiningDrops) return;
+        if(MechanicListenerAdapter.ignoredEvents.contains(event))
+            return;
         if(event.getPlayer().getGameMode() == GameMode.CREATIVE) return;
 
         if(event.getBlock().getTypeId() == BlockID.HEAD) {
@@ -129,13 +143,13 @@ public class HeadDrops implements Listener {
             }
 
             if(type != null)
-                meta.setDisplayName(ChatColor.RESET + type.getName() + " Head");
+                meta.setDisplayName(ChatColor.RESET + type.getName().replace("_", " ") + " Head");
             else
                 meta.setDisplayName(ChatColor.RESET + playerName + "'s Head");
 
             stack.setItemMeta(meta);
 
-            if(!CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getBlock()))
+            if(!CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getBlock(), false))
                 return;
 
             event.setCancelled(true);
@@ -159,30 +173,44 @@ public class HeadDrops implements Listener {
         HORSE("gavertoso"),
         PIG("XlexerX"),
         PIG_ZOMBIE("ManBearPigZombie"),
-        BAT("coolwhip101"),
-        SPIDER("Kelevra_V");
+        BAT("coolwhip101", "bozzobrain"),
+        SPIDER("Kelevra_V"),
+        VILLAGER("Villager"),
+        SHEEP("Eagle_Peak"),
+        COW("VerifiedBernard");
 
-        MobSkullType(String playerName) {
+        MobSkullType(String playerName, String ... oldNames) {
 
             this.playerName = playerName;
+            this.oldNames = new ArrayList<String>(Arrays.asList(oldNames));
         }
 
         private String playerName;
+        private List<String> oldNames;
 
         public String getPlayerName() {
 
             return playerName;
         }
 
+        public boolean isOldName(String name) {
+
+            return oldNames.contains(name);
+        }
+
         public static MobSkullType getFromEntityType(EntityType entType) {
 
-            return MobSkullType.valueOf(entType.name());
+            try {
+                return MobSkullType.valueOf(entType.name());
+            } catch(Exception e){
+                return null;
+            }
         }
 
         public static EntityType getEntityType(String name) {
 
             for(MobSkullType type : values())
-                if(type.getPlayerName().equals(name))
+                if(type.getPlayerName().equals(name) || type.isOldName(name) || CraftBookPlugin.inst().getConfiguration().headDropsCustomSkins.containsKey(type.name()) && CraftBookPlugin.inst().getConfiguration().headDropsCustomSkins.get(type.name()).equals(name))
                     return EntityType.valueOf(type.name());
 
             return null;

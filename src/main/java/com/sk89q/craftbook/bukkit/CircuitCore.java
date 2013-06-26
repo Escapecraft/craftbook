@@ -3,6 +3,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.bukkit.ChatColor;
@@ -57,6 +58,7 @@ import com.sk89q.craftbook.circuits.gates.logic.RsNorFlipFlop;
 import com.sk89q.craftbook.circuits.gates.logic.ToggleFlipFlop;
 import com.sk89q.craftbook.circuits.gates.logic.XnorGate;
 import com.sk89q.craftbook.circuits.gates.logic.XorGate;
+import com.sk89q.craftbook.circuits.gates.variables.NumericModifier;
 import com.sk89q.craftbook.circuits.gates.world.blocks.BlockBreaker;
 import com.sk89q.craftbook.circuits.gates.world.blocks.BlockLauncher;
 import com.sk89q.craftbook.circuits.gates.world.blocks.BlockReplacer;
@@ -86,10 +88,10 @@ import com.sk89q.craftbook.circuits.gates.world.entity.EntityTrap;
 import com.sk89q.craftbook.circuits.gates.world.entity.TeleportReciever;
 import com.sk89q.craftbook.circuits.gates.world.entity.TeleportTransmitter;
 import com.sk89q.craftbook.circuits.gates.world.items.AutomaticCrafter;
-import com.sk89q.craftbook.circuits.gates.world.items.ChestStocker;
 import com.sk89q.craftbook.circuits.gates.world.items.ContainerCollector;
 import com.sk89q.craftbook.circuits.gates.world.items.ContainerDispenser;
 import com.sk89q.craftbook.circuits.gates.world.items.ContainerStacker;
+import com.sk89q.craftbook.circuits.gates.world.items.ContainerStocker;
 import com.sk89q.craftbook.circuits.gates.world.items.Distributer;
 import com.sk89q.craftbook.circuits.gates.world.items.ItemDispenser;
 import com.sk89q.craftbook.circuits.gates.world.items.ItemFan;
@@ -109,6 +111,7 @@ import com.sk89q.craftbook.circuits.gates.world.miscellaneous.PotionInducer;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.ProgrammableFireworkShow;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.RadioPlayer;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.RadioStation;
+import com.sk89q.craftbook.circuits.gates.world.miscellaneous.SentryGun;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.SoundEffect;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.TimedExplosion;
 import com.sk89q.craftbook.circuits.gates.world.miscellaneous.Tune;
@@ -123,6 +126,7 @@ import com.sk89q.craftbook.circuits.gates.world.sensors.ItemNotSensor;
 import com.sk89q.craftbook.circuits.gates.world.sensors.ItemSensor;
 import com.sk89q.craftbook.circuits.gates.world.sensors.LavaSensor;
 import com.sk89q.craftbook.circuits.gates.world.sensors.LightSensor;
+import com.sk89q.craftbook.circuits.gates.world.sensors.PlayerInventorySensor;
 import com.sk89q.craftbook.circuits.gates.world.sensors.PlayerSensor;
 import com.sk89q.craftbook.circuits.gates.world.sensors.PowerSensor;
 import com.sk89q.craftbook.circuits.gates.world.sensors.WaterSensor;
@@ -227,6 +231,12 @@ public class CircuitCore implements LocalComponent {
     @Override
     public void disable() {
 
+        for(RegisteredICFactory factory : icManager.registered.values()) {
+            factory.getFactory().unload();
+        }
+        pipeFactory = null;
+        icConfiguration = null;
+        ICFactory = null;
         ICManager.emptyCache();
         instance = null;
     }
@@ -342,7 +352,7 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC1239", "harvester", new CombineHarvester.Factory(server), familySISO, familyAISO);
         registerIC("MC1240", "shoot arrow", new ArrowShooter.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1241", "shoot arrows", new ArrowBarrage.Factory(server), familySISO, familyAISO); // Restricted
-        registerIC("MC1242", "stocker", new ChestStocker.Factory(server), familySISO, familyAISO); // Restricted
+        registerIC("MC1242", "stocker", new ContainerStocker.Factory(server), familySISO, familyAISO); // Restricted
         registerIC("MC1243", "distributer", new Distributer.Factory(server), familySISO, familyAISO);
         registerIC("MC1244", "animal harvest", new AnimalHarvester.Factory(server), familySISO, familyAISO);
         registerIC("MC1245", "cont stacker", new ContainerStacker.Factory(server), familySISO, familyAISO);
@@ -363,6 +373,7 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC1266", "sense power", new PowerSensor.Factory(server), familySISO, familyAISO);
         //FIXME registerIC("MC1267", "sense move", new MovementSensor.Factory(server), familySISO, familyAISO);
         registerIC("MC1268", "sense contents", new ContentsSensor.Factory(server), familySISO, familyAISO);
+        registerIC("MC1269", "sense p contents", new PlayerInventorySensor.Factory(server), familySISO, familyAISO);
         registerIC("MC1270", "melody", new Melody.Factory(server), familySISO, familyAISO);
         registerIC("MC1271", "sense entity", new EntitySensor.Factory(server), familySISO, familyAISO);
         registerIC("MC1272", "sense player", new PlayerSensor.Factory(server), familySISO, familyAISO); // Restricted
@@ -370,6 +381,7 @@ public class CircuitCore implements LocalComponent {
         registerIC("MC1275", "tune", new Tune.Factory(server), familySISO, familyAISO);
         registerIC("MC1276", "radio station", new RadioStation.Factory(server), familySISO, familyAISO);
         registerIC("MC1277", "radio player", new RadioPlayer.Factory(server), familySISO, familyAISO);
+        registerIC("MC1278", "sentry gun", new SentryGun.Factory(server), familySISO, familyAISO); //Restricted
         registerIC("MC1280", "animal breed", new AnimalBreeder.Factory(server), familySISO, familyAISO);
         registerIC("MC1420", "divide clock", new ClockDivider.Factory(server), familySISO, familyAISO);
         registerIC("MC1421", "clock", new Clock.Factory(server), familySISO, familyAISO);
@@ -429,6 +441,9 @@ public class CircuitCore implements LocalComponent {
         registerIC("MCX233", "weather set", new WeatherControl.Factory(server), familySISO, familyAISO);
         // 3ISOs
         registerIC("MCT233", "weather set ad", new WeatherControlAdvanced.Factory(server), family3ISO);
+
+        //Variable ICs
+        registerIC("VAR100", "num mod", new NumericModifier.Factory(server), familySISO);
     }
 
     /**
@@ -440,7 +455,7 @@ public class CircuitCore implements LocalComponent {
      */
     public boolean registerIC(String name, String longName, ICFactory factory, ICFamily... families) {
 
-        for(String ic : CraftBookPlugin.inst().getConfiguration().disabledICs)
+        for(String ic : CraftBookPlugin.inst().getConfiguration().ICsDisabled)
             if(ic.equalsIgnoreCase(name))
                 return false;
         return getIcManager().register(name, longName, factory, families);
@@ -468,8 +483,8 @@ public class CircuitCore implements LocalComponent {
             try {
                 RegisteredICFactory ric = getIcManager().registered.get(ic);
                 IC tic = ric.getFactory().create(null);
-                if (search != null && !tic.getTitle().toLowerCase().contains(search.toLowerCase())
-                        && !ric.getId().toLowerCase().contains(search.toLowerCase())) continue;
+                if (search != null && !tic.getTitle().toLowerCase(Locale.ENGLISH).contains(search.toLowerCase(Locale.ENGLISH))
+                        && !ric.getId().toLowerCase(Locale.ENGLISH).contains(search.toLowerCase(Locale.ENGLISH))) continue;
 
                 return ic;
             } catch (Exception ignored) {
@@ -501,8 +516,8 @@ public class CircuitCore implements LocalComponent {
                 {
                 RegisteredICFactory ric = getIcManager().registered.get(ic);
                 IC tic = ric.getFactory().create(null);
-                if (search != null && !tic.getTitle().toLowerCase().contains(search.toLowerCase())
-                        && !ric.getId().toLowerCase().contains(search.toLowerCase())) continue;
+                if (search != null && !tic.getTitle().toLowerCase(Locale.ENGLISH).contains(search.toLowerCase(Locale.ENGLISH))
+                        && !ric.getId().toLowerCase(Locale.ENGLISH).contains(search.toLowerCase(Locale.ENGLISH))) continue;
                 if (parameters != null) {
                     for (char c : parameters) {
                         if (c == 'r' && !(ric.getFactory() instanceof RestrictedIC)) break thisIC;
@@ -513,16 +528,15 @@ public class CircuitCore implements LocalComponent {
                             break thisIC;
                         else if (c == 'e' && !ric.getFactory().getClass().getPackage().getName().endsWith("entity"))
                             break thisIC;
-                        else if (c == 'w' && !ric.getFactory().getClass().getPackage().getName().endsWith
-                                ("weather"))
+                        else if (c == 'w' && !ric.getFactory().getClass().getPackage().getName().endsWith("weather"))
                             break thisIC;
                         else if (c == 'l' && !ric.getFactory().getClass().getPackage().getName().endsWith("logic"))
                             break thisIC;
-                        else if (c == 'm' && !ric.getFactory().getClass().getPackage().getName().endsWith
-                                ("miscellaneous"))
+                        else if (c == 'm' && !ric.getFactory().getClass().getPackage().getName().endsWith("miscellaneous"))
                             break thisIC;
-                        else if (c == 'c' && !ric.getFactory().getClass().getPackage().getName().endsWith
-                                ("sensors"))
+                        else if (c == 'c' && !ric.getFactory().getClass().getPackage().getName().endsWith("sensors"))
+                            break thisIC;
+                        else if (c == 'v' && !ric.getFactory().getClass().getPackage().getName().endsWith("variables"))
                             break thisIC;
 
                     }
@@ -530,7 +544,7 @@ public class CircuitCore implements LocalComponent {
                 col = !col;
                 ChatColor colour = col ? ChatColor.YELLOW : ChatColor.GOLD;
 
-                if (!ICMechanicFactory.checkPermissionsBoolean(CraftBookPlugin.inst().wrapPlayer(p), ric.getFactory(), ic.toLowerCase())) {
+                if (!ICMechanicFactory.checkPermissionsBoolean(CraftBookPlugin.inst().wrapPlayer(p), ric.getFactory(), ic.toLowerCase(Locale.ENGLISH))) {
                     colour = col ? ChatColor.RED : ChatColor.DARK_RED;
                 }
                 strings.add(colour + tic.getTitle() + " (" + ric.getId() + ")"

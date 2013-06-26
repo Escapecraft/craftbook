@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -248,8 +249,7 @@ class PlcIC<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements I
         for (String s : ((BookMeta) book.getItemMeta()).getPages()) {
             code.append(s).append("\n");
         }
-        if(CraftBookPlugin.isDebugFlagEnabled("plc"))
-            CraftBookPlugin.inst().getLogger().info(code.toString());
+        CraftBookPlugin.logDebugMessage(code.toString(), "plc");
         return code.toString();
     }
 
@@ -298,7 +298,7 @@ class PlcIC<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements I
     @Override
     public String getSignTitle() {
 
-        return lang.getName().toUpperCase();
+        return lang.getName().toUpperCase(Locale.ENGLISH);
     }
 
     public void error(String shortMessage, String detailedMessage) {

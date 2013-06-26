@@ -160,7 +160,7 @@ public class MechanicManager {
         Sign sign = (Sign) state;
 
         try {
-            load(pos, localPlayer, BukkitUtil.toChangedSign(sign, event.getLines()));
+            load(pos, localPlayer, BukkitUtil.toChangedSign(sign, event.getLines(), localPlayer));
         } catch (InvalidMechanismException e) {
             if (e.getMessage() != null) {
                 localPlayer.printError(e.getMessage());
@@ -201,7 +201,7 @@ public class MechanicManager {
             HashSet<Mechanic> mechanics = load(pos, player);
             if(mechanics.size() > 0) {
                 // A mechanic has been found, check if we can actually build here.
-                if (!plugin.canBuild(event.getPlayer(), event.getBlock().getLocation())) {
+                if (!plugin.canBuild(event.getPlayer(), event.getBlock().getLocation(), false)) {
                     player.printError("area.permissions");
                     return 0;
                 }
@@ -252,7 +252,7 @@ public class MechanicManager {
                     if(plugin.getConfiguration().advancedBlockChecks && event.isCancelled())
                         return returnValue;
 
-                    if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace())) {
+                    if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace(), event.getAction())) {
                         player.printError("area.permissions");
                         return 0;
                     }
@@ -296,7 +296,7 @@ public class MechanicManager {
                     if(plugin.getConfiguration().advancedBlockChecks && event.isCancelled())
                         return returnValue;
 
-                    if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace())) {
+                    if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace(), event.getAction())) {
                         player.printError("area.permissions");
                         return 0;
                     }
@@ -362,58 +362,7 @@ public class MechanicManager {
         if(player != null)
             detectedMechanics.addAll(detect(pos,player));
 
-        Mechanic ptMechanic = triggersManager.get(pos);
-
-        if (ptMechanic != null && ptMechanic instanceof PersistentMechanic && !((PersistentMechanic) ptMechanic)
-                .isActive()) {
-            unload(ptMechanic, null);
-            ptMechanic = null;
-        }
-
-        for (Mechanic aMechanic : detectedMechanics) {
-            // No mechanic detected!
-            if (ptMechanic != null) {
-                break;
-            }
-            if (aMechanic == null) {
-                continue;
-            }
-
-            // Register mechanic if it's a persistent type
-            if (aMechanic instanceof PersistentMechanic) {
-                PersistentMechanic pm = (PersistentMechanic) aMechanic;
-                triggersManager.register(pm);
-                watchBlockManager.register(pm);
-
-                if (aMechanic instanceof SelfTriggeringMechanic) {
-                    synchronized (this) {
-                        thinkingMechanics.add((SelfTriggeringMechanic) aMechanic);
-                    }
-                }
-                break;
-            }
-        }
-
-        // Lets handle what happens when ptMechanic is here
-        if (ptMechanic != null) {
-
-            List<Mechanic> removedMechanics = new ArrayList<Mechanic>();
-            for (Mechanic aMechanic : detectedMechanics) {
-                if (ptMechanic.getClass().equals(aMechanic.getClass())) {
-                    removedMechanics.add(aMechanic);
-                }
-            }
-
-            for (Mechanic aMechanic : removedMechanics) {
-                if (detectedMechanics.contains(aMechanic)) {
-                    detectedMechanics.remove(aMechanic);
-                }
-            }
-
-            detectedMechanics.add(ptMechanic);
-        }
-
-        return detectedMechanics;
+        return loadDetectedMechanics(pos, detectedMechanics);
     }
 
     /**
@@ -431,37 +380,37 @@ public class MechanicManager {
     protected HashSet<Mechanic> load(BlockWorldVector pos, LocalPlayer player,
             ChangedSign sign) throws InvalidMechanismException {
 
-        HashSet<Mechanic> detectedMechanics = detect(pos, player, sign);
+        return loadDetectedMechanics(pos, detect(pos, player, sign));
+    }
 
-        Mechanic ptMechanic = triggersManager.get(pos);
+    private HashSet<Mechanic> loadDetectedMechanics(BlockWorldVector pos, HashSet<Mechanic> detectedMechanics) {
+        PersistentMechanic ptMechanic = triggersManager.get(pos);
 
-        if (ptMechanic != null && ptMechanic instanceof PersistentMechanic && !((PersistentMechanic) ptMechanic)
-                .isActive()) {
+        if (ptMechanic != null && !ptMechanic.isActive()) {
             unload(ptMechanic, null);
             ptMechanic = null;
         }
 
-        for (Mechanic aMechanic : detectedMechanics) {
-            // No mechanic detected!
-            if (ptMechanic != null) {
-                break;
-            }
-            if (aMechanic == null) {
-                continue;
-            }
-
-            // Register mechanic if it's a persistent type
-            if (aMechanic instanceof PersistentMechanic) {
-                PersistentMechanic pm = (PersistentMechanic) aMechanic;
-                triggersManager.register(pm);
-                watchBlockManager.register(pm);
-
-                if (aMechanic instanceof SelfTriggeringMechanic) {
-                    synchronized (this) {
-                        thinkingMechanics.add((SelfTriggeringMechanic) aMechanic);
-                    }
+        // No mechanic detected!
+        if (ptMechanic == null) {
+            for (Mechanic aMechanic : detectedMechanics) {
+                if (aMechanic == null) {
+                    continue;
                 }
-                break;
+
+                // Register mechanic if it's a persistent type
+                if (aMechanic instanceof PersistentMechanic) {
+                    PersistentMechanic pm = (PersistentMechanic) aMechanic;
+                    triggersManager.register(pm);
+                    watchBlockManager.register(pm);
+
+                    if (aMechanic instanceof SelfTriggeringMechanic) {
+                        synchronized (this) {
+                            thinkingMechanics.add((SelfTriggeringMechanic) aMechanic);
+                        }
+                    }
+                    break;
+                }
             }
         }
 
@@ -475,12 +424,7 @@ public class MechanicManager {
                 }
             }
 
-            for (Mechanic aMechanic : removedMechanics) {
-                if (detectedMechanics.contains(aMechanic)) {
-                    detectedMechanics.remove(aMechanic);
-                }
-            }
-
+            detectedMechanics.removeAll(removedMechanics);
             detectedMechanics.add(ptMechanic);
         }
 
@@ -602,6 +546,8 @@ public class MechanicManager {
                     }
                 }
             }
+        } catch (NullPointerException e) {
+            // Ignore: Generally thrown by Bukkit even for valid chunks
         } catch (Throwable error) {
 
             BukkitUtil.printStacktrace(error);
@@ -720,7 +666,7 @@ public class MechanicManager {
                 if(mechanic instanceof ICMechanic) {
                     try {
                         load(((ICMechanic) mechanic).getIC().getSign().getBlockVector(), null);
-                    } catch (InvalidMechanismException e) {
+                    } catch (InvalidMechanismException ignored) {
                     }
                 }
             }
