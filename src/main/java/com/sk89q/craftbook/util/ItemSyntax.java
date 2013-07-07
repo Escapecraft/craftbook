@@ -20,9 +20,6 @@ import org.bukkit.material.MaterialData;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import com.sk89q.worldedit.blocks.BlockType;
-import com.sk89q.worldedit.blocks.ItemType;
-
 /**
  * The Standard Item Syntax. This class is built to be able to survive on its own, without CraftBook.
  * 
@@ -119,18 +116,21 @@ public class ItemSyntax {
             id = Integer.parseInt(dataSplit[0]);
         } catch (NumberFormatException e) {
             try {
-                id = Material.getMaterial(dataSplit[0]).getId();
+                id = Material.matchMaterial(dataSplit[0]).getId();
                 if (id < 1) id = 1;
             } catch (Exception ee) {
-                //The next 8 lines can be removed to not require WorldEdit.
                 try {
-                    id = ItemType.lookup(dataSplit[0]).getID();
-                    if (id < 1) id = 1;
-                }
-                catch(Exception eee){
-                    id = BlockType.lookup(dataSplit[0]).getID();
-                    if (id < 1) id = 1;
-                }
+                    try {
+                        Object itemType = Class.forName("com.sk89q.worldedit.blocks.ItemType").getMethod("lookup", String.class).invoke(null, dataSplit[0]);
+                        id = (Integer) itemType.getClass().getMethod("getID").invoke(itemType);
+                        if (id < 1) id = 1;
+                    }
+                    catch(Exception eee){
+                        Object blockType = Class.forName("com.sk89q.worldedit.blocks.BlockType").getMethod("lookup", String.class).invoke(null, dataSplit[0]);
+                        id = (Integer) blockType.getClass().getMethod("getID").invoke(blockType);
+                        if (id < 1) id = 1;
+                    }
+                } catch(Throwable ignored){}
             }
         }
         try {

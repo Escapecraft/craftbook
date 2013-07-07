@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.sk89q.craftbook</groupId>
     <artifactId>craftbook</artifactId>
-    <version>3.6-EC-SNAPSHOT</version>
+    <version>3.7-1.6.1-dev</version>
     <name>CraftBook</name>
     <description>CraftBook adds fun mechanics and redstone-powered contraptions to Minecraft</description>
     <licenses>
@@ -42,22 +42,22 @@
         <dependency>
             <groupId>com.sk89q</groupId>
             <artifactId>worldedit</artifactId>
-            <version>5.5.7-SNAPSHOT</version>
+            <version>5.5.8-1.6.1-dev</version>
         </dependency>
         <dependency>
             <groupId>com.sk89q</groupId>
             <artifactId>worldguard</artifactId>
-            <version>5.7.6-SNAPSHOT</version>
+            <version>5.7.6-1.6.1-dev</version>
         </dependency>
         <dependency>
             <groupId>org.bukkit</groupId>
             <artifactId>bukkit</artifactId>
-            <version>1.5.2-R1.1-SNAPSHOT</version>
+            <version>1.6.1-R0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.bukkit</groupId>
             <artifactId>craftbukkit</artifactId>
-            <version>1.5.2-R1.1-SNAPSHOT</version>
+            <version>1.6.1-R0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>net.milkbowl.vault</groupId>
@@ -67,7 +67,7 @@
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
             <artifactId>ProtocolLib</artifactId>
-            <version>2.4.3</version>
+            <version>2.4.5</version>
         </dependency>
         <dependency>
 	        <groupId>org.powermock</groupId>
@@ -116,7 +116,7 @@
                 <filtering>true</filtering>
                 <directory>${basedir}/src/main/resources/</directory>
                 <includes>
-                    <include>en_US.txt</include>
+                    <include>en_US.yml</include>
                     <include>config.yml</include>
                     <include>books.txt</include>
                     <include>cauldron-recipes.txt</include>

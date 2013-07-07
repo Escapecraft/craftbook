@@ -20,9 +20,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.Minecart;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -31,8 +33,12 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.server.ServerCommandEvent;
+import org.bukkit.event.vehicle.VehicleEnterEvent;
+import org.bukkit.event.vehicle.VehicleMoveEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.material.Attachable;
@@ -42,6 +48,14 @@ import org.bukkit.material.PressureSensor;
 import com.sk89q.craftbook.RightClickBlockEvent;
 import com.sk89q.craftbook.SourcedBlockRedstoneEvent;
 import com.sk89q.craftbook.mech.Elevator;
+import com.sk89q.craftbook.util.LocationUtil;
+import com.sk89q.craftbook.util.ParsingUtil;
+import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
+import com.sk89q.craftbook.vehicles.CartBlockEnterEvent;
+import com.sk89q.craftbook.vehicles.CartBlockImpactEvent;
+import com.sk89q.craftbook.vehicles.CartBlockRedstoneEvent;
+import com.sk89q.craftbook.vehicles.cart.CartBlockMechanism;
+import com.sk89q.craftbook.vehicles.cart.CartMechanismBlocks;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.BlockWorldVector2D;
 import com.sk89q.worldedit.LocalWorld;
@@ -322,7 +336,65 @@ public class MechanicListenerAdapter implements Listener {
         Block block = ((BukkitWorld) pt.getWorld()).getWorld().getBlockAt(pt.getBlockX(), pt.getBlockY(), pt.getBlockZ());
         if(block.getLocation().equals(sourceBlock.getLocation())) //The same block, don't run.
             return;
-        CraftBookPlugin.inst().getManager().dispatchBlockRedstoneChange(new SourcedBlockRedstoneEvent(sourceBlock, block, oldLevel, newLevel));
+        final SourcedBlockRedstoneEvent event = new SourcedBlockRedstoneEvent(sourceBlock, block, oldLevel, newLevel);
+
+        CraftBookPlugin.inst().getServer().getPluginManager().callEvent(event);
+        CraftBookPlugin.inst().getManager().dispatchBlockRedstoneChange(event);
+
+        CraftBookPlugin.server().getScheduler().runTask(CraftBookPlugin.inst(), new Runnable() {
+
+            @Override
+            public void run () {
+                try {
+                    CartMechanismBlocks cmb = CartMechanismBlocks.find(event.getBlock());
+                    CartBlockRedstoneEvent ev = new CartBlockRedstoneEvent(event.getBlock(), event.getSource(), event.getOldCurrent(), event.getNewCurrent(), cmb, CartBlockMechanism.getCart(cmb.rail));
+                    CraftBookPlugin.inst().getServer().getPluginManager().callEvent(ev);
+                } catch (InvalidMechanismException ignored) {
+                }
+            }
+        });
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void onVehicleMove(VehicleMoveEvent event) {
+
+        if(event.getVehicle() instanceof Minecart) {
+            try {
+                Minecart cart = (Minecart) event.getVehicle();
+                CartMechanismBlocks cmb;
+                cmb = CartMechanismBlocks.findByRail(event.getTo().getBlock());
+                cmb.setFromBlock(event.getFrom().getBlock());
+                Location from = event.getFrom();
+                Location to = event.getTo();
+                if(LocationUtil.getDistanceSquared(from, to) > 2*2) //Further than max distance
+                    return;
+                boolean crossesBlockBoundary = from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY() && from.getBlockZ() == to.getBlockZ();
+                CartBlockImpactEvent ev = new CartBlockImpactEvent(cart, from, to, cmb, crossesBlockBoundary);
+                CraftBookPlugin.inst().getServer().getPluginManager().callEvent(ev);
+            } catch (InvalidMechanismException ignored) {
+            }
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
+    public void onVehicleEnter(VehicleEnterEvent event) {
+
+        if(!event.getVehicle().getWorld().isChunkLoaded(event.getVehicle().getLocation().getBlockX() >> 4, event.getVehicle().getLocation().getBlockZ() >> 4))
+            return;
+
+        if(event.getVehicle() instanceof Minecart) {
+            try {
+                Minecart cart = (Minecart) event.getVehicle();
+                Block block = event.getVehicle().getLocation().getBlock();
+                CartMechanismBlocks cmb = CartMechanismBlocks.findByRail(block);
+                cmb.setFromBlock(block); // WAI
+                CartBlockEnterEvent ev = new CartBlockEnterEvent(cart, event.getEntered(), cmb);
+                CraftBookPlugin.inst().getServer().getPluginManager().callEvent(ev);
+                if(ev.isCancelled())
+                    event.setCancelled(true);
+            } catch (InvalidMechanismException ignored) {
+            }
+        }
     }
 
     /**
@@ -359,5 +431,19 @@ public class MechanicListenerAdapter implements Listener {
         int chunkZ = event.getChunk().getZ();
 
         CraftBookPlugin.inst().getManager().unload(new BlockWorldVector2D(BukkitUtil.getLocalWorld(event.getWorld()), chunkX, chunkZ), event);
+    }
+
+    @EventHandler
+    public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
+
+        if(CraftBookPlugin.inst().getConfiguration().variablesPlayerCommandOverride)
+            event.setMessage(ParsingUtil.parseVariables(event.getMessage(), event.getPlayer()));
+    }
+
+    @EventHandler
+    public void onConsoleCommandPreprocess(ServerCommandEvent event) {
+
+        if(CraftBookPlugin.inst().getConfiguration().variablesCommandBlockOverride)
+            event.setCommand(ParsingUtil.parseVariables(event.getCommand(), null));
     }
 }

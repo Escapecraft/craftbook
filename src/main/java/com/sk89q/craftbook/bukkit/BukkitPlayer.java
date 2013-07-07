@@ -56,15 +56,13 @@ public class BukkitPlayer implements LocalPlayer {
     @Override
     public void printError(String message) {
 
-        player.sendMessage(ChatColor.RED + plugin.getLanguageManager().getString(message,
-                plugin.getLanguageManager().getPlayersLanguage(player)));
+        player.sendMessage(ChatColor.RED + plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player)));
     }
 
     @Override
     public void printRaw(String message) {
 
-        player.sendMessage(plugin.getLanguageManager().getString(message,
-                plugin.getLanguageManager().getPlayersLanguage(player)));
+        player.sendMessage(plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player)));
     }
 
     @Override
@@ -125,6 +123,7 @@ public class BukkitPlayer implements LocalPlayer {
     @Override
     public boolean isHoldingBlock() {
 
+        if(getHeldItemType() == 0) return false;
         return BlockType.fromID(getHeldItemType()) != null;
     }
 

@@ -1,9 +1,9 @@
 package com.sk89q.craftbook.bukkit;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.util.config.YAMLConfiguration;
@@ -30,6 +30,7 @@ public class BukkitConfiguration extends YAMLConfiguration {
 
     public boolean updateNotifier;
     public boolean easterEggs;
+    public boolean realisticRandoms;
 
     public String language;
     public List<String> languages;
@@ -37,12 +38,9 @@ public class BukkitConfiguration extends YAMLConfiguration {
     public boolean debugMode;
     public List<String> debugFlags;
 
-    private final CraftBookPlugin plugin;
+    public BukkitConfiguration(YAMLProcessor config, Logger logger) {
 
-    public BukkitConfiguration(YAMLProcessor config, CraftBookPlugin plugin) {
-
-        super(config, plugin.getLogger());
-        this.plugin = plugin;
+        super(config, logger);
     }
 
     @Override
@@ -58,11 +56,11 @@ public class BukkitConfiguration extends YAMLConfiguration {
         config.setWriteDefaults(true);
 
         config.setHeader(
-                "# CraftBook Configuration for Bukkit. Generated for version: " + CraftBookPlugin.inst().getDescription().getVersion(),
+                "# CraftBook Configuration for Bukkit. Generated for version: " + (CraftBookPlugin.inst() == null ? CraftBookPlugin.getVersion() : CraftBookPlugin.inst().getDescription().getVersion()),
                 "# This configuration will automatically add new configuration options for you,",
                 "# So there is no need to regenerate this configuration unless you need to.",
-                "# More information about these configuration nodes are available at...",
-                "# http://wiki.sk89q.com/wiki/CraftBook/Configuration",
+                "# More information about these features are available at...",
+                "# http://wiki.sk89q.com/wiki/CraftBook/Usage",
                 "",
                 "");
 
@@ -120,12 +118,9 @@ public class BukkitConfiguration extends YAMLConfiguration {
         config.setComment("easter-eggs", "Enables random easter eggs. Can be from console messages on startup for a special occasion, to funny little effects with IC's and other mechanics (Always harmless, won't mess anything up)");
         easterEggs = config.getBoolean("easter-eggs", true);
 
+        config.setComment("realistic-randoms", "Random numbers are much more random, with a small cost to CPU usage.");
+        realisticRandoms = config.getBoolean("realistic-randoms", true);
+
         super.load();
-    }
-
-    @Override
-    public File getWorkingDirectory() {
-
-        return plugin.getDataFolder();
     }
 }

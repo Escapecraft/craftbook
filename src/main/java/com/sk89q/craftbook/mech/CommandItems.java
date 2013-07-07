@@ -64,7 +64,7 @@ public class CommandItems implements Listener {
     public CommandItems() {
 
         INSTANCE = this;
-        CraftBookPlugin.inst().createDefaultConfiguration(new File(CraftBookPlugin.inst().getDataFolder(), "command-items.yml"), "command-items.yml", false);
+        CraftBookPlugin.inst().createDefaultConfiguration(new File(CraftBookPlugin.inst().getDataFolder(), "command-items.yml"), "command-items.yml");
         config = new YAMLProcessor(new File(CraftBookPlugin.inst().getDataFolder(), "command-items.yml"), false, YAMLFormat.EXTENDED);
         load();
         if(definitions.size() > 0)
@@ -165,6 +165,7 @@ public class CommandItems implements Listener {
         performCommandItems(event.getPlayer().getItemInHand(), event.getPlayer(), event);
     }
 
+    @SuppressWarnings("deprecation")
     public void performCommandItems(ItemStack item, final Player player, final Event event) {
 
         for(CommandItemDefinition def : definitions) {
@@ -225,39 +226,22 @@ public class CommandItems implements Listener {
                         break current;
                     }
                 }
-                if(!player.getInventory().removeItem(def.consumables).isEmpty()) {
-                    player.sendMessage(ChatColor.RED + "Inventory became out of sync during usage of command-items!");
-                    break current;
+                if(def.consumables.length > 0) {
+                    if(!player.getInventory().removeItem(def.consumables).isEmpty()) {
+                        player.sendMessage(ChatColor.RED + "Inventory became out of sync during usage of command-items!");
+                        break current;
+                    } else
+                        player.updateInventory();
+                }
+                if(def.consumeSelf) {
+                    if(player.getItemInHand().getAmount() > 1)
+                        player.getItemInHand().setAmount(player.getItemInHand().getAmount() - 1);
+                    else
+                        player.setItemInHand(null);
                 }
 
-                for(String command : comdef.commands) {
-
-                    if(command.contains("@d") && !(event instanceof EntityDamageByEntityEvent && ((EntityDamageByEntityEvent) event).getEntity() instanceof Player) && !(event instanceof PlayerInteractEntityEvent && ((PlayerInteractEntityEvent) event).getRightClicked() instanceof Player))
-                        continue;
-
-                    if(event instanceof EntityDamageByEntityEvent && ((EntityDamageByEntityEvent) event).getEntity() instanceof Player)
-                        command = command.replace("@d", ((Player) ((EntityDamageByEntityEvent) event).getEntity()).getName());
-                    if(event instanceof PlayerInteractEntityEvent && ((PlayerInteractEntityEvent) event).getRightClicked() instanceof Player)
-                        command = command.replace("@d", ((Player) ((PlayerInteractEntityEvent) event).getRightClicked()).getName());
-                    if(event instanceof BlockEvent && ((BlockEvent) event).getBlock() != null)
-                        command = command.replace("@b", ((BlockEvent) event).getBlock().getTypeId() + ((BlockEvent) event).getBlock().getData() == 0 ? "" : ":" + ((BlockEvent) event).getBlock().getData());
-                    if(event instanceof EntityEvent && ((EntityEvent) event).getEntity() != null)
-                        command = command.replace("@e", ((EntityEvent) event).getEntity().getType().getName());
-                    command = ParsingUtil.parseLine(command, player);
-                    if(comdef.type == CommandType.CONSOLE)
-                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
-                    else if (comdef.type == CommandType.PLAYER)
-                        Bukkit.dispatchCommand(player, command);
-                    else  if (comdef.type == CommandType.SUPERUSER) {
-                        PermissionAttachment att = player.addAttachment(CraftBookPlugin.inst());
-                        att.setPermission("*", true);
-                        boolean wasOp = player.isOp();
-                        player.setOp(true);
-                        Bukkit.dispatchCommand(player, command);
-                        att.remove();
-                        player.setOp(wasOp);
-                    }
-                }
+                for(String command : comdef.commands)
+                    doCommand(command, event, comdef, player);
 
                 if(comdef.cooldown > 0 && !player.hasPermission("craftbook.mech.commanditems.bypasscooldown"))
                     cooldownPeriods.put(new Tuple2<String, String>(player.getName(), comdef.name), comdef.cooldown);
@@ -267,35 +251,8 @@ public class CommandItems implements Listener {
 
                         @Override
                         public void run () {
-                            for(String command : comdef.delayedCommands) {
-
-                                if(command.contains("@d") && !(event instanceof EntityDamageByEntityEvent && ((EntityDamageByEntityEvent) event).getEntity() instanceof Player) && !(event instanceof PlayerInteractEntityEvent && ((PlayerInteractEntityEvent) event).getRightClicked() instanceof Player))
-                                    continue;
-
-                                if(event instanceof EntityDamageByEntityEvent && ((EntityDamageByEntityEvent) event).getEntity() instanceof Player)
-                                    command = command.replace("@d", ((Player) ((EntityDamageByEntityEvent) event).getEntity()).getName());
-                                if(event instanceof PlayerInteractEntityEvent && ((PlayerInteractEntityEvent) event).getRightClicked() instanceof Player)
-                                    command = command.replace("@d", ((Player) ((PlayerInteractEntityEvent) event).getRightClicked()).getName());
-                                if(event instanceof BlockEvent && ((BlockEvent) event).getBlock() != null)
-                                    command = command.replace("@b", ((BlockEvent) event).getBlock().getTypeId() + ((BlockEvent) event).getBlock().getData() == 0 ? "" : ":" + ((BlockEvent) event).getBlock().getData());
-                                if(event instanceof EntityEvent && ((EntityEvent) event).getEntity() != null)
-                                    command = command.replace("@e", ((EntityEvent) event).getEntity().getType().getName());
-
-                                command = ParsingUtil.parseLine(command, player);
-                                if(comdef.type == CommandType.CONSOLE)
-                                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
-                                else if (comdef.type == CommandType.PLAYER)
-                                    Bukkit.dispatchCommand(player, command);
-                                else  if (comdef.type == CommandType.SUPERUSER) {
-                                    PermissionAttachment att = player.addAttachment(CraftBookPlugin.inst());
-                                    att.setPermission("*", true);
-                                    boolean wasOp = player.isOp();
-                                    player.setOp(true);
-                                    Bukkit.dispatchCommand(player, command);
-                                    att.remove();
-                                    player.setOp(wasOp);
-                                }
-                            }
+                            for(String command : comdef.delayedCommands)
+                                doCommand(command, event, comdef, player);
                         }
                     }, comdef.delay);
 
@@ -303,6 +260,39 @@ public class CommandItems implements Listener {
                     ((Cancellable) event).setCancelled(true);
             }
         }
+        }
+    }
+
+    public void doCommand(String command, Event event, CommandItemDefinition comdef, Player player) {
+
+        if(command == null || command.trim().isEmpty())
+            return;
+
+        if(command.contains("@d") && !(event instanceof EntityDamageByEntityEvent && ((EntityDamageByEntityEvent) event).getEntity() instanceof Player) && !(event instanceof PlayerInteractEntityEvent && ((PlayerInteractEntityEvent) event).getRightClicked() instanceof Player))
+            return;
+
+        if(event instanceof EntityDamageByEntityEvent && ((EntityDamageByEntityEvent) event).getEntity() instanceof Player)
+            command = command.replace("@d", ((Player) ((EntityDamageByEntityEvent) event).getEntity()).getName());
+        if(event instanceof PlayerInteractEntityEvent && ((PlayerInteractEntityEvent) event).getRightClicked() instanceof Player)
+            command = command.replace("@d", ((Player) ((PlayerInteractEntityEvent) event).getRightClicked()).getName());
+        if(event instanceof BlockEvent && ((BlockEvent) event).getBlock() != null)
+            command = command.replace("@b", ((BlockEvent) event).getBlock().getTypeId() + ((BlockEvent) event).getBlock().getData() == 0 ? "" : ":" + ((BlockEvent) event).getBlock().getData());
+        if(event instanceof EntityEvent && ((EntityEvent) event).getEntityType() != null && command.contains("@e"))
+            command = command.replace("@e", ((EntityEvent) event).getEntityType().getName());
+
+        command = ParsingUtil.parseLine(command, player);
+        if(comdef.type == CommandType.CONSOLE)
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+        else if (comdef.type == CommandType.PLAYER)
+            Bukkit.dispatchCommand(player, command);
+        else  if (comdef.type == CommandType.SUPERUSER) {
+            PermissionAttachment att = player.addAttachment(CraftBookPlugin.inst());
+            att.setPermission("*", true);
+            boolean wasOp = player.isOp();
+            player.setOp(true);
+            Bukkit.dispatchCommand(player, command);
+            att.remove();
+            player.setOp(wasOp);
         }
     }
 
@@ -322,13 +312,14 @@ public class CommandItems implements Listener {
         private boolean cancelAction;
 
         private ItemStack[] consumables;
+        private boolean consumeSelf;
 
         public ItemStack getItem() {
 
             return stack;
         }
 
-        private CommandItemDefinition(String name, ItemStack stack, CommandType type, ClickType clickType, String permNode, String[] commands, int delay, String[] delayedCommands, int cooldown, boolean cancelAction, ItemStack[] consumables) {
+        private CommandItemDefinition(String name, ItemStack stack, CommandType type, ClickType clickType, String permNode, String[] commands, int delay, String[] delayedCommands, int cooldown, boolean cancelAction, ItemStack[] consumables, boolean consumeSelf) {
 
             this.name = name;
             this.stack = stack;
@@ -341,6 +332,7 @@ public class CommandItems implements Listener {
             this.clickType = clickType;
             this.cancelAction = cancelAction;
             this.consumables = consumables;
+            this.consumeSelf = consumeSelf;
         }
 
         public static CommandItemDefinition readDefinition(YAMLProcessor config, String path) {
@@ -365,7 +357,9 @@ public class CommandItems implements Listener {
                     consumables.add(ItemUtil.makeItemValid(ItemSyntax.getItem(s)));
             } catch(Exception ignored){}
 
-            return new CommandItemDefinition(name, stack, type, clickType, permNode, commands.toArray(new String[commands.size()]), delay, delayedCommands.toArray(new String[delayedCommands.size()]), cooldown, cancelAction, consumables.toArray(new ItemStack[consumables.size()]));
+            boolean consumeSelf = config.getBoolean(path + ".consume-self", false);
+
+            return new CommandItemDefinition(name, stack, type, clickType, permNode, commands.toArray(new String[commands.size()]), delay, delayedCommands.toArray(new String[delayedCommands.size()]), cooldown, cancelAction, consumables.toArray(new ItemStack[consumables.size()]), consumeSelf);
         }
 
         public enum CommandType {

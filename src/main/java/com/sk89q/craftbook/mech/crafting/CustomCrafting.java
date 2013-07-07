@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -53,7 +52,7 @@ public class CustomCrafting implements Listener {
 
     public CustomCrafting() {
 
-        plugin.createDefaultConfiguration(new File(plugin.getDataFolder(), "crafting-recipes.yml"), "crafting-recipes.yml", false);
+        plugin.createDefaultConfiguration(new File(plugin.getDataFolder(), "crafting-recipes.yml"), "crafting-recipes.yml");
         recipes = new RecipeManager(new YAMLProcessor(new File(plugin.getDataFolder(), "crafting-recipes.yml"), true, YAMLFormat.EXTENDED));
         Collection<RecipeManager.Recipe> recipeCollection = recipes.getRecipes();
         int recipes = 0;
@@ -103,7 +102,7 @@ public class CustomCrafting implements Listener {
             } else {
                 return false;
             }
-            plugin.getLogger().info("Registered a new " + r.getType().toString().toLowerCase(Locale.ENGLISH) + " recipe!");
+            //plugin.getLogger().info("Registered a new " + r.getType().toString().toLowerCase(Locale.ENGLISH) + " recipe!");
 
             return true;
         } catch (IllegalArgumentException e) {
@@ -122,6 +121,10 @@ public class CustomCrafting implements Listener {
     public void prepareCraft(PrepareItemCraftEvent event) {
 
         ItemStack bits = null;
+        Player p = null;
+        try {
+            p = (Player) event.getViewers().get(0);
+        } catch(Exception e){}
         CraftBookPlugin.logDebugMessage("Pre-Crafting has been initiated!", "advanced-data");
         try {
             boolean hasFailed = false;
@@ -176,8 +179,17 @@ public class CustomCrafting implements Listener {
 
                     hasFailed = false;
 
+                    if(p != null && recipe.hasAdvancedData("permission-node")) {
+                        CraftBookPlugin.logDebugMessage("A recipe with permission nodes detected!", "advanced-data");
+                        if(!p.hasPermission((String) recipe.getAdvancedData("permission-node"))) {
+                            p.sendMessage(ChatColor.RED + "You do not have permission to craft this recipe!");
+                            ((CraftingInventory)event.getView().getTopInventory()).setResult(null);
+                            return;
+                        }
+                    }
+
                     CraftBookPlugin.logDebugMessage("A recipe with custom data is being crafted!", "advanced-data");
-                    bits = applyAdvancedEffects(event.getRecipe().getResult(),rec, null);
+                    bits = applyAdvancedEffects(event.getRecipe().getResult(),rec, p);
                     break;
                 }
                 }

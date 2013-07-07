@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -108,7 +110,7 @@ public class CraftBookPlugin extends JavaPlugin {
     /**
      * The random
      */
-    private Random random = new Random();
+    private Random random;
 
     /**
      * Manager for commands. This automatically handles nested commands,
@@ -160,7 +162,7 @@ public class CraftBookPlugin extends JavaPlugin {
 
     public static String getVersion() {
 
-        return "3.7b1";
+        return "3.7b3";
     }
 
     /**
@@ -170,7 +172,7 @@ public class CraftBookPlugin extends JavaPlugin {
      */
     public static String getStableBuild() {
 
-        return "2340";
+        return "2403";
     }
 
     /**
@@ -204,7 +206,7 @@ public class CraftBookPlugin extends JavaPlugin {
             if (checkPlugin != null && checkPlugin instanceof ProtocolLibrary) {
                 protocolLib = (ProtocolLibrary) checkPlugin;
             } else protocolLib = null;
-        } catch(Exception e){
+        } catch(Throwable e){
             protocolLib = null;
             getLogger().severe("You have a corrupt version of ProtocolLib! Please redownload it!");
             BukkitUtil.printStacktrace(e);
@@ -222,8 +224,8 @@ public class CraftBookPlugin extends JavaPlugin {
 
         // Setup Config and the Commands Manager
         final CraftBookPlugin plugin = this;
-        createDefaultConfiguration(new File(getDataFolder(), "config.yml"), "config.yml", false);
-        config = new BukkitConfiguration(new YAMLProcessor(new File(getDataFolder(), "config.yml"), true, YAMLFormat.EXTENDED), this);
+        createDefaultConfiguration(new File(getDataFolder(), "config.yml"), "config.yml");
+        config = new BukkitConfiguration(new YAMLProcessor(new File(getDataFolder(), "config.yml"), true, YAMLFormat.EXTENDED), logger());
         commands = new CommandsManager<CommandSender>() {
 
             @Override
@@ -249,9 +251,22 @@ public class CraftBookPlugin extends JavaPlugin {
         try {
             config.load();
         } catch (Throwable e) {
+            getLogger().severe("Failed to load CraftBook Configuration File! Is it corrupt?");
             getLogger().severe(getStackTrace(e));
-            getServer().shutdown();
+            getLogger().severe("Disabling CraftBook due to invalid Configuration File!");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
         }
+
+        if(config.realisticRandoms)
+            try {
+                random = SecureRandom.getInstance("SHA1PRNG");
+            } catch (NoSuchAlgorithmException e1) {
+                getLogger().severe(getStackTrace(e1));
+                random = new Random();
+            }
+        else
+            random = new Random();
 
         // Resolve Vault
         try {
@@ -289,8 +304,9 @@ public class CraftBookPlugin extends JavaPlugin {
     public void setupCraftBook() {
 
         // Initialize the language manager.
-        createDefaultConfiguration(new File(getDataFolder(), "en_US.txt"), "en_US.txt", true);
+        createDefaultConfiguration(new File(getDataFolder(), "en_US.yml"), "en_US.yml");
         languageManager = new LanguageManager();
+        languageManager.init();
     }
 
     /**
@@ -508,6 +524,7 @@ public class CraftBookPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
 
+        languageManager.close();
         for (LocalComponent component : components) {
             component.disable();
         }
@@ -697,6 +714,8 @@ public class CraftBookPlugin extends JavaPlugin {
      */
     public Random getRandom() {
 
+        if(random == null)
+            return new Random(); //Use a temporary random whilst CraftBooks random is being set.
         return random;
     }
 
@@ -877,7 +896,7 @@ public class CraftBookPlugin extends JavaPlugin {
      * @param defaultName The name of the file inside the jar's defaults folder
      * @param force       If it should make the file even if it already exists
      */
-    public void createDefaultConfiguration(File actual, String defaultName, boolean force) {
+    public void createDefaultConfiguration(File actual, String defaultName) {
 
         // Make parent directories
         File parent = actual.getParentFile();
@@ -885,7 +904,7 @@ public class CraftBookPlugin extends JavaPlugin {
             parent.mkdirs();
         }
 
-        if (actual.exists() && !force) {
+        if (actual.exists()) {
             return;
         }
 
@@ -914,9 +933,7 @@ public class CraftBookPlugin extends JavaPlugin {
                     output.write(buf, 0, length);
                 }
 
-                if (!force)
-                    getLogger().info("Default configuration file written: "
-                            + actual.getAbsolutePath());
+                getLogger().info("Default configuration file written: " + actual.getAbsolutePath());
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {

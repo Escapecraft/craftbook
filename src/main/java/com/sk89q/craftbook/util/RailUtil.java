@@ -52,11 +52,11 @@ public class RailUtil {
 
     public static boolean isTrack(int id) {
 
-        if (CraftBookPlugin.inst().getConfiguration().minecartPressurePlateIntersection)
+        if (CraftBookPlugin.inst().getConfiguration().minecartMoreRailsPressurePlate)
             if (id == BlockID.STONE_PRESSURE_PLATE || id == BlockID.WOODEN_PRESSURE_PLATE || id == BlockID.PRESSURE_PLATE_HEAVY || id == BlockID.PRESSURE_PLATE_LIGHT)
                 return true;
-        if (CraftBookPlugin.inst().getConfiguration().minecartVerticalRail)
-            if (id == BlockID.LADDER)
+        if (CraftBookPlugin.inst().getConfiguration().minecartMoreRailsLadder)
+            if (id == BlockID.LADDER || id == BlockID.VINE)
                 return true;
 
         for (int trackBlock : trackBlocks) {
