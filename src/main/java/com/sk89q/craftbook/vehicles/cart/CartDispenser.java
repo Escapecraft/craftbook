@@ -5,7 +5,6 @@ import java.util.Locale;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.minecart.ExplosiveMinecart;
@@ -15,8 +14,6 @@ import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.Location;
-import org.bukkit.material.Sign;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.EntityUtil;
@@ -152,17 +149,6 @@ public class CartDispenser extends CartBlockMechanism {
         }
     }
 
-    //is rail clear of other carts.
-    private boolean isRailClear(Location l){
-        for(Entity e : l.getChunk().getEntities()){
-            if(e instanceof Minecart){
-                if(l.distance(e.getLocation()) <2.0){
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
     /**
      * @param blocks nuff said
      * @param inv    the inventory to remove a cart item from, or null if we don't care.
