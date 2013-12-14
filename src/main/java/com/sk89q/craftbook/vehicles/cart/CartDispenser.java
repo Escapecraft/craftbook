@@ -3,6 +3,7 @@ package com.sk89q.craftbook.vehicles.cart;
 import java.util.Locale;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.EntityType;
@@ -14,6 +15,7 @@ import org.bukkit.entity.minecart.StorageMinecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.EntityUtil;
@@ -21,8 +23,8 @@ import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.craftbook.util.RailUtil;
 import com.sk89q.craftbook.util.RedstoneUtil.Power;
 import com.sk89q.craftbook.util.SignUtil;
-import com.sk89q.craftbook.vehicles.CartBlockRedstoneEvent;
-import com.sk89q.worldedit.blocks.ItemType;
+import com.sk89q.craftbook.vehicles.cart.events.CartBlockImpactEvent;
+import com.sk89q.craftbook.vehicles.cart.events.CartBlockRedstoneEvent;
 import com.sk89q.worldedit.bukkit.BukkitUtil;
 
 /**
@@ -58,26 +60,37 @@ public class CartDispenser extends CartBlockMechanism {
     }
 
     @EventHandler
+    public void onCartImpact(CartBlockImpactEvent event) {
+
+        performMechanic(event.getMinecart(), event.getBlocks());
+    }
+
+    @EventHandler
     public void onRedstoneImpact(CartBlockRedstoneEvent event) {
 
+        performMechanic(event.getMinecart(), event.getBlocks());
+    }
+
+    public void performMechanic(Minecart cart, CartMechanismBlocks blocks) {
+
         // validate
-        if (!event.getBlocks().matches(getMaterial())) return;
-        if (!event.getBlocks().matches("dispenser")) return;
+        if (!blocks.matches(getMaterial())) return;
+        if (!blocks.matches("dispenser")) return;
 
         // detect intentions
-        Power pow = isActive(event.getBlocks());
-        boolean inf = "inf".equalsIgnoreCase(event.getBlocks().getSign().getLine(2));
+        Power pow = isActive(blocks);
+        boolean inf = "inf".equalsIgnoreCase(blocks.getSign().getLine(2));
 
         if(inf) {
 
-            CartType type = CartType.fromString(event.getBlocks().getSign().getLine(0));
+            CartType type = CartType.fromString(blocks.getSign().getLine(0));
 
             // go
-            if (event.getMinecart() == null) {
+            if (cart == null) {
                 switch (pow) {
                     case ON:
-                        if(!((org.bukkit.block.Sign) event.getBlocks().sign.getState()).getLine(3).toLowerCase(Locale.ENGLISH).contains("collect"))
-                            dispense(event.getBlocks(), null, type);
+                        if(!blocks.getSign().getLine(3).toLowerCase(Locale.ENGLISH).contains("collect"))
+                            dispense(blocks, null, type);
                         return;
                     case OFF: // power going off doesn't eat a cart unless the cart moves.
                     case NA:
@@ -88,23 +101,23 @@ public class CartDispenser extends CartBlockMechanism {
                         return;
                     case OFF:
                     case NA:
-                        if(!((org.bukkit.block.Sign) event.getBlocks().sign.getState()).getLine(3).toLowerCase(Locale.ENGLISH).contains("dispense"))
-                            collect(event.getMinecart(), null);
+                        if(!blocks.getSign().getLine(3).toLowerCase(Locale.ENGLISH).contains("dispense"))
+                            collect(cart, null);
                         return;
                 }
             }
         } else {
-            for (Chest c : RailUtil.getNearbyChests(event.getBlocks().base)) {
+            for (Chest c : RailUtil.getNearbyChests(blocks.base)) {
                 Inventory inv = c.getInventory();
 
-                CartType type = CartType.fromString(event.getBlocks().getSign().getLine(0));
+                CartType type = CartType.fromString(blocks.getSign().getLine(0));
 
                 // go
-                if (event.getMinecart() == null) {
+                if (cart == null) {
                     switch (pow) {
                         case ON:
-                            if(!((org.bukkit.block.Sign) event.getBlocks().sign.getState()).getLine(3).toLowerCase(Locale.ENGLISH).contains("collect"))
-                                dispense(event.getBlocks(), inv, type);
+                            if(!blocks.getSign().getLine(3).toLowerCase(Locale.ENGLISH).contains("collect"))
+                                dispense(blocks, inv, type);
                             return;
                         case OFF: // power going off doesn't eat a cart unless the cart moves.
                         case NA:
@@ -115,8 +128,8 @@ public class CartDispenser extends CartBlockMechanism {
                             return;
                         case OFF:
                         case NA:
-                            if(!((org.bukkit.block.Sign) event.getBlocks().sign.getState()).getLine(3).toLowerCase(Locale.ENGLISH).contains("dispense"))
-                                collect(event.getMinecart(), inv);
+                            if(!blocks.getSign().getLine(3).toLowerCase(Locale.ENGLISH).contains("dispense"))
+                                collect(cart, inv);
                             return;
                     }
                 }
@@ -135,16 +148,15 @@ public class CartDispenser extends CartBlockMechanism {
         cart.setDamage(9000);
         cart.remove();
         if (inv != null) {
-            int cartType = ItemType.MINECART.getID();
-            if (cart instanceof StorageMinecart) {
-                cartType = ItemType.STORAGE_MINECART.getID();
-            } else if (cart instanceof PoweredMinecart) {
-                cartType = ItemType.POWERED_MINECART.getID();
-            } else if (cart instanceof ExplosiveMinecart) {
-                cartType = ItemType.TNT_MINECART.getID();
-            } else if (cart instanceof HopperMinecart) {
-                cartType = ItemType.HOPPER_MINECART.getID();
-            }
+            Material cartType = Material.MINECART;
+            if (cart instanceof StorageMinecart)
+                cartType = Material.STORAGE_MINECART;
+            else if (cart instanceof PoweredMinecart)
+                cartType = Material.POWERED_MINECART;
+            else if (cart instanceof ExplosiveMinecart)
+                cartType = Material.EXPLOSIVE_MINECART;
+            else if (cart instanceof HopperMinecart)
+                cartType = Material.HOPPER_MINECART;
             inv.addItem(new ItemStack(cartType, 1));
         }
     }
@@ -167,23 +179,28 @@ public class CartDispenser extends CartBlockMechanism {
 
         if (inv != null) {
             if (type.equals(CartType.Minecart)) {
-                if (!inv.contains(ItemType.MINECART.getID())) return;
-                inv.removeItem(new ItemStack(ItemType.MINECART.getID(), 1));
+                if (!inv.contains(Material.MINECART)) return;
+                inv.removeItem(new ItemStack(Material.MINECART, 1));
             } else if (type.equals(CartType.StorageMinecart)) {
-                if (!inv.contains(ItemType.STORAGE_MINECART.getID())) return;
-                inv.removeItem(new ItemStack(ItemType.STORAGE_MINECART.getID(), 1));
+                if (!inv.contains(Material.STORAGE_MINECART)) return;
+                inv.removeItem(new ItemStack(Material.STORAGE_MINECART, 1));
             } else if (type.equals(CartType.PoweredMinecart)) {
-                if (!inv.contains(ItemType.POWERED_MINECART.getID())) return;
-                inv.removeItem(new ItemStack(ItemType.POWERED_MINECART.getID(), 1));
+                if (!inv.contains(Material.POWERED_MINECART)) return;
+                inv.removeItem(new ItemStack(Material.POWERED_MINECART, 1));
             } else if (type.equals(CartType.TNTMinecart)) {
-                if (!inv.contains(ItemType.TNT_MINECART.getID())) return;
-                inv.removeItem(new ItemStack(ItemType.TNT_MINECART.getID(), 1));
+                if (!inv.contains(Material.EXPLOSIVE_MINECART)) return;
+                inv.removeItem(new ItemStack(Material.EXPLOSIVE_MINECART, 1));
             } else if (type.equals(CartType.HopperMinecart)) {
-                if (!inv.contains(ItemType.HOPPER_MINECART.getID())) return;
-                inv.removeItem(new ItemStack(ItemType.HOPPER_MINECART.getID(), 1));
+                if (!inv.contains(Material.HOPPER_MINECART)) return;
+                inv.removeItem(new ItemStack(Material.HOPPER_MINECART, 1));
             }
         }
-        blocks.rail.getWorld().spawn(location, type.toClass());
+        Minecart cart = blocks.rail.getWorld().spawn(location, type.toClass());
+        if(CraftBookPlugin.inst().getConfiguration().minecartDispenserPropel) {
+            BlockFace dir = SignUtil.getBack(blocks.sign);
+            Vector vel = new Vector(dir.getModX(), dir.getModY(), dir.getModZ());
+            cart.setVelocity(vel.normalize());
+        }
     }
 
     public enum CartType {

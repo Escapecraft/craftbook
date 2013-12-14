@@ -32,13 +32,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
@@ -51,9 +52,8 @@ import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.circuits.ic.SelfTriggeredIC;
+import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.BlockWorldVector;
-import com.sk89q.worldedit.blocks.BlockID;
-import com.sk89q.worldedit.blocks.ItemID;
 
 class PlcIC<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements IC {
 
@@ -237,8 +237,7 @@ class PlcIC<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements I
         Inventory i = c.getBlockInventory();
         ItemStack book = null;
         for (ItemStack s : i.getContents()) {
-            if (s != null && s.getAmount() > 0 && (s.getTypeId() == ItemID.BOOK_AND_QUILL || s.getTypeId() == ItemID
-                    .WRITTEN_BOOK)) {
+            if (s != null && s.getAmount() > 0 && (s.getType() == Material.BOOK_AND_QUILL || s.getType() == Material.WRITTEN_BOOK)) {
                 if (book != null) throw new CodeNotFoundException("More than one written book found in chest!!");
                 book = s;
             }
@@ -258,9 +257,9 @@ class PlcIC<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements I
         Sign sign = BukkitUtil.toSign(this.sign);
 
         Block above = sign.getLocation().add(new Vector(0, 1, 0)).getBlock();
-        if (above.getTypeId() == BlockID.CHEST) return getBookCode(above);
+        if (above.getType() == Material.CHEST) return getBookCode(above);
         Block below = sign.getLocation().add(new Vector(0, -1, 0)).getBlock();
-        if (below.getTypeId() == BlockID.CHEST) return getBookCode(below);
+        if (below.getType() == Material.CHEST) return getBookCode(below);
 
         org.bukkit.Location l = sign.getLocation();
         World w = l.getWorld();
@@ -269,18 +268,18 @@ class PlcIC<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements I
         int z = l.getBlockZ();
 
         for (int y = 0; y < w.getMaxHeight(); y++) {
-            if (y != l.getBlockY()) if (w.getBlockAt(x, y, z).getState() instanceof Sign) {
-                Sign s = (Sign) w.getBlockAt(x, y, z).getState();
+            if (y != l.getBlockY()) if (SignUtil.isSign(w.getBlockAt(x, y, z))) {
+                ChangedSign s = BukkitUtil.toChangedSign(w.getBlockAt(x, y, z));
                 if (s.getLine(1).equalsIgnoreCase("[Code Block]")) {
                     y--;
-                    BlockState b = w.getBlockAt(x, y, z).getState();
+                    Block b = w.getBlockAt(x, y, z);
                     StringBuilder code = new StringBuilder();
-                    while (b instanceof Sign) {
-                        s = (Sign) b;
+                    while (SignUtil.isSign(b)) {
+                        s = BukkitUtil.toChangedSign(b);
                         for (int li = 0; li < 4 && y != l.getBlockY(); li++) {
                             code.append(s.getLine(li)).append("\n");
                         }
-                        b = w.getBlockAt(x, --y, z).getState();
+                        b = w.getBlockAt(x, --y, z);
                     }
                     return code.toString();
                 }
@@ -391,6 +390,10 @@ class PlcIC<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements I
             public ChangedSign getSign () {
                 return self.getSign();
             }
+
+            @Override
+            public void onICBreak (BlockBreakEvent event) {
+            }
         };
     }
 
@@ -429,5 +432,9 @@ class PlcIC<StateT, CodeT, Lang extends PlcLanguage<StateT, CodeT>> implements I
     public ChangedSign getSign () {
 
         return sign;
+    }
+
+    @Override
+    public void onICBreak (BlockBreakEvent event) {
     }
 }

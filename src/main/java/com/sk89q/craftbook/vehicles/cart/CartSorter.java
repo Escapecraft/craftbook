@@ -1,5 +1,6 @@
 package com.sk89q.craftbook.vehicles.cart;
 
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Animals;
@@ -14,13 +15,11 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.VehicleCore;
 import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
-import com.sk89q.craftbook.vehicles.CartBlockImpactEvent;
-import com.sk89q.worldedit.blocks.BlockID;
+import com.sk89q.craftbook.vehicles.cart.events.CartBlockImpactEvent;
 
 /*
  * @contributor LordEnki
@@ -57,119 +56,63 @@ public class CartSorter extends CartBlockMechanism {
         // this is required since there's not a north track and a south track; just a north-south track type.
         byte trackData;
         BlockFace next = SignUtil.getFacing(event.getBlocks().sign);
-        if (CraftBookPlugin.inst().useOldBlockFace()) {
-
-            switch (next) {
-                case WEST:
-                    switch (dir) {
-                        case LEFT:
-                            trackData = 9;
-                            break;
-                        case RIGHT:
-                            trackData = 8;
-                            break;
-                        default:
-                            trackData = 0;
-                    }
-                    break;
-                case EAST:
-                    switch (dir) {
-                        case LEFT:
-                            trackData = 7;
-                            break;
-                        case RIGHT:
-                            trackData = 6;
-                            break;
-                        default:
-                            trackData = 0;
-                    }
-                    break;
-                case NORTH:
-                    switch (dir) {
-                        case LEFT:
-                            trackData = 6;
-                            break;
-                        case RIGHT:
-                            trackData = 9;
-                            break;
-                        default:
-                            trackData = 1;
-                    }
-                    break;
-                case SOUTH:
-                    switch (dir) {
-                        case LEFT:
-                            trackData = 8;
-                            break;
-                        case RIGHT:
-                            trackData = 7;
-                            break;
-                        default:
-                            trackData = 1;
-                    }
-                    break;
-                default:
-                    return;
-            }
-        } else {
-            switch (next) {
-                case SOUTH:
-                    switch (dir) {
-                        case LEFT:
-                            trackData = 9;
-                            break;
-                        case RIGHT:
-                            trackData = 8;
-                            break;
-                        default:
-                            trackData = 0;
-                    }
-                    break;
-                case NORTH:
-                    switch (dir) {
-                        case LEFT:
-                            trackData = 7;
-                            break;
-                        case RIGHT:
-                            trackData = 6;
-                            break;
-                        default:
-                            trackData = 0;
-                    }
-                    break;
-                case WEST:
-                    switch (dir) {
-                        case LEFT:
-                            trackData = 6;
-                            break;
-                        case RIGHT:
-                            trackData = 9;
-                            break;
-                        default:
-                            trackData = 1;
-                    }
-                    break;
-                case EAST:
-                    switch (dir) {
-                        case LEFT:
-                            trackData = 8;
-                            break;
-                        case RIGHT:
-                            trackData = 7;
-                            break;
-                        default:
-                            trackData = 1;
-                    }
-                    break;
-                default:
-                    return;
-            }
+        switch (next) {
+            case SOUTH:
+                switch (dir) {
+                    case LEFT:
+                        trackData = 9;
+                        break;
+                    case RIGHT:
+                        trackData = 8;
+                        break;
+                    default:
+                        trackData = 0;
+                }
+                break;
+            case NORTH:
+                switch (dir) {
+                    case LEFT:
+                        trackData = 7;
+                        break;
+                    case RIGHT:
+                        trackData = 6;
+                        break;
+                    default:
+                        trackData = 0;
+                }
+                break;
+            case WEST:
+                switch (dir) {
+                    case LEFT:
+                        trackData = 6;
+                        break;
+                    case RIGHT:
+                        trackData = 9;
+                        break;
+                    default:
+                        trackData = 1;
+                }
+                break;
+            case EAST:
+                switch (dir) {
+                    case LEFT:
+                        trackData = 8;
+                        break;
+                    case RIGHT:
+                        trackData = 7;
+                        break;
+                    default:
+                        trackData = 1;
+                }
+                break;
+            default:
+                return;
         }
         Block targetTrack = event.getBlocks().rail.getRelative(next);
 
         // now check sanity real quick that there's actually a track after this,
         // and then make the change.
-        if (targetTrack.getTypeId() == BlockID.MINECART_TRACKS) {
+        if (targetTrack.getType() == Material.RAILS) {
             targetTrack.setData(trackData);
         }
     }

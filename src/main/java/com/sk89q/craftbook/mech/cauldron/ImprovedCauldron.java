@@ -6,7 +6,7 @@ import java.util.Collection;
 import java.util.List;
 
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.enchantments.Enchantment;
@@ -21,11 +21,11 @@ import com.sk89q.craftbook.AbstractMechanic;
 import com.sk89q.craftbook.AbstractMechanicFactory;
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
+import com.sk89q.craftbook.util.EntityUtil;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
 import com.sk89q.util.yaml.YAMLFormat;
 import com.sk89q.util.yaml.YAMLProcessor;
 import com.sk89q.worldedit.BlockWorldVector;
-import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.bukkit.BukkitUtil;
 
 /**
@@ -58,9 +58,9 @@ public class ImprovedCauldron extends AbstractMechanic implements Listener {
         private boolean isCauldron(BlockWorldVector pos) {
 
             Block block = BukkitUtil.toBlock(pos);
-            if (block.getTypeId() == BlockID.CAULDRON) {
+            if (block.getType() == Material.CAULDRON) {
                 Cauldron cauldron = (Cauldron) block.getState().getData();
-                return block.getRelative(BlockFace.DOWN).getTypeId() == BlockID.FIRE && cauldron.isFull();
+                return block.getRelative(BlockFace.DOWN).getType() == Material.FIRE && cauldron.isFull();
             }
             return false;
         }
@@ -84,7 +84,8 @@ public class ImprovedCauldron extends AbstractMechanic implements Listener {
         LocalPlayer player = plugin.wrapPlayer(event.getPlayer());
         if (block.equals(event.getClickedBlock())) {
             if (!player.hasPermission("craftbook.mech.cauldron.use")) {
-                player.printError("mech.use-permission");
+                if(plugin.getConfiguration().showPermissionMessages)
+                    player.printError("mech.use-permission");
                 return;
             }
             try {
@@ -94,7 +95,7 @@ public class ImprovedCauldron extends AbstractMechanic implements Listener {
                 // lets check permissions for that recipe
                 if (!player.hasPermission("craftbook.mech.cauldron.recipe.*")
                         && !player.hasPermission("craftbook.mech.cauldron.recipe." + recipe.getId())) {
-                    player.printError("You dont have permission to cook this recipe.");
+                    player.printError("mech.cauldron.permissions");
                     return;
                 }
 
@@ -105,17 +106,14 @@ public class ImprovedCauldron extends AbstractMechanic implements Listener {
                     event.setCancelled(true);
                 } else { // Spoons
                     if (event.getPlayer().getItemInHand() == null) return;
-                    if (isItemSpoon(event.getPlayer().getItemInHand().getTypeId())) {
+                    if (isItemSpoon(event.getPlayer().getItemInHand().getType())) {
                         double chance = getSpoonChance(event.getPlayer().getItemInHand(), recipe.getChance());
                         double ran = plugin.getRandom().nextDouble();
-                        event.getPlayer().getItemInHand().setDurability((short) (event.getPlayer().getItemInHand()
-                                .getDurability() - (short) 1));
+                        event.getPlayer().getItemInHand().setDurability((short) (event.getPlayer().getItemInHand().getDurability() - (short) 1));
                         if (chance <= ran) {
                             cook(recipe, items);
-                            player.print("You have cooked the " + ChatColor.AQUA + recipe.getName() + ChatColor
-                                    .YELLOW + " recipe.");
-                            block.getWorld().createExplosion(block.getRelative(BlockFace.UP).getLocation(), 0.0F,
-                                    false);
+                            player.print(player.translate("mech.cauldron.cook") + " " + ChatColor.AQUA + recipe.getName());
+                            block.getWorld().createExplosion(block.getRelative(BlockFace.UP).getLocation(), 0.0F, false);
                             event.setCancelled(true);
                         } else {
                             player.print("mech.cauldron.stir");
@@ -128,32 +126,40 @@ public class ImprovedCauldron extends AbstractMechanic implements Listener {
         }
     }
 
-    public boolean isItemSpoon(int id) {
+    public boolean isItemSpoon(Material id) {
 
-        return id == 256 || id == 269 || id == 273 || id == 277 || id == 284;
+        return id == Material.WOOD_SPADE || id == Material.STONE_SPADE || id == Material.IRON_SPADE || id == Material.DIAMOND_SPADE || id == Material.GOLD_SPADE;
     }
 
     public double getSpoonChance(ItemStack item, double chance) {
 
-        int id = item.getTypeId();
+        Material id = item.getType();
         double temp = chance / 100;
         if (temp > 1) return 1;
         double toGo = temp = 1 - temp;
         double tenth = toGo / 10;
-        int mutliplier = 0;
-        if (id == 269) {
-            mutliplier = 1;
-        } else if (id == 273) {
-            mutliplier = 2;
-        } else if (id == 256) {
-            mutliplier = 3;
-        } else if (id == 277) {
-            mutliplier = 4;
-        } else if (id == 284) {
-            mutliplier = 5;
+        int multiplier = 0;
+        switch(id) {
+            case WOOD_SPADE:
+                multiplier = 1;
+                break;
+            case STONE_SPADE:
+                multiplier = 2;
+                break;
+            case IRON_SPADE:
+                multiplier = 3;
+                break;
+            case DIAMOND_SPADE:
+                multiplier = 4;
+                break;
+            case GOLD_SPADE:
+                multiplier = 5;
+                break;
+            default:
+                break;
         }
-        mutliplier += item.getEnchantmentLevel(Enchantment.DIG_SPEED);
-        return temp + tenth * mutliplier;
+        multiplier += item.getEnchantmentLevel(Enchantment.DIG_SPEED);
+        return temp + tenth * multiplier;
     }
 
     /**
@@ -165,16 +171,10 @@ public class ImprovedCauldron extends AbstractMechanic implements Listener {
      */
     private void cook(ImprovedCauldronCookbook.Recipe recipe, Collection<Item> items) {
         // first lets destroy all items inside the cauldron
-        for (Item item : items) {
+        for (Item item : items)
             item.remove();
-        }
         // then give out the result items
         for (CauldronItemStack stack : recipe.getResults()) {
-            // here we need to reset the data value to 0 or problems will occur later on
-            // when trying to remove items from the inventory for example
-            if (stack.getData() < 0) {
-                stack.setData((short) 0);
-            }
             block.getWorld().dropItemNaturally(block.getLocation(), stack.getItemStack());
         }
     }
@@ -184,9 +184,7 @@ public class ImprovedCauldron extends AbstractMechanic implements Listener {
         List<Item> items = new ArrayList<Item>();
         for (Entity entity : block.getChunk().getEntities()) {
             if (entity instanceof Item) {
-                Location location = entity.getLocation();
-                if (location.getBlockX() == block.getX() && location.getBlockY() == block.getY() && location
-                        .getBlockZ() == block.getZ()) {
+                if (EntityUtil.isEntityInBlock(entity, block) || EntityUtil.isEntityInBlock(entity, block.getRelative(BlockFace.UP))) {
                     items.add((Item) entity);
                 }
             }
@@ -197,7 +195,7 @@ public class ImprovedCauldron extends AbstractMechanic implements Listener {
     /**
      * @author Silthus
      */
-    public static class UnknownRecipeException extends Throwable {
+    public static class UnknownRecipeException extends Exception {
 
         /**
          *

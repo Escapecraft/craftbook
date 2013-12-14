@@ -16,8 +16,8 @@
 
 package com.sk89q.craftbook;
 
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -44,7 +44,7 @@ class TriggerBlockManager {
      */
     public TriggerBlockManager() {
 
-        triggers = new LinkedHashMap<BlockWorldVector, PersistentMechanic>();
+        triggers = new HashMap<BlockWorldVector, PersistentMechanic>();
     }
 
     /**
@@ -61,9 +61,8 @@ class TriggerBlockManager {
             }
         }
 
-        for (BlockWorldVector p : m.getTriggerPositions()) {
+        for (BlockWorldVector p : m.getTriggerPositions())
             triggers.put(p, m);
-        }
     }
 
     /**
@@ -76,14 +75,12 @@ class TriggerBlockManager {
         if(CraftBookPlugin.isDebugFlagEnabled("triggers")) {
             for (BlockWorldVector p : m.getTriggerPositions()) {
                 if (triggers.get(p) != m)
-                    throw new CraftbookRuntimeException(new IllegalStateException(p + " was occupied by another " +
-                            "Mechanic"));
+                    throw new CraftbookRuntimeException(new IllegalStateException(p + " was occupied by another Mechanic"));
             }
         }
 
-        for (BlockWorldVector p : m.getTriggerPositions()) {
+        for (BlockWorldVector p : m.getTriggerPositions())
             triggers.put(p, null);
-        }
     }
 
     /**
@@ -127,15 +124,13 @@ class TriggerBlockManager {
             int curChunkX = pos.getBlockX() >> 4;
             int curChunkZ = pos.getBlockZ() >> 4;
             // Not involved in this chunk!
-            if (curChunkX != chunkX || curChunkZ != chunkZ) {
+            if (curChunkX != chunkX || curChunkZ != chunkZ)
                 continue;
-            }
 
             PersistentMechanic pMechanic = entry.getValue();
 
-            if (pMechanic != null) {
-                folks.add(entry.getValue());
-            }
+            if (pMechanic != null)
+                folks.add(pMechanic);
         }
         return folks;
     }

@@ -3,6 +3,9 @@ package com.sk89q.craftbook.circuits.gates.world.items;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraft.util.com.google.common.collect.Lists;
+
+import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -11,7 +14,6 @@ import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
@@ -19,10 +21,11 @@ import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.circuits.ic.PipeInputIC;
+import com.sk89q.craftbook.circuits.pipe.PipePutEvent;
+import com.sk89q.craftbook.circuits.pipe.PipeRequestEvent;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
-import com.sk89q.worldedit.BlockWorldVector;
 
 public class Distributer extends AbstractSelfTriggeredIC implements PipeInputIC {
 
@@ -97,12 +100,11 @@ public class Distributer extends AbstractSelfTriggeredIC implements PipeInputIC 
         else
             b = SignUtil.getLeftBlock(BukkitUtil.toSign(getSign()).getBlock()).getRelative(back);
 
-        Pipes pipes = Pipes.Factory.setupPipes(b, getBackBlock(), item);
+        PipeRequestEvent event = new PipeRequestEvent(b, Lists.newArrayList(item), getBackBlock());
+        Bukkit.getPluginManager().callEvent(event);
 
-        if(pipes == null)
-            b.getWorld().dropItemNaturally(b.getLocation().add(0.5, 0.5, 0.5), item);
-        else if(!pipes.getItems().isEmpty())
-            return false;
+        for(ItemStack it : event.getItems())
+            b.getWorld().dropItemNaturally(b.getLocation().add(0.5, 0.5, 0.5), it);
 
         return true;
     }
@@ -161,15 +163,15 @@ public class Distributer extends AbstractSelfTriggeredIC implements PipeInputIC 
     }
 
     @Override
-    public List<ItemStack> onPipeTransfer(BlockWorldVector pipe, List<ItemStack> items) {
+    public void onPipeTransfer(PipePutEvent event) {
 
         List<ItemStack> leftovers = new ArrayList<ItemStack>();
 
-        for (ItemStack item : items)
+        for (ItemStack item : event.getItems())
             if (ItemUtil.isStackValid(item))
                 if(!distributeItemStack(item))
                     leftovers.add(item);
 
-        return leftovers;
+        event.setItems(leftovers);
     }
 }

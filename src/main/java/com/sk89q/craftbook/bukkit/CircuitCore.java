@@ -2,6 +2,7 @@ package com.sk89q.craftbook.bukkit;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -10,13 +11,14 @@ import org.bukkit.ChatColor;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
+import com.sk89q.craftbook.CraftBookMechanic;
 import com.sk89q.craftbook.LocalComponent;
 import com.sk89q.craftbook.bukkit.commands.CircuitCommands;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.circuits.GlowStone;
 import com.sk89q.craftbook.circuits.JackOLantern;
 import com.sk89q.craftbook.circuits.Netherrack;
-import com.sk89q.craftbook.circuits.Pipes;
+import com.sk89q.craftbook.circuits.RedstoneJukebox;
 import com.sk89q.craftbook.circuits.gates.logic.AndGate;
 import com.sk89q.craftbook.circuits.gates.logic.Clock;
 import com.sk89q.craftbook.circuits.gates.logic.ClockDivider;
@@ -155,6 +157,7 @@ import com.sk89q.craftbook.circuits.ic.families.FamilySI3O;
 import com.sk89q.craftbook.circuits.ic.families.FamilySI5O;
 import com.sk89q.craftbook.circuits.ic.families.FamilySISO;
 import com.sk89q.craftbook.circuits.ic.families.FamilyVIVO;
+import com.sk89q.craftbook.circuits.pipe.Pipes;
 import com.sk89q.craftbook.circuits.plc.PlcFactory;
 import com.sk89q.craftbook.circuits.plc.lang.Perlstone;
 import com.sk89q.craftbook.util.config.YAMLICConfiguration;
@@ -174,7 +177,6 @@ public class CircuitCore implements LocalComponent {
     private YAMLICConfiguration icConfiguration;
 
     private ICMechanicFactory ICFactory;
-    private Pipes.Factory pipeFactory;
 
     private File romFolder;
     private File midiFolder;
@@ -187,6 +189,8 @@ public class CircuitCore implements LocalComponent {
     public static final ICFamily FAMILY_3I3O = new Family3I3O();
     public static final ICFamily FAMILY_VIVO = new FamilyVIVO();
     public static final ICFamily FAMILY_SI5O = new FamilySI5O();
+
+    private List<CraftBookMechanic> mechanics;
 
     public static boolean isEnabled() {
 
@@ -207,34 +211,23 @@ public class CircuitCore implements LocalComponent {
     public void enable() {
 
         plugin.registerCommands(CircuitCommands.class);
-
-        plugin.createDefaultConfiguration(new File(plugin.getDataFolder(), "ic-config.yml"), "ic-config.yml");
-        icConfiguration = new YAMLICConfiguration(new YAMLProcessor(new File(plugin.getDataFolder(), "ic-config.yml"), true, YAMLFormat.EXTENDED), plugin.getLogger());
-
-        midiFolder = new File(plugin.getDataFolder(), "midi/");
-        new File(getMidiFolder(), "playlists").mkdirs();
-
-        romFolder = new File(plugin.getDataFolder(), "rom/");
-
-        fireworkFolder = new File(plugin.getDataFolder(), "fireworks/");
-        getFireworkFolder();
+        mechanics = new ArrayList<CraftBookMechanic>();
 
         registerMechanics();
-
-        try {
-            icConfiguration.load();
-        } catch (Throwable e) {
-            BukkitUtil.printStacktrace(e);
-        }
     }
 
     @Override
     public void disable() {
 
-        for(RegisteredICFactory factory : icManager.registered.values()) {
-            factory.getFactory().unload();
+        for(CraftBookMechanic mech : mechanics)
+            mech.disable();
+        mechanics = null;
+
+        if(icManager != null) {
+            for(RegisteredICFactory factory : icManager.registered.values()) {
+                factory.getFactory().unload();
+            }
         }
-        pipeFactory = null;
         icConfiguration = null;
         ICFactory = null;
         ICManager.emptyCache();
@@ -264,25 +257,50 @@ public class CircuitCore implements LocalComponent {
         return ICFactory;
     }
 
-    public Pipes.Factory getPipeFactory() {
-
-        return pipeFactory;
-    }
-
     private void registerMechanics() {
 
         BukkitConfiguration config = CraftBookPlugin.inst().getConfiguration();
 
         if (config.ICEnabled) {
+            plugin.createDefaultConfiguration(new File(plugin.getDataFolder(), "ic-config.yml"), "ic-config.yml");
+            icConfiguration = new YAMLICConfiguration(new YAMLProcessor(new File(plugin.getDataFolder(), "ic-config.yml"), true, YAMLFormat.EXTENDED), plugin.getLogger());
+
+            midiFolder = new File(plugin.getDataFolder(), "midi/");
+            new File(getMidiFolder(), "playlists").mkdirs();
+
+            romFolder = new File(plugin.getDataFolder(), "rom/");
+
+            fireworkFolder = new File(plugin.getDataFolder(), "fireworks/");
+            getFireworkFolder();
+
             registerICs();
             plugin.registerMechanic(ICFactory = new ICMechanicFactory(getIcManager()));
+
+            try {
+                icConfiguration.load();
+            } catch (Throwable e) {
+                BukkitUtil.printStacktrace(e);
+            }
         }
 
         // Let's register mechanics!
-        if (config.netherrackEnabled) plugin.registerMechanic(new Netherrack.Factory());
-        if (config.pumpkinsEnabled) plugin.registerMechanic(new JackOLantern.Factory());
-        if (config.glowstoneEnabled) plugin.registerMechanic(new GlowStone.Factory());
-        if (config.pipesEnabled) plugin.registerMechanic(pipeFactory = new Pipes.Factory());
+        if (config.jukeboxEnabled) mechanics.add(new RedstoneJukebox());
+        if (config.glowstoneEnabled) mechanics.add(new GlowStone());
+        if (config.netherrackEnabled) mechanics.add(new Netherrack());
+        if (config.pumpkinsEnabled) mechanics.add(new JackOLantern());
+        if (config.pipesEnabled) mechanics.add(new Pipes());
+
+        Iterator<CraftBookMechanic> iter = mechanics.iterator();
+        while(iter.hasNext()) {
+            CraftBookMechanic mech = iter.next();
+            if(!mech.enable()) {
+                plugin.getLogger().warning("Failed to initialize mechanic: " + mech.getClass().getSimpleName());
+                mech.disable();
+                iter.remove();
+                continue;
+            }
+            plugin.getServer().getPluginManager().registerEvents(mech, plugin);
+        }
     }
 
     private void registerICs() {
@@ -562,5 +580,10 @@ public class CircuitCore implements LocalComponent {
 
     public ICManager getIcManager () {
         return icManager;
+    }
+
+    @Override
+    public List<CraftBookMechanic> getMechanics () {
+        return mechanics;
     }
 }

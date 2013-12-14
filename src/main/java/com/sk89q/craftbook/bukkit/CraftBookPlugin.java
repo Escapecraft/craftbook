@@ -1,4 +1,5 @@
 package com.sk89q.craftbook.bukkit;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -20,34 +21,20 @@ import java.util.jar.JarFile;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 
-import net.milkbowl.vault.economy.Economy;
-
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
-import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.World;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.comphenix.protocol.ProtocolLibrary;
 import com.sk89q.bukkit.util.CommandsManagerRegistration;
 import com.sk89q.craftbook.LanguageManager;
 import com.sk89q.craftbook.LocalComponent;
@@ -56,13 +43,19 @@ import com.sk89q.craftbook.Mechanic;
 import com.sk89q.craftbook.MechanicClock;
 import com.sk89q.craftbook.MechanicFactory;
 import com.sk89q.craftbook.MechanicManager;
-import com.sk89q.craftbook.bukkit.BukkitMetrics.Graph;
-import com.sk89q.craftbook.bukkit.BukkitMetrics.Plotter;
+import com.sk89q.craftbook.bukkit.Metrics.Graph;
+import com.sk89q.craftbook.bukkit.Metrics.Plotter;
 import com.sk89q.craftbook.bukkit.commands.TopLevelCommands;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.craftbook.mech.CommandItems;
+import com.sk89q.craftbook.mech.CommandItems.CommandItemDefinition;
+import com.sk89q.craftbook.util.CompatabilityUtil;
+import com.sk89q.craftbook.util.ItemSyntax;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.Tuple2;
+import com.sk89q.craftbook.util.compat.companion.CompanionPlugins;
 import com.sk89q.craftbook.util.config.VariableConfiguration;
+import com.sk89q.craftbook.util.persistent.PersistentStorage;
 import com.sk89q.minecraft.util.commands.CommandException;
 import com.sk89q.minecraft.util.commands.CommandPermissionsException;
 import com.sk89q.minecraft.util.commands.CommandUsageException;
@@ -73,24 +66,13 @@ import com.sk89q.minecraft.util.commands.WrappedCommandException;
 import com.sk89q.util.yaml.YAMLFormat;
 import com.sk89q.util.yaml.YAMLProcessor;
 import com.sk89q.wepif.PermissionsResolverManager;
-import com.sk89q.worldedit.bukkit.WorldEditPlugin;
-import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
-import com.sk89q.worldguard.protection.GlobalRegionManager;
-import com.sk89q.worldguard.protection.flags.DefaultFlag;
 
 public class CraftBookPlugin extends JavaPlugin {
 
     /**
-     * Required dependencies
+     * Companion Plugins for CraftBook.
      */
-    private WorldEditPlugin worldEditPlugin;
-
-    /**
-     * Optional dependencies
-     */
-    private Economy economy;
-    private ProtocolLibrary protocolLib;
-    private WorldGuardPlugin worldGuardPlugin;
+    public static CompanionPlugins plugins;
 
     /**
      * The instance for CraftBook
@@ -126,11 +108,6 @@ public class CraftBookPlugin extends JavaPlugin {
     private VariableConfiguration variableConfiguration;
 
     /**
-     * Used for backwards compatability of block faces.
-     */
-    private Boolean useOldBlockFace;
-
-    /**
      * The currently enabled LocalComponents
      */
     private List<LocalComponent> components = new ArrayList<LocalComponent>();
@@ -151,6 +128,11 @@ public class CraftBookPlugin extends JavaPlugin {
     protected HashMap<Tuple2<String, String>, String> variableStore = new HashMap<Tuple2<String, String>, String>();
 
     /**
+     * The persistent storage database of CraftBook.
+     */
+    protected PersistentStorage persistentStorage;
+
+    /**
      * Construct objects. Actual loading occurs when the plugin is enabled, so
      * this merely instantiates the objects.
      */
@@ -162,7 +144,7 @@ public class CraftBookPlugin extends JavaPlugin {
 
     public static String getVersion() {
 
-        return "3.7b3";
+        return "3.8b1";
     }
 
     /**
@@ -172,7 +154,12 @@ public class CraftBookPlugin extends JavaPlugin {
      */
     public static String getStableBuild() {
 
-        return "2403";
+        return "3388";
+    }
+
+    public static int getUpdaterID() {
+
+        return 31055;
     }
 
     /**
@@ -181,72 +168,17 @@ public class CraftBookPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
 
-        // Check plugin for checking the active states of a plugin
-        Plugin checkPlugin;
+        ItemSyntax.plugin = this;
 
-        // Check for WorldEdit
-        checkPlugin = getServer().getPluginManager().getPlugin("WorldEdit");
-        if (checkPlugin != null && checkPlugin instanceof WorldEditPlugin) {
-            worldEditPlugin = (WorldEditPlugin) checkPlugin;
-        } else {
-            try {
-                //noinspection UnusedDeclaration
-                @SuppressWarnings("unused")
-                String s = WorldEditPlugin.CUI_PLUGIN_CHANNEL;
-            } catch (Throwable t) {
-                logger().severe("WorldEdit detection has failed!");
-                logger().severe("WorldEdit is a required dependency, Craftbook disabled!");
-                return;
-            }
-        }
-
-        // Resolve ProtocolLib
-        try {
-            checkPlugin = getServer().getPluginManager().getPlugin("ProtocolLib");
-            if (checkPlugin != null && checkPlugin instanceof ProtocolLibrary) {
-                protocolLib = (ProtocolLibrary) checkPlugin;
-            } else protocolLib = null;
-        } catch(Throwable e){
-            protocolLib = null;
-            getLogger().severe("You have a corrupt version of ProtocolLib! Please redownload it!");
-            BukkitUtil.printStacktrace(e);
-        }
-
-        // Resolve WorldGuard
-        checkPlugin = getServer().getPluginManager().getPlugin("WorldGuard");
-        if (checkPlugin != null && checkPlugin instanceof WorldGuardPlugin) {
-            worldGuardPlugin = (WorldGuardPlugin) checkPlugin;
-        } else worldGuardPlugin = null;
-
-        manager = new MechanicManager();
-        managerAdapter = new MechanicListenerAdapter();
-        mechanicClock = new MechanicClock();
-
-        // Setup Config and the Commands Manager
-        final CraftBookPlugin plugin = this;
-        createDefaultConfiguration(new File(getDataFolder(), "config.yml"), "config.yml");
-        config = new BukkitConfiguration(new YAMLProcessor(new File(getDataFolder(), "config.yml"), true, YAMLFormat.EXTENDED), logger());
-        commands = new CommandsManager<CommandSender>() {
-
-            @Override
-            public boolean hasPermission(CommandSender player, String perm) {
-
-                return plugin.hasPermission(player, perm);
-            }
-        };
-
-        // Set the proper command injector
-        commands.setInjector(new SimpleInjector(this));
-
-        // Register command classes
-        final CommandsManagerRegistration reg = new CommandsManagerRegistration(this, commands);
-        reg.register(TopLevelCommands.class);
+        plugins = new CompanionPlugins();
+        plugins.initiate(this);
 
         // Need to create the plugins/CraftBook folder
         getDataFolder().mkdirs();
 
-        PermissionsResolverManager.initialize(this);
-
+        // Setup Config and the Commands Manager
+        createDefaultConfiguration(new File(getDataFolder(), "config.yml"), "config.yml");
+        config = new BukkitConfiguration(new YAMLProcessor(new File(getDataFolder(), "config.yml"), true, YAMLFormat.EXTENDED), logger());
         // Load the configuration
         try {
             config.load();
@@ -258,6 +190,35 @@ public class CraftBookPlugin extends JavaPlugin {
             return;
         }
 
+        persistentStorage = PersistentStorage.createFromType(getConfiguration().persistentStorageType);
+
+        if(persistentStorage != null)
+            persistentStorage.open();
+
+        logDebugMessage("Initializing Managers!", "startup");
+        manager = new MechanicManager();
+        managerAdapter = new MechanicListenerAdapter();
+        mechanicClock = new MechanicClock();
+
+        logDebugMessage("Initializing Permission!", "startup");
+        PermissionsResolverManager.initialize(this);
+
+        // Register command classes
+        logDebugMessage("Initializing Commands!", "startup");
+        commands = new CommandsManager<CommandSender>() {
+
+            @Override
+            public boolean hasPermission(CommandSender player, String perm) {
+
+                return CraftBookPlugin.inst().hasPermission(player, perm);
+            }
+        };
+        // Set the proper command injector
+        commands.setInjector(new SimpleInjector(this));
+
+        final CommandsManagerRegistration reg = new CommandsManagerRegistration(this, commands);
+        reg.register(TopLevelCommands.class);
+
         if(config.realisticRandoms)
             try {
                 random = SecureRandom.getInstance("SHA1PRNG");
@@ -267,16 +228,6 @@ public class CraftBookPlugin extends JavaPlugin {
             }
         else
             random = new Random();
-
-        // Resolve Vault
-        try {
-            RegisteredServiceProvider<Economy> economyProvider = getServer().getServicesManager().getRegistration(
-                    net.milkbowl.vault.economy.Economy.class);
-            if (economyProvider != null) economy = economyProvider.getProvider();
-            else economy = null;
-        } catch (Throwable e) {
-            economy = null;
-        }
 
         // Let's start the show
         setupCraftBook();
@@ -304,9 +255,18 @@ public class CraftBookPlugin extends JavaPlugin {
     public void setupCraftBook() {
 
         // Initialize the language manager.
+        logDebugMessage("Initializing Languages!", "startup");
         createDefaultConfiguration(new File(getDataFolder(), "en_US.yml"), "en_US.yml");
         languageManager = new LanguageManager();
         languageManager.init();
+
+        getServer().getScheduler().runTask(this, new Runnable() {
+
+            @Override
+            public void run () {
+                CompatabilityUtil.init();
+            }
+        });
     }
 
     /**
@@ -357,10 +317,12 @@ public class CraftBookPlugin extends JavaPlugin {
      */
     public void registerGlobalEvents() {
 
+        logDebugMessage("Registring managers!", "startup");
         getServer().getPluginManager().registerEvents(managerAdapter, inst());
 
         if(getConfiguration().updateNotifier) {
 
+            logDebugMessage("Performing update checks!", "startup");
             checkForUpdates();
         }
 
@@ -370,6 +332,7 @@ public class CraftBookPlugin extends JavaPlugin {
                 @Override
                 public void run () {
 
+                    logDebugMessage("Checking easter eggs!", "startup");
                     Calendar date = Calendar.getInstance();
 
                     if(date.get(Calendar.MONTH) == Calendar.JUNE && date.get(Calendar.DAY_OF_MONTH) == 22) //Me4502 reddit cakeday
@@ -387,7 +350,8 @@ public class CraftBookPlugin extends JavaPlugin {
         }
 
         try {
-            BukkitMetrics metrics = new BukkitMetrics(this);
+            logDebugMessage("Initializing Metrics!", "startup");
+            Metrics metrics = new Metrics(this);
             metrics.start();
 
             Graph g = metrics.createGraph("Language");
@@ -443,7 +407,7 @@ public class CraftBookPlugin extends JavaPlugin {
         boolean exempt = false;
 
         try {
-            int ver = Integer.parseInt(getDescription().getVersion().split("-")[0]);
+            int ver = Integer.parseInt(getDescription().getVersion().split(":")[1].split("-")[0]);
             if (ver < 1541) //Not valid prior to this version.
                 exempt = true;
         }
@@ -452,11 +416,10 @@ public class CraftBookPlugin extends JavaPlugin {
         }
 
         if(!exempt) {
-            final Updater updater = new Updater(this, "CraftBook", getFile(), Updater.UpdateType.NO_DOWNLOAD, false); // Start Updater but just do a version check
+            final Updater updater = new Updater(this, getUpdaterID(), getFile(), Updater.UpdateType.NO_DOWNLOAD, true); // Start Updater but just do a version check
             updateAvailable = updater.getResult() == Updater.UpdateResult.UPDATE_AVAILABLE; // Determine if there is an update ready for us
-            latestVersion = updater.getLatestVersionString(); // Get the latest version
-            getLogger().info(latestVersion + " is the latest version available, and the updatability of it is: " + updater.getResult().name() + ". You currently have version " + updater.getCurrentVersionString() + " installed.");
-            updateSize = updater.getFileSize(); // Get latest size
+            latestVersion = updater.getLatestName();
+            getLogger().info(latestVersion + " is the latest version available, and the updatability of it is: " + updater.getResult().name() + ". You currently have version " + getLatestVersion() + " installed.");
 
             if(updateAvailable) {
 
@@ -487,6 +450,7 @@ public class CraftBookPlugin extends JavaPlugin {
 
         // VariableStore
         if(config.variablesEnabled) {
+            logDebugMessage("Initializing Variables!", "startup.variables");
             try {
                 File varFile = new File(getDataFolder(), "variables.yml");
                 if(!varFile.exists())
@@ -498,18 +462,21 @@ public class CraftBookPlugin extends JavaPlugin {
 
         // Mechanics
         if (config.enableMechanisms) {
+            logDebugMessage("Initializing Mechanisms!", "startup.mechanisms");
             MechanicalCore mechanicalCore = new MechanicalCore();
             mechanicalCore.enable();
             components.add(mechanicalCore);
         }
         // Circuits
         if (config.enableCircuits) {
+            logDebugMessage("Initializing Circuits!", "startup.circuits");
             CircuitCore circuitCore = new CircuitCore();
             circuitCore.enable();
             components.add(circuitCore);
         }
         // Vehicles
         if (config.enableVehicles) {
+            logDebugMessage("Initializing Vehicles!", "startup.vehicles");
             VehicleCore vehicleCore = new VehicleCore();
             vehicleCore.enable();
             components.add(vehicleCore);
@@ -531,6 +498,9 @@ public class CraftBookPlugin extends JavaPlugin {
         if(config.variablesEnabled)
             variableConfiguration.save();
         components.clear();
+
+        if(hasPersistentStorage())
+            getPersistentStorage().close();
     }
 
     /**
@@ -571,6 +541,14 @@ public class CraftBookPlugin extends JavaPlugin {
     public static CraftBookPlugin inst() {
 
         return instance;
+    }
+
+    public static void setInstance(CraftBookPlugin instance) throws IllegalArgumentException {
+
+        if(CraftBookPlugin.instance != null)
+            throw new IllegalArgumentException("Instance already set!");
+
+        CraftBookPlugin.instance = instance;
     }
 
     /**
@@ -812,8 +790,7 @@ public class CraftBookPlugin extends JavaPlugin {
         // Invoke the permissions resolver
         if (sender instanceof Player) {
             Player player = (Player) sender;
-            return PermissionsResolverManager.getInstance().hasPermission(player.getWorld().getName(),
-                    player.getName(), perm);
+            return PermissionsResolverManager.getInstance().hasPermission(player.getWorld().getName(), player.getName(), perm);
         }
 
         return false;
@@ -955,140 +932,11 @@ public class CraftBookPlugin extends JavaPlugin {
                 } catch (IOException ignore) {
                 }
             }
-        }
-    }
-
-    /**
-     * Gets the Vault {@link Economy} service if it exists, this method should be used for economic actions.
-     *
-     * This method can return null.
-     *
-     * @return The vault {@link Economy} service
-     */
-    public Economy getEconomy() {
-
-        return economy;
-    }
-
-    /**
-     * This method is used to determine whether ProtocolLib is
-     * enabled on the server.
-     *
-     * @return True if ProtocolLib was found
-     */
-    public boolean hasProtocolLib() {
-
-        return protocolLib != null;
-    }
-
-    /**
-     * Gets a copy of the {@link WorldEditPlugin}.
-     *
-     * This method cannot return null.
-     *
-     * @return The {@link WorldEditPlugin} instance
-     */
-    public WorldEditPlugin getWorldEdit() {
-
-        return worldEditPlugin;
-    }
-
-    /**
-     * Gets the {@link WorldGuardPlugin} for non-build checks.
-     *
-     * This method can return null.
-     *
-     * @return {@link WorldGuardPlugin}
-     */
-    public WorldGuardPlugin getWorldGuard() {
-
-        return worldGuardPlugin;
-    }
-
-    /**
-     * Checks to see if a player can build at a location. This will return
-     * true if region protection is disabled.
-     *
-     * @param player The player to check.
-     * @param loc    The location to check at.
-     *
-     * @return whether {@code player} can build at {@code loc}
-     *
-     * @see GlobalRegionManager#canBuild(org.bukkit.entity.Player, org.bukkit.Location)
-     */
-    public boolean canBuild(Player player, Location loc, boolean build) {
-
-        return canBuild(player,loc.getBlock(), build);
-    }
-
-    /**
-     * Checks to see if a player can build at a location. This will return
-     * true if region protection is disabled or WorldGuard is not found.
-     *
-     * @param player The player to check
-     * @param block  The block to check at.
-     * @param build True for build, false for break
-     *
-     * @return whether {@code player} can build at {@code block}'s location
-     *
-     * @see GlobalRegionManager#canBuild(org.bukkit.entity.Player, org.bukkit.block.Block)
-     */
-    public boolean canBuild(Player player, Block block, boolean build) {
-
-        if (config.advancedBlockChecks) {
-
-            BlockEvent event;
-            if(build)
-                event = new BlockPlaceEvent(block, block.getState(), block.getRelative(0, -1, 0), player.getItemInHand(), player, true);
-            else
-                event = new BlockBreakEvent(block, player);
-            MechanicListenerAdapter.ignoredEvents.add(event);
-            getServer().getPluginManager().callEvent(event);
-            if(((Cancellable) event).isCancelled() || event instanceof BlockPlaceEvent && !((BlockPlaceEvent) event).canBuild())
-                return false;
-        }
-        if (!config.obeyWorldguard) return true;
-        return worldGuardPlugin == null || worldGuardPlugin.canBuild(player, block);
-    }
-
-    /**
-     * Checks to see if a player can use at a location. This will return
-     * true if region protection is disabled or WorldGuard is not found.
-     *
-     * @param player The player to check.
-     * @param loc    The location to check at.
-     *
-     * @return whether {@code player} can build at {@code loc}
-     *
-     * @see GlobalRegionManager#canBuild(org.bukkit.entity.Player, org.bukkit.Location)
-     */
-    public boolean canUse(Player player, Location loc, BlockFace face, Action action) {
-
-        if (config.advancedBlockChecks) {
-
-            PlayerInteractEvent event = new PlayerInteractEvent(player, action == null ? Action.RIGHT_CLICK_BLOCK : action, player.getItemInHand(), loc.getBlock(), face == null ? BlockFace.SELF : face);
-            MechanicListenerAdapter.ignoredEvents.add(event);
-            getServer().getPluginManager().callEvent(event);
-            if(event.isCancelled())
-                return false;
-        }
-        if (!config.obeyWorldguard) return true;
-        return worldGuardPlugin == null || worldGuardPlugin.getGlobalRegionManager().allows(DefaultFlag.USE, loc, worldGuardPlugin.wrapPlayer(player));
-    }
-
-    /**
-     * Check to see if it should use the old block face methods.
-     *
-     * @return whether it should use the old BlockFace methods.
-     */
-    public boolean useOldBlockFace() {
-
-        if (useOldBlockFace == null) {
-            Location loc = new Location(Bukkit.getWorlds().get(0), 0, 0, 0);
-            useOldBlockFace = loc.getBlock().getRelative(BlockFace.WEST).getX() == 0;
-        }
-
-        return useOldBlockFace;
+        } else if (file != null)
+            try {
+                file.close();
+            } catch (IOException ignored) {
+            }
     }
 
     @Override
@@ -1139,5 +987,40 @@ public class CraftBookPlugin extends JavaPlugin {
             return;
 
         logger().info("[Debug][" + code + "] " + message);
+    }
+
+    public boolean hasPersistentStorage() {
+
+        return persistentStorage != null && persistentStorage.isValid();
+    }
+
+    public PersistentStorage getPersistentStorage() {
+
+        return persistentStorage;
+    }
+
+    public void setPersistentStorage(PersistentStorage storage) {
+
+        persistentStorage = storage;
+        getConfiguration().persistentStorageType = storage.getType();
+        getConfiguration().config.setProperty("persistent-storage-type", storage.getType());
+        getConfiguration().config.save();
+    }
+
+    /**
+     * Parses more advanced portions of the Item Syntax.
+     * 
+     * @param item The item to parse
+     * @return The parsed string. (Can be the same, and should be if nothing found)
+     */
+    public String parseItemSyntax(String item) {
+
+        if(CommandItems.INSTANCE != null)  {
+            CommandItemDefinition def = CommandItems.INSTANCE.getDefinitionByName(item);
+            if(def != null) {
+                return ItemSyntax.getStringFromItem(def.getItem());
+            }
+        }
+        return item;
     }
 }

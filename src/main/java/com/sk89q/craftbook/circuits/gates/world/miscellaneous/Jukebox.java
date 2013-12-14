@@ -1,13 +1,14 @@
 package com.sk89q.craftbook.circuits.gates.world.miscellaneous;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
+import org.bukkit.event.block.BlockBreakEvent;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
@@ -18,14 +19,26 @@ import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.jinglenote.Playlist;
 import com.sk89q.craftbook.util.LocationUtil;
+import com.sk89q.craftbook.util.Tuple2;
+import com.sk89q.worldedit.BlockWorldVector;
+import com.sk89q.worldedit.WorldVector;
 
 public class Jukebox extends AbstractIC {
 
-    Playlist playlist;
+    public static Map<BlockWorldVector, Playlist> playlists = new HashMap<BlockWorldVector, Playlist>();
+
     int radius;
 
     public Jukebox (Server server, ChangedSign sign, ICFactory factory) {
         super(server, sign, factory);
+    }
+
+    @Override
+    public void onICBreak(BlockBreakEvent event) {
+        super.onICBreak(event);
+        if(playlists.containsKey(getSign().getBlockVector())) {
+            playlists.remove(getSign().getBlockVector()).stopPlaylist();
+        }
     }
 
     @Override
@@ -39,7 +52,8 @@ public class Jukebox extends AbstractIC {
             radius = -1;
         }
 
-        playlist = new Playlist(plist, getSign().getBlockVector(), radius);
+        if(!playlists.containsKey(getSign().getBlockVector()))
+            playlists.put(getSign().getBlockVector(), new Playlist(plist));
     }
 
     @Override
@@ -55,19 +69,29 @@ public class Jukebox extends AbstractIC {
     @Override
     public void trigger (ChipState chip) {
 
+        Playlist playlist = playlists.get(getSign().getBlockVector());
+
+        if(playlist == null) return; //Heh?
+
         if(radius < 0) {
-            playlist.setPlayers(Arrays.asList(Bukkit.getServer().getOnlinePlayers()));
+            HashSet<Tuple2<Player, Tuple2<WorldVector, Integer>>> players = new HashSet<Tuple2<Player, Tuple2<WorldVector, Integer>>>();
+            for(Player p : Bukkit.getServer().getOnlinePlayers()) {
+
+                players.add(new Tuple2<Player, Tuple2<WorldVector, Integer>>(p, new Tuple2<WorldVector, Integer>(getSign().getBlockVector(), radius)));
+            }
+
+            playlist.setPlayers(players);
             if(chip.getInput(0))
                 playlist.startPlaylist();
             else
                 playlist.stopPlaylist();
         } else {
-            List<Player> players = new ArrayList<Player>();
+            HashSet<Tuple2<Player, Tuple2<WorldVector, Integer>>> players = new HashSet<Tuple2<Player, Tuple2<WorldVector, Integer>>>();
             Location signLoc = BukkitUtil.toSign(getSign()).getLocation();
             for(Player player : BukkitUtil.toSign(getSign()).getWorld().getPlayers()) {
 
                 if(LocationUtil.isWithinSphericalRadius(signLoc, player.getLocation(), radius))
-                    players.add(player);
+                    players.add(new Tuple2<Player, Tuple2<WorldVector, Integer>>(player, new Tuple2<WorldVector, Integer>(getSign().getBlockVector(), radius)));
             }
 
             playlist.setPlayers(players);

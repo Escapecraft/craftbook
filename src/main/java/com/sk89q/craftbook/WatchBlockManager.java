@@ -16,9 +16,9 @@
 
 package com.sk89q.craftbook;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -59,7 +59,7 @@ class WatchBlockManager {
         for (BlockWorldVector p : m.getWatchedPositions()) {
             Set<PersistentMechanic> set = watchBlocks.get(p);
             if (set == null) {
-                set = new HashSet<PersistentMechanic>(4);
+                set = new HashSet<PersistentMechanic>();
                 watchBlocks.put(p, set);
             }
             set.add(m);
@@ -72,12 +72,11 @@ class WatchBlockManager {
      * @param m
      * @param oldWatchBlocks
      */
-    public void update(PersistentMechanic m, List<BlockWorldVector> oldWatchBlocks) {
+    public void update(PersistentMechanic m, Collection<BlockWorldVector> oldWatchBlocks) {
 
         // This could be more efficient.
-        for (BlockWorldVector p : oldWatchBlocks) {
+        for (BlockWorldVector p : oldWatchBlocks)
             watchBlocks.get(p).remove(m);
-        }
 
         register(m);
     }
@@ -106,11 +105,10 @@ class WatchBlockManager {
 
         Set<PersistentMechanic> pms = watchBlocks.get(BukkitUtil.toWorldVector(event.getBlock()));
 
-        if (pms == null) return;
+        if (pms == null || pms.isEmpty()) return;
 
-        for (PersistentMechanic m : pms) {
+        for (PersistentMechanic m : pms)
             m.onWatchBlockNotification(event);
-        }
     }
 
     /**
@@ -129,9 +127,8 @@ class WatchBlockManager {
             BlockWorldVector pos = entry.getKey();
 
             // Different world! Abort
-            if (!pos.getWorld().equals(chunk.getWorld())) {
+            if (!pos.getWorld().equals(chunk.getWorld()))
                 continue;
-            }
 
             int curChunkX = pos.getBlockX() >> 4;
             int curChunkZ = pos.getBlockZ() >> 4;

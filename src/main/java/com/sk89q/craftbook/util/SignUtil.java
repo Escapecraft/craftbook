@@ -16,13 +16,13 @@
 
 package com.sk89q.craftbook.util;
 
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.Sign;
+import org.bukkit.event.block.SignChangeEvent;
 
-import com.sk89q.craftbook.bukkit.CraftBookPlugin;
+import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.worldedit.blocks.BlockID;
 
 /**
  * <p>
@@ -51,14 +51,9 @@ import com.sk89q.worldedit.blocks.BlockID;
  */
 public class SignUtil {
 
-    public static boolean isSign(Block keith) {
+    public static boolean isSign(Block block) {
 
-        return isSign(keith.getTypeId());
-    }
-
-    public static boolean isSign(int typeid) {
-
-        return typeid == BlockID.SIGN_POST || typeid == BlockID.WALL_SIGN;
+        return block.getType() == Material.SIGN_POST || block.getType() == Material.WALL_SIGN;
     }
 
     /**
@@ -84,93 +79,47 @@ public class SignUtil {
      */
     public static BlockFace getFront(Block sign) {
 
-        if (CraftBookPlugin.inst().useOldBlockFace()) {
-            if (sign.getTypeId() == BlockID.SIGN_POST) {
-                switch (sign.getData()) {
-                    case 0x0:
-                        return BlockFace.WEST;
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        return BlockFace.NORTH_WEST;
-                    case 0x4:
-                        return BlockFace.NORTH;
-                    case 0x5:
-                    case 0x6:
-                    case 0x7:
-                        return BlockFace.NORTH_EAST;
-                    case 0x8:
-                        return BlockFace.EAST;
-                    case 0x9:
-                    case 0xA:
-                    case 0xB:
-                        return BlockFace.SOUTH_EAST;
-                    case 0xC:
-                        return BlockFace.SOUTH;
-                    case 0xD:
-                    case 0xE:
-                    case 0xF:
-                        return BlockFace.SOUTH_WEST;
-                    default:
-                        return BlockFace.SELF;
-                }
-            } else {
-                switch (sign.getData()) {
-                    case 0x3:
-                        return BlockFace.WEST;
-                    case 0x2:
-                        return BlockFace.EAST;
-                    case 0x4:
-                        return BlockFace.NORTH;
-                    case 0x5:
-                        return BlockFace.SOUTH;
-                    default:
-                        return BlockFace.SELF;
-                }
+        if (sign.getType() == Material.SIGN_POST) {
+            switch (sign.getData()) {
+                case 0x0:
+                    return BlockFace.SOUTH;
+                case 0x1:
+                case 0x2:
+                case 0x3:
+                    return BlockFace.SOUTH_WEST;
+                case 0x4:
+                    return BlockFace.WEST;
+                case 0x5:
+                case 0x6:
+                case 0x7:
+                    return BlockFace.NORTH_WEST;
+                case 0x8:
+                    return BlockFace.NORTH;
+                case 0x9:
+                case 0xA:
+                case 0xB:
+                    return BlockFace.NORTH_EAST;
+                case 0xC:
+                    return BlockFace.EAST;
+                case 0xD:
+                case 0xE:
+                case 0xF:
+                    return BlockFace.SOUTH_EAST;
+                default:
+                    return BlockFace.SELF;
             }
         } else {
-            if (sign.getTypeId() == BlockID.SIGN_POST) {
-                switch (sign.getData()) {
-                    case 0x0:
-                        return BlockFace.SOUTH;
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        return BlockFace.SOUTH_WEST;
-                    case 0x4:
-                        return BlockFace.WEST;
-                    case 0x5:
-                    case 0x6:
-                    case 0x7:
-                        return BlockFace.NORTH_WEST;
-                    case 0x8:
-                        return BlockFace.NORTH;
-                    case 0x9:
-                    case 0xA:
-                    case 0xB:
-                        return BlockFace.NORTH_EAST;
-                    case 0xC:
-                        return BlockFace.EAST;
-                    case 0xD:
-                    case 0xE:
-                    case 0xF:
-                        return BlockFace.SOUTH_EAST;
-                    default:
-                        return BlockFace.SELF;
-                }
-            } else {
-                switch (sign.getData()) {
-                    case 0x2:
-                        return BlockFace.NORTH;
-                    case 0x3:
-                        return BlockFace.SOUTH;
-                    case 0x4:
-                        return BlockFace.WEST;
-                    case 0x5:
-                        return BlockFace.EAST;
-                    default:
-                        return BlockFace.SELF;
-                }
+            switch (sign.getData()) {
+                case 0x2:
+                    return BlockFace.NORTH;
+                case 0x3:
+                    return BlockFace.SOUTH;
+                case 0x4:
+                    return BlockFace.WEST;
+                case 0x5:
+                    return BlockFace.EAST;
+                default:
+                    return BlockFace.SELF;
             }
         }
     }
@@ -192,93 +141,47 @@ public class SignUtil {
      */
     public static BlockFace getBack(Block sign) {
 
-        if (CraftBookPlugin.inst().useOldBlockFace()) {
-            if (sign.getTypeId() == BlockID.SIGN_POST) {
-                switch (sign.getData()) {
-                    case 0x0:
-                        return BlockFace.EAST;
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        return BlockFace.SOUTH_EAST;
-                    case 0x4:
-                        return BlockFace.SOUTH;
-                    case 0x5:
-                    case 0x6:
-                    case 0x7:
-                        return BlockFace.SOUTH_WEST;
-                    case 0x8:
-                        return BlockFace.WEST;
-                    case 0x9:
-                    case 0xA:
-                    case 0xB:
-                        return BlockFace.NORTH_WEST;
-                    case 0xC:
-                        return BlockFace.NORTH;
-                    case 0xD:
-                    case 0xE:
-                    case 0xF:
-                        return BlockFace.NORTH_EAST;
-                    default:
-                        return BlockFace.SELF;
-                }
-            } else {
-                switch (sign.getData()) {
-                    case 0x3:
-                        return BlockFace.EAST;
-                    case 0x2:
-                        return BlockFace.WEST;
-                    case 0x4:
-                        return BlockFace.SOUTH;
-                    case 0x5:
-                        return BlockFace.NORTH;
-                    default:
-                        return BlockFace.SELF;
-                }
+        if (sign.getType() == Material.SIGN_POST) {
+            switch (sign.getData()) {
+                case 0x0:
+                    return BlockFace.NORTH;
+                case 0x1:
+                case 0x2:
+                case 0x3:
+                    return BlockFace.NORTH_EAST;
+                case 0x4:
+                    return BlockFace.EAST;
+                case 0x5:
+                case 0x6:
+                case 0x7:
+                    return BlockFace.SOUTH_EAST;
+                case 0x8:
+                    return BlockFace.SOUTH;
+                case 0x9:
+                case 0xA:
+                case 0xB:
+                    return BlockFace.SOUTH_WEST;
+                case 0xC:
+                    return BlockFace.WEST;
+                case 0xD:
+                case 0xE:
+                case 0xF:
+                    return BlockFace.NORTH_WEST;
+                default:
+                    return BlockFace.SELF;
             }
         } else {
-            if (sign.getTypeId() == BlockID.SIGN_POST) {
-                switch (sign.getData()) {
-                    case 0x0:
-                        return BlockFace.NORTH;
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        return BlockFace.NORTH_EAST;
-                    case 0x4:
-                        return BlockFace.EAST;
-                    case 0x5:
-                    case 0x6:
-                    case 0x7:
-                        return BlockFace.SOUTH_EAST;
-                    case 0x8:
-                        return BlockFace.SOUTH;
-                    case 0x9:
-                    case 0xA:
-                    case 0xB:
-                        return BlockFace.SOUTH_WEST;
-                    case 0xC:
-                        return BlockFace.WEST;
-                    case 0xD:
-                    case 0xE:
-                    case 0xF:
-                        return BlockFace.NORTH_WEST;
-                    default:
-                        return BlockFace.SELF;
-                }
-            } else {
-                switch (sign.getData()) {
-                    case 0x2:
-                        return BlockFace.SOUTH;
-                    case 0x3:
-                        return BlockFace.NORTH;
-                    case 0x4:
-                        return BlockFace.EAST;
-                    case 0x5:
-                        return BlockFace.WEST;
-                    default:
-                        return BlockFace.SELF;
-                }
+            switch (sign.getData()) {
+                case 0x2:
+                    return BlockFace.SOUTH;
+                case 0x3:
+                    return BlockFace.NORTH;
+                case 0x4:
+                    return BlockFace.EAST;
+                case 0x5:
+                    return BlockFace.WEST;
+                default:
+                    return BlockFace.SELF;
             }
         }
     }
@@ -318,93 +221,47 @@ public class SignUtil {
      */
     public static BlockFace getRight(Block sign) {
 
-        if (CraftBookPlugin.inst().useOldBlockFace()) {
-            if (sign.getTypeId() == BlockID.SIGN_POST) {
-                switch (sign.getData()) {
-                    case 0x0:
-                        return BlockFace.SOUTH;
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        return BlockFace.SOUTH_WEST;
-                    case 0x4:
-                        return BlockFace.WEST;
-                    case 0x5:
-                    case 0x6:
-                    case 0x7:
-                        return BlockFace.NORTH_WEST;
-                    case 0x8:
-                        return BlockFace.NORTH;
-                    case 0x9:
-                    case 0xA:
-                    case 0xB:
-                        return BlockFace.NORTH_EAST;
-                    case 0xC:
-                        return BlockFace.EAST;
-                    case 0xD:
-                    case 0xE:
-                    case 0xF:
-                        return BlockFace.SOUTH_EAST;
-                    default:
-                        return BlockFace.SELF;
-                }
-            } else {
-                switch (sign.getData()) {
-                    case 0x3:
-                        return BlockFace.SOUTH;
-                    case 0x2:
-                        return BlockFace.NORTH;
-                    case 0x4:
-                        return BlockFace.WEST;
-                    case 0x5:
-                        return BlockFace.EAST;
-                    default:
-                        return BlockFace.SELF;
-                }
+        if (sign.getType() == Material.SIGN_POST) {
+            switch (sign.getData()) {
+                case 0x0:
+                    return BlockFace.EAST;
+                case 0x1:
+                case 0x2:
+                case 0x3:
+                    return BlockFace.SOUTH_EAST;
+                case 0x4:
+                    return BlockFace.SOUTH;
+                case 0x5:
+                case 0x6:
+                case 0x7:
+                    return BlockFace.SOUTH_WEST;
+                case 0x8:
+                    return BlockFace.WEST;
+                case 0x9:
+                case 0xA:
+                case 0xB:
+                    return BlockFace.NORTH_WEST;
+                case 0xC:
+                    return BlockFace.NORTH;
+                case 0xD:
+                case 0xE:
+                case 0xF:
+                    return BlockFace.NORTH_EAST;
+                default:
+                    return BlockFace.SELF;
             }
         } else {
-            if (sign.getTypeId() == BlockID.SIGN_POST) {
-                switch (sign.getData()) {
-                    case 0x0:
-                        return BlockFace.EAST;
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        return BlockFace.SOUTH_EAST;
-                    case 0x4:
-                        return BlockFace.SOUTH;
-                    case 0x5:
-                    case 0x6:
-                    case 0x7:
-                        return BlockFace.SOUTH_WEST;
-                    case 0x8:
-                        return BlockFace.WEST;
-                    case 0x9:
-                    case 0xA:
-                    case 0xB:
-                        return BlockFace.NORTH_WEST;
-                    case 0xC:
-                        return BlockFace.NORTH;
-                    case 0xD:
-                    case 0xE:
-                    case 0xF:
-                        return BlockFace.NORTH_EAST;
-                    default:
-                        return BlockFace.SELF;
-                }
-            } else {
-                switch (sign.getData()) {
-                    case 0x2:
-                        return BlockFace.WEST;
-                    case 0x3:
-                        return BlockFace.EAST;
-                    case 0x4:
-                        return BlockFace.SOUTH;
-                    case 0x5:
-                        return BlockFace.NORTH;
-                    default:
-                        return BlockFace.SELF;
-                }
+            switch (sign.getData()) {
+                case 0x2:
+                    return BlockFace.WEST;
+                case 0x3:
+                    return BlockFace.EAST;
+                case 0x4:
+                    return BlockFace.SOUTH;
+                case 0x5:
+                    return BlockFace.NORTH;
+                default:
+                    return BlockFace.SELF;
             }
         }
     }
@@ -425,93 +282,47 @@ public class SignUtil {
      */
     public static BlockFace getLeft(Block sign) {
 
-        if (CraftBookPlugin.inst().useOldBlockFace()) {
-            if (sign.getTypeId() == BlockID.SIGN_POST) {
-                switch (sign.getData()) {
-                    case 0x0:
-                        return BlockFace.NORTH;
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        return BlockFace.NORTH_EAST;
-                    case 0x4:
-                        return BlockFace.EAST;
-                    case 0x5:
-                    case 0x6:
-                    case 0x7:
-                        return BlockFace.SOUTH_EAST;
-                    case 0x8:
-                        return BlockFace.SOUTH;
-                    case 0x9:
-                    case 0xA:
-                    case 0xB:
-                        return BlockFace.SOUTH_WEST;
-                    case 0xC:
-                        return BlockFace.WEST;
-                    case 0xD:
-                    case 0xE:
-                    case 0xF:
-                        return BlockFace.NORTH_WEST;
-                    default:
-                        return BlockFace.SELF;
-                }
-            } else {
-                switch (sign.getData()) {
-                    case 0x3:
-                        return BlockFace.NORTH;
-                    case 0x2:
-                        return BlockFace.SOUTH;
-                    case 0x4:
-                        return BlockFace.EAST;
-                    case 0x5:
-                        return BlockFace.WEST;
-                    default:
-                        return BlockFace.SELF;
-                }
+        if (sign.getType() == Material.SIGN_POST) {
+            switch (sign.getData()) {
+                case 0x0:
+                    return BlockFace.WEST;
+                case 0x1:
+                case 0x2:
+                case 0x3:
+                    return BlockFace.NORTH_WEST;
+                case 0x4:
+                    return BlockFace.NORTH;
+                case 0x5:
+                case 0x6:
+                case 0x7:
+                    return BlockFace.NORTH_EAST;
+                case 0x8:
+                    return BlockFace.EAST;
+                case 0x9:
+                case 0xA:
+                case 0xB:
+                    return BlockFace.SOUTH_EAST;
+                case 0xC:
+                    return BlockFace.SOUTH;
+                case 0xD:
+                case 0xE:
+                case 0xF:
+                    return BlockFace.SOUTH_WEST;
+                default:
+                    return BlockFace.SELF;
             }
         } else {
-            if (sign.getTypeId() == BlockID.SIGN_POST) {
-                switch (sign.getData()) {
-                    case 0x0:
-                        return BlockFace.WEST;
-                    case 0x1:
-                    case 0x2:
-                    case 0x3:
-                        return BlockFace.NORTH_WEST;
-                    case 0x4:
-                        return BlockFace.NORTH;
-                    case 0x5:
-                    case 0x6:
-                    case 0x7:
-                        return BlockFace.NORTH_EAST;
-                    case 0x8:
-                        return BlockFace.EAST;
-                    case 0x9:
-                    case 0xA:
-                    case 0xB:
-                        return BlockFace.SOUTH_EAST;
-                    case 0xC:
-                        return BlockFace.SOUTH;
-                    case 0xD:
-                    case 0xE:
-                    case 0xF:
-                        return BlockFace.SOUTH_WEST;
-                    default:
-                        return BlockFace.SELF;
-                }
-            } else {
-                switch (sign.getData()) {
-                    case 0x2:
-                        return BlockFace.EAST;
-                    case 0x3:
-                        return BlockFace.WEST;
-                    case 0x4:
-                        return BlockFace.NORTH;
-                    case 0x5:
-                        return BlockFace.SOUTH;
-                    default:
-                        return BlockFace.SELF;
-                }
+            switch (sign.getData()) {
+                case 0x2:
+                    return BlockFace.EAST;
+                case 0x3:
+                    return BlockFace.WEST;
+                case 0x4:
+                    return BlockFace.NORTH;
+                case 0x5:
+                    return BlockFace.SOUTH;
+                default:
+                    return BlockFace.SELF;
             }
         }
     }
@@ -532,7 +343,7 @@ public class SignUtil {
      */
     public static boolean isCardinal(Block sign) {
 
-        if (sign.getTypeId() == BlockID.SIGN_POST) {
+        if (sign.getType() == Material.SIGN_POST) {
             switch (sign.getData()) {
                 case 0x0:
                 case 0x4:
@@ -590,13 +401,28 @@ public class SignUtil {
     }
 
     /**
-     * @param sign    to change
-     * @param line    to change
-     * @param content to change line to
+     * Cancels a sign change event, and destroys the sign in the process.
+     * 
+     * @param event The event that is to be cancelled.
      */
-    public static void setLine(Sign sign, int line, String content) {
+    public static void cancelSign(SignChangeEvent event) {
+        event.setCancelled(true);
+        event.getBlock().breakNaturally();
+    }
 
-        sign.setLine(line, content);
-        sign.update();
+    /**
+     * Check whether or not the block is a sign, and if so, does it contain the said text on that specific line.
+     * 
+     * @param sign The sign to check.
+     * @param text The text to check.
+     * @param line The line to check the text on.
+     * @return
+     */
+    public static boolean doesSignHaveText(Block sign, String text, int line) {
+
+        if(!isSign(sign)) return false;
+        ChangedSign signs = BukkitUtil.toChangedSign(sign);
+        if(!signs.getLine(line).equalsIgnoreCase(text)) return false;
+        return true;
     }
 }

@@ -25,6 +25,7 @@ import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
+import com.sk89q.craftbook.util.RegexUtil;
 
 public class RandomBit extends AbstractSelfTriggeredIC {
 
@@ -45,15 +46,23 @@ public class RandomBit extends AbstractSelfTriggeredIC {
         return "RANDOM BIT";
     }
 
-    int maxOn;
+    int maxOn,minOn;
 
     @Override
     public void load() {
 
         try {
-            maxOn = Integer.parseInt(getLine(2));
+            if(getLine(2).contains(":")) {
+                String[] parts = RegexUtil.COLON_PATTERN.split(getLine(2));
+                maxOn = Integer.parseInt(parts[1]);
+                minOn = Integer.parseInt(parts[0]);
+            } else {
+                maxOn = Integer.parseInt(getLine(2));
+                minOn = 0;
+            }
         } catch(Exception e){
             maxOn = -1;
+            minOn = 0;
         }
     }
 
@@ -73,14 +82,35 @@ public class RandomBit extends AbstractSelfTriggeredIC {
 
     public void randomize(ChipState chip) {
         int on = 0;
-        for (short i = 0; i < chip.getOutputCount(); i++) {
-            boolean state = CraftBookPlugin.inst().getRandom().nextBoolean();
-            if(on >= maxOn && maxOn > 0)
-                state = false;
-            chip.setOutput(i, state);
-            if(state)
-                on++;
-        }
+        int outputs = 0;
+        for(short i = 0; i < chip.getInputCount(); i++)
+            if(chip.isValid(i))
+                outputs++;
+        minOn = Math.min(minOn, outputs);
+        if(maxOn < minOn && maxOn >= 0)
+            maxOn = minOn;
+        boolean first = true;
+        do {
+            if(on >= maxOn) break;
+            for (short i = 0; i < chip.getOutputCount(); i++) {
+                if(!chip.isValid(i)) continue;
+                if(first)
+                    chip.setOutput(i, false); //Turn it off before changing it.
+                boolean state = CraftBookPlugin.inst().getRandom().nextBoolean();
+                boolean changed = false;
+                if(on >= maxOn && maxOn >= 0)
+                    state = false;
+                if(state && chip.getOutput(i) != true) {
+                    chip.setOutput(i, state); //Only change if needed
+                    changed = true;
+                }
+                if(state && changed)
+                    on++;
+                else if(!state && changed)
+                    on--;
+            }
+            first = false;
+        } while(on <= minOn);
     }
 
     public static class Factory extends AbstractICFactory {
@@ -99,12 +129,7 @@ public class RandomBit extends AbstractSelfTriggeredIC {
         @Override
         public String[] getLineHelp() {
 
-            return new String[] {"Maximum On Outputs", null};
+            return new String[] {"Min Outputs:Max Outputs", null};
         }
-    }
-
-    @Override
-    public boolean isActive () {
-        return true;
     }
 }

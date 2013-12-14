@@ -5,12 +5,12 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 
-import net.minecraft.server.v1_6_R1.LocaleLanguage;
+import net.minecraft.server.v1_7_R1.EntityPlayer;
 
-import org.bukkit.ChatColor;
-import org.bukkit.craftbukkit.v1_6_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_7_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
@@ -23,9 +23,6 @@ import com.sk89q.util.yaml.YAMLProcessor;
 public class LanguageManager {
 
     HashMap<String, YAMLProcessor> languageMap = new HashMap<String, YAMLProcessor>();
-
-    public LanguageManager() {
-    }
 
     public void init() {
         checkForLanguages();
@@ -44,48 +41,81 @@ public class LanguageManager {
         for (String language : languages) {
             language = language.trim();
             File f = new File(CraftBookPlugin.inst().getDataFolder(), language + ".yml");
+            if(!f.exists())
+                try {
+                    f.createNewFile();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
             YAMLProcessor lang = new YAMLProcessor(f, true, YAMLFormat.EXTENDED);
 
             try {
                 lang.load();
-            } catch (IOException e) {
+            } catch (Throwable e) {
+                CraftBookPlugin.inst().getLogger().severe("An error occured loading the languages file for: " + language + "! This language MAY NOT WORK UNTIL FIXED!");
                 e.printStackTrace();
+                continue;
             }
 
             lang.setWriteDefaults(true);
+
+            for(Entry<String, String> s : defaultMessages.entrySet())
+                lang.getString(s.getKey(), s.getValue());
+
             languageMap.put(language, lang);
         }
     }
 
     public String getString(String message, String language) {
 
-        if(language == null)
+        //message = ChatColor.stripColor(message);
+        if(language == null || !languageMap.containsKey(language))
             language = CraftBookPlugin.inst().getConfiguration().language;
         YAMLProcessor languageData = languageMap.get(language);
-        if (languageData == null) {
-            languageData = languageMap.get(CraftBookPlugin.inst().getConfiguration().language);
-            if (languageData == null) return "Missing Language File!";
-            String translated = languageData.getString(ChatColor.stripColor(message), defaultMessages.get(ChatColor.stripColor(message)));
-            if (translated == null) return message;
-            return translated;
+        String def = defaultMessages.get(message);
+        if(languageData == null) {
+            if(!CraftBookPlugin.inst().getConfiguration().languageScanText || def != null) {
+                return def == null ? message : def;
+            } else {
+                String trans = message;
+                for(Entry<String, String> tran : defaultMessages.entrySet()) {
+                    trans = trans.replace(tran.getKey(), tran.getValue());
+                }
+                return trans;
+            }
+        } else {
+            String translated = null;
+            if(def == null || languageData.getString(message) != null)
+                translated = languageData.getString(message);
+            else {
+                translated = languageData.getString(message, def);
+                languageMap.put(language, languageData);
+            }
+
+            if(!CraftBookPlugin.inst().getConfiguration().languageScanText || translated != null) {
+                if(translated != null)
+                    return translated;
+                else
+                    return def == null ? message : def;
+            } else {
+                String trans = message;
+                for(String tran : languageData.getMap().keySet()) {
+                    String trand = defaultMessages.get(tran) != null ? languageData.getString(tran, defaultMessages.get(tran)) : languageData.getString(tran);
+                    if(tran == null || trand == null) continue;
+                    trans = trans.replace(tran, trand);
+                    languageMap.put(language, languageData);
+                }
+                return trans;
+            }
         }
-        String translated = languageData.getString(ChatColor.stripColor(message), defaultMessages.get(ChatColor.stripColor(message)));
-        if (translated == null || translated.length() == 0) {
-            languageData = languageMap.get(CraftBookPlugin.inst().getConfiguration().language);
-            if (languageData == null) return "Missing Language File!";
-            translated = languageData.getString(ChatColor.stripColor(message), defaultMessages.get(ChatColor.stripColor(message)));
-            if (translated == null) return message;
-            return translated;
-        }
-        return translated;
     }
 
     public String getPlayersLanguage(Player p) {
 
         try {
-            Field d = LocaleLanguage.class.getDeclaredField("e"); //TODO Verify when possible.
+            Field d = EntityPlayer.class.getDeclaredField("locale");
             d.setAccessible(true);
-            return (String) d.get(((CraftPlayer) p).getHandle().getLocalizedName());
+            return (String) d.get(((CraftPlayer) p).getHandle());
         } catch (Throwable e) {
             return CraftBookPlugin.inst().getConfiguration().language;
         }
@@ -97,10 +127,17 @@ public class LanguageManager {
     }
 
     @SuppressWarnings("serial")
-    public static HashMap<String, String> defaultMessages = new HashMap<String, String>() {{
-        put("area.permissions", "You don't have permissions to use that in this area!");
+    public static final HashMap<String, String> defaultMessages = new HashMap<String, String>(32, 1.0f) {{
+        put("area.permissions", "You don't have permissions to do that in this area!");
+        put("area.use-permissions", "You don't have permissions to use that in this area!");
+        put("area.break-permissions", "You don't have permissions to break that in this area!");
 
 
+        put("variable.missing", "This variable is missing!");
+        put("variable.use-permissions", "You don't have permission to use that variable!");
+
+
+        put("mech.create-permission", "You don't have permission to create this mechanic.");
         put("mech.use-permission", "You don't have permission to use this mechanic.");
         put("mech.restock-permission", "You don't have permission to restock this mechanic.");
         put("mech.not-enough-blocks","Not enough blocks to trigger mechanic!");
@@ -112,8 +149,12 @@ public class LanguageManager {
         put("mech.anchor.create","Chunk Anchor Created!");
         put("mech.anchor.already-anchored","This chunk is already anchored!");
 
+        put("mech.area.create","Toggle Area Created!");
+        put("mech.area.missing","The area or namespace does not exist.");
+
         put("mech.bookcase.fail-line", "Failed to fetch a line from the books file.");
         put("mech.bookcase.fail-file", "Failed to read the books file.");
+        put("mech.bookcase.read-line", "You pick up a book...");
 
         put("mech.bridge.create","Bridge Created!");
         put("mech.bridge.toggle","Bridge Toggled!");
@@ -129,6 +170,8 @@ public class LanguageManager {
         put("mech.cauldron.legacy-not-in-group","Doesn't seem as if you have the ability...");
         put("mech.cauldron.legacy-create","In a poof of smoke, you've made");
         put("mech.cauldron.stir","You stir the cauldron but nothing happens.");
+        put("mech.cauldron.permissions","You dont have permission to cook this recipe.");
+        put("mech.cauldron.cook", "You have cooked the recipe:");
 
         put("mech.chairs.sit", "You are now sitting!");
         put("mech.chairs.stand", "You are no longer sitting!");
@@ -137,9 +180,17 @@ public class LanguageManager {
 
         put("mech.command.create","Command Sign Created!");
 
+        put("mech.command-items.out-of-sync", "Inventory became out of sync during usage of command-items!");
+        put("mech.command-items.wait", "You have to wait");
+        put("mech.command-items.wait-seconds", "seconds to use this again!");
+        put("mech.command-items.need", "You need");
+        put("mech.command-items.need-use", "to use this command!");
+
         put("mech.cook.create","Cooking Pot Created!");
         put("mech.cook.ouch","Ouch! That was hot!");
         put("mech.cook.add-fuel","You put fuel into the cooking pot, and watch as the fire roars!");
+
+        put("mech.custom-crafting.recipe-permission", "You do not have permission to craft this recipe.");
 
         put("mech.door.create","Door Created!");
         put("mech.door.toggle","Door Toggled!");
@@ -150,10 +201,14 @@ public class LanguageManager {
         put("mech.gate.create","Gate Created!");
         put("mech.gate.toggle","Gate Toggled!");
         put("mech.gate.not-found","Failed to find a gate!");
+        put("mech.gate.valid-item","Line 1 needs to be a valid block id.");
         put("mech.dgate.create","Small Gate Created!");
 
         put("mech.hiddenswitch.key","The key did not fit!");
         put("mech.hiddenswitch.toggle","You hear the muffled click of a switch!");
+
+        put("mech.headdrops.click-message","This is the dismembered head of..");
+        put("mech.headdrops.break-permission","You don't have permission to break heads!");
 
         put("mech.lift.target-sign-created","Elevator target sign created.");
         put("mech.lift.down-sign-created","Elevator down sign created.");
@@ -163,8 +218,17 @@ public class LanguageManager {
         put("mech.lift.floor","Floor");
         put("mech.lift.up","You went up a floor!");
         put("mech.lift.down","You went down a floor!");
+        put("mech.lift.leave", "You have left the elevator!");
+        put("mech.lift.no-destination", "This lift has no destination.");
+        put("mech.lift.no-depart", "Cannot depart from this lift (can only arrive).");
+        put("mech.lift.busy", "Elevator Busy!");
+
+        put("mech.lightstone.lightstone", "LightStone:");
 
         put("mech.lightswitch.create","Light Switch Created!");
+
+        put("mech.map.create","Map Changer Created!");
+        put("mech.map.invalid","Invalid Map ID!");
 
         put("mech.painting.editing","You are now editing this painting!");
         put("mech.painting.stop","You are no longer editing this painting!");
@@ -172,6 +236,7 @@ public class LanguageManager {
         put("mech.painting.range","You are too far away from the painting!");
 
         put("mech.pay.create","Pay Created!");
+        put("mech.pay.success","Payment Successful! You paid: ");
 
         put("mech.pistons.crush.created","Piston Crush Mechanic Created!");
         put("mech.pistons.supersticky.created","Piston Super-Sticky Mechanic Created!");

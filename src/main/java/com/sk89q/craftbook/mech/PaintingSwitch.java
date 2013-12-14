@@ -1,40 +1,39 @@
 package com.sk89q.craftbook.mech;
 
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import org.bukkit.Art;
 import org.bukkit.entity.Painting;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import com.sk89q.craftbook.AbstractCraftBookMechanic;
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.LocationUtil;
+import com.sk89q.craftbook.util.ProtectionUtil;
 
 /**
  * @author Me4502
  */
-public class PaintingSwitch implements Listener {
+public class PaintingSwitch extends AbstractCraftBookMechanic {
 
-    CraftBookPlugin plugin = CraftBookPlugin.inst();
-    HashMap<Painting, String> paintings = new HashMap<Painting, String>();
-    HashMap<String, Painting> players = new HashMap<String, Painting>();
-
-    public PaintingSwitch() {
-
-    }
+    Map<Painting, String> paintings = new WeakHashMap<Painting, String>();
+    Map<String, WeakReference<Painting>> players = new HashMap<String, WeakReference<Painting>>();
 
     public boolean isBeingEdited(Painting paint) {
 
         String player = paintings.get(paint);
         if (player != null && players.get(player) != null) {
-            Player p = plugin.getServer().getPlayerExact(player);
+            Player p = CraftBookPlugin.inst().getServer().getPlayerExact(player);
             return p != null && !p.isDead();
         }
         return false;
@@ -44,14 +43,14 @@ public class PaintingSwitch implements Listener {
     public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
 
         if (event.getRightClicked() instanceof Painting) {
-            LocalPlayer player = plugin.wrapPlayer(event.getPlayer());
-            if (!plugin.getConfiguration().paintingsEnabled) return;
+            LocalPlayer player = CraftBookPlugin.inst().wrapPlayer(event.getPlayer());
+            if (!CraftBookPlugin.inst().getConfiguration().paintingsEnabled) return;
             Painting paint = (Painting) event.getRightClicked();
-            if (!plugin.canUse(event.getPlayer(), paint.getLocation(), null, Action.RIGHT_CLICK_BLOCK)) return;
+            if (!ProtectionUtil.canUse(event.getPlayer(), paint.getLocation(), null, Action.RIGHT_CLICK_BLOCK)) return;
             if (player.hasPermission("craftbook.mech.paintingswitch.use")) {
                 if (!isBeingEdited(paint)) {
                     paintings.put(paint, player.getName());
-                    players.put(player.getName(), paint);
+                    players.put(player.getName(), new WeakReference<Painting>(paint));
                     player.print("mech.painting.editing");
                 } else if (paintings.get(paint).equalsIgnoreCase(player.getName())) {
                     paintings.remove(paint);
@@ -70,11 +69,9 @@ public class PaintingSwitch implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHeldItemChange(PlayerItemHeldEvent event) {
 
-        if (!plugin.getConfiguration().paintingsEnabled) return;
-        LocalPlayer player = plugin.wrapPlayer(event.getPlayer());
+        LocalPlayer player = CraftBookPlugin.inst().wrapPlayer(event.getPlayer());
         if (!player.hasPermission("craftbook.mech.paintingswitch.use")) return;
-        if (players.get(player.getName()) == null || players.get(player.getName()).isDead() || !players.get(player
-                .getName()).isValid())
+        if (players.get(player.getName()) == null || players.get(player.getName()).get() == null|| players.get(player.getName()).get().isDead() || !players.get(player.getName()).get().isValid())
             return;
         boolean isForwards;
         if (event.getNewSlot() > event.getPreviousSlot()) {
@@ -88,9 +85,9 @@ public class PaintingSwitch implements Listener {
             isForwards = true;
         }
         Art[] art = Art.values().clone();
-        Painting paint = players.get(player.getName());
+        Painting paint = players.get(player.getName()).get();
         if(!LocationUtil.isWithinSphericalRadius(paint.getLocation(), event.getPlayer().getLocation(), 5)) {
-            Painting p = players.remove(event.getPlayer().getName());
+            Painting p = players.remove(event.getPlayer().getName()).get();
             if (p != null) {
                 player.printError("mech.painting.range");
                 paintings.remove(p);
@@ -114,15 +111,21 @@ public class PaintingSwitch implements Listener {
             }
         }
         paintings.put(paint, player.getName());
-        players.put(player.getName(), paint);
+        players.put(player.getName(), new WeakReference<Painting>(paint));
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
 
-        Painting p = players.remove(event.getPlayer().getName());
+        WeakReference<Painting> p = players.remove(event.getPlayer().getName());
         if (p != null) {
-            paintings.remove(p);
+            paintings.remove(p.get());
         }
+    }
+
+    @Override
+    public void disable () {
+        paintings.clear();
+        players.clear();
     }
 }

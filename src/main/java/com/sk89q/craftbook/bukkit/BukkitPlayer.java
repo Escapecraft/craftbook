@@ -17,11 +17,13 @@
 package com.sk89q.craftbook.bukkit;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.Vehicle;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.craftbook.util.exceptions.InsufficientPermissionsException;
 import com.sk89q.worldedit.Location;
 import com.sk89q.worldedit.Vector;
@@ -46,23 +48,19 @@ public class BukkitPlayer implements LocalPlayer {
     @Override
     public void print(String message) {
 
-        if (message == null || player == null || plugin == null || message.isEmpty()) return;
-        if (plugin.getLanguageManager() == null || plugin.getLanguageManager().getPlayersLanguage(player) == null || plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player)) == null)
-            player.sendMessage(ChatColor.GOLD + message);
-        else
-            player.sendMessage(ChatColor.GOLD + plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player)));
+        player.sendMessage(ChatColor.GOLD + ChatColor.translateAlternateColorCodes('&', plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player))));
     }
 
     @Override
     public void printError(String message) {
 
-        player.sendMessage(ChatColor.RED + plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player)));
+        player.sendMessage(ChatColor.RED + ChatColor.translateAlternateColorCodes('&', plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player))));
     }
 
     @Override
     public void printRaw(String message) {
 
-        player.sendMessage(plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player)));
+        player.sendMessage(ChatColor.translateAlternateColorCodes('&', plugin.getLanguageManager().getString(message, plugin.getLanguageManager().getPlayersLanguage(player))));
     }
 
     @Override
@@ -138,5 +136,20 @@ public class BukkitPlayer implements LocalPlayer {
 
         if (player.getItemInHand() == null) return 0;
         return player.getItemInHand().getDurability();
+    }
+
+    @Override
+    public ItemInfo getHeldItemInfo () {
+        return new ItemInfo(Material.getMaterial(getHeldItemType()), getHeldItemData());
+    }
+
+    @Override
+    public boolean isSneaking () {
+        return player.isSneaking();
+    }
+
+    @Override
+    public void setSneaking (boolean state) {
+        player.setSneaking(state);
     }
 }

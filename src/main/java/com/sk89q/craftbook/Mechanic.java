@@ -20,14 +20,17 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 
+import com.sk89q.craftbook.circuits.pipe.PipePutEvent;
+import com.sk89q.craftbook.util.events.SourcedBlockRedstoneEvent;
+
 /**
- * A Mechanic is a an object that manages a set of BlockVectors to enhance those positions with CraftBook functionality.
+ * A Mechanic is a an object that manages a set of Vectors to enhance those positions with CraftBook functionality.
  * <p>
  * Mechanic instances are subject to lazy instantiation and must be able to derive all of their internal state from
  * the blocks in the world at any
  * time. Mechanic instances should be able to be discarded at essentially any time and without warning,
  * and yet be able to provide correct service
- * whenever a new Mechanic instance is created over the same BlockVector unless the contents of the BlockVector have
+ * whenever a new Mechanic instance is created over the same Vector unless the contents of the Vector have
  * been otherwise interfered with in
  * the intervening time -- this is so that Mechanic instances can be discarded when their containing chunks are
  * unloaded, as well as for general
@@ -81,4 +84,10 @@ public interface Mechanic {
      */
     public void onBlockRedstoneChange(SourcedBlockRedstoneEvent event);
 
+    /**
+     * Raised when a pipe tries to place an item in this mechanic.
+     * 
+     * @param event
+     */
+    public void onPipePut(PipePutEvent event);
 }

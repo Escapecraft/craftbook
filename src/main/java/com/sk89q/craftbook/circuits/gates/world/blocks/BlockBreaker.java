@@ -3,6 +3,10 @@ package com.sk89q.craftbook.circuits.gates.world.blocks;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.minecraft.util.com.google.common.collect.Lists;
+
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -12,17 +16,16 @@ import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
+import com.sk89q.craftbook.circuits.pipe.PipeRequestEvent;
 import com.sk89q.craftbook.util.BlockUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
-import com.sk89q.worldedit.blocks.BlockID;
 
 public class BlockBreaker extends AbstractSelfTriggeredIC {
 
@@ -97,39 +100,42 @@ public class BlockBreaker extends AbstractSelfTriggeredIC {
         if (chest != null && chest.getState() instanceof InventoryHolder)
             hasChest = true;
 
-        if (broken == null || broken.getTypeId() == 0 || broken.getTypeId() == BlockID.BEDROCK || broken.getTypeId() == BlockID.PISTON_MOVING_PIECE)
+        if (broken == null || broken.getType() == Material.AIR || broken.getType() == Material.BEDROCK || broken.getType() == Material.PISTON_MOVING_PIECE)
             return false;
 
         if (id > 0 && id != broken.getTypeId()) return false;
 
         if (data > 0 && data != broken.getData()) return false;
 
-        for (ItemStack blockstack : broken.getDrops()) {
+        for (ItemStack stack : BlockUtil.getBlockDrops(broken, null)) {
 
             BlockFace back = SignUtil.getBack(BukkitUtil.toSign(getSign()).getBlock());
             Block pipe = getBackBlock().getRelative(back);
 
-            Pipes pipes = Pipes.Factory.setupPipes(pipe, getBackBlock(), blockstack);
+            PipeRequestEvent event = new PipeRequestEvent(pipe, Lists.newArrayList(stack), getBackBlock());
+            Bukkit.getPluginManager().callEvent(event);
 
-            if(pipes != null && pipes.getItems().isEmpty())
+            if(!event.isValid())
                 continue;
 
-            if (hasChest) {
-                InventoryHolder c = (InventoryHolder) chest.getState();
-                HashMap<Integer, ItemStack> overflow = c.getInventory().addItem(blockstack);
-                ((BlockState) c).update();
-                if (overflow.isEmpty()) continue;
-                else {
-                    for (Map.Entry<Integer, ItemStack> bit : overflow.entrySet()) {
-                        dropItem(bit.getValue());
+            for(ItemStack blockstack : event.getItems()) {
+                if (hasChest) {
+                    InventoryHolder c = (InventoryHolder) chest.getState();
+                    HashMap<Integer, ItemStack> overflow = c.getInventory().addItem(blockstack);
+                    ((BlockState) c).update();
+                    if (overflow.isEmpty()) continue;
+                    else {
+                        for (Map.Entry<Integer, ItemStack> bit : overflow.entrySet()) {
+                            dropItem(bit.getValue());
+                        }
+                        continue;
                     }
-                    continue;
                 }
-            }
 
-            dropItem(blockstack);
+                dropItem(blockstack);
+            }
         }
-        broken.setTypeId(0);
+        broken.setType(Material.AIR);
 
         return true;
     }
@@ -158,12 +164,13 @@ public class BlockBreaker extends AbstractSelfTriggeredIC {
         @Override
         public void verify(ChangedSign sign) throws ICVerificationException {
 
-            if(!sign.getLine(2).isEmpty()) {
+            if(!sign.getLine(2).trim().isEmpty()) {
                 try {
                     String[] split = RegexUtil.COLON_PATTERN.split(sign.getLine(2));
                     Integer.parseInt(split[0]);
                     try {
-                        Byte.parseByte(split[1]);
+                        if(split.length > 1)
+                            Byte.parseByte(split[1]);
                     } catch(Exception e){
                         throw new ICVerificationException("Data must be a number!");
                     }

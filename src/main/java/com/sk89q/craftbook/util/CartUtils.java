@@ -2,6 +2,7 @@ package com.sk89q.craftbook.util;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Minecart;
@@ -11,6 +12,7 @@ import org.bukkit.entity.minecart.PoweredMinecart;
 import org.bukkit.entity.minecart.RideableMinecart;
 import org.bukkit.entity.minecart.SpawnerMinecart;
 import org.bukkit.entity.minecart.StorageMinecart;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
@@ -67,5 +69,21 @@ public class CartUtils {
         toCart.getLocation().setPitch(cart.getLocation().getPitch());
         toCart.setVelocity(cart.getVelocity()); // speedy thing goes in, speedy thing comes out
         cart.remove();
+    }
+
+    public static ItemStack getCartStack(Minecart cart) {
+
+        if(cart instanceof RideableMinecart)
+            return new ItemStack(Material.MINECART, 1);
+        else if(cart instanceof StorageMinecart)
+            return new ItemStack(Material.STORAGE_MINECART, 1);
+        else if(cart instanceof PoweredMinecart)
+            return new ItemStack(Material.POWERED_MINECART, 1);
+        else if(cart instanceof ExplosiveMinecart)
+            return new ItemStack(Material.EXPLOSIVE_MINECART, 1);
+        else if(cart instanceof HopperMinecart)
+            return new ItemStack(Material.HOPPER_MINECART, 1);
+
+        return null;
     }
 }

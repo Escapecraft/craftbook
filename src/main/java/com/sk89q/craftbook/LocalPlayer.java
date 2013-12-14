@@ -16,6 +16,7 @@
 
 package com.sk89q.craftbook;
 
+import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.craftbook.util.exceptions.InsufficientPermissionsException;
 import com.sk89q.worldedit.Location;
 import com.sk89q.worldedit.Vector;
@@ -45,13 +46,21 @@ public interface LocalPlayer {
 
     public void teleport(Location location);
 
+    public boolean isSneaking();
+
+    public void setSneaking(boolean state);
+
     public boolean isInsideVehicle();
 
     public Vehicle getVehicle();
 
+    @Deprecated
     public int getHeldItemType();
 
+    @Deprecated
     public short getHeldItemData();
+
+    public ItemInfo getHeldItemInfo();
 
     public boolean isHoldingBlock();
 

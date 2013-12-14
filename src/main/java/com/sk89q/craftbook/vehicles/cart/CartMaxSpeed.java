@@ -7,7 +7,7 @@ import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.craftbook.util.RedstoneUtil.Power;
-import com.sk89q.craftbook.vehicles.CartBlockImpactEvent;
+import com.sk89q.craftbook.vehicles.cart.events.CartBlockImpactEvent;
 
 public class CartMaxSpeed extends CartBlockMechanism {
 
@@ -23,7 +23,10 @@ public class CartMaxSpeed extends CartBlockMechanism {
         if (!event.getBlocks().matches(getMaterial())) return;
         if (event.isMinor()) return;
 
-        double maxSpeed = Double.parseDouble(event.getBlocks().getSign().getLine(2));
+        double maxSpeed = 0.4D;
+        try {
+            maxSpeed = Double.parseDouble(event.getBlocks().getSign().getLine(2));
+        } catch(Exception e){}
 
         // enabled?
         if (Power.OFF == isActive(event.getBlocks())) return;

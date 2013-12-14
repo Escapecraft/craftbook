@@ -3,14 +3,14 @@ package com.sk89q.craftbook.vehicles.cart;
 import org.bukkit.entity.Minecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.util.Vector;
 
+import com.sk89q.craftbook.AbstractCraftBookMechanic;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.RailUtil;
 
-public class VisionSteering implements Listener {
+public class VisionSteering extends AbstractCraftBookMechanic {
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
     public void onPlayerMove(PlayerMoveEvent event) {
@@ -21,7 +21,7 @@ public class VisionSteering implements Listener {
         if(!(event.getPlayer().getVehicle() instanceof Minecart))
             return;
 
-        if(Math.abs(event.getFrom().getYaw() - event.getTo().getYaw()) < CraftBookPlugin.inst().getConfiguration().minecartVisionSteeringMinimumSensitivity)
+        if(Math.abs((double)event.getFrom().getYaw() - (double)event.getTo().getYaw()) < CraftBookPlugin.inst().getConfiguration().minecartVisionSteeringMinimumSensitivity)
             return;
 
         if(RailUtil.isTrack(event.getPlayer().getVehicle().getLocation().getBlock().getTypeId()))

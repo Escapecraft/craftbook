@@ -154,7 +154,7 @@ public class RecipeCommands {
             }
 
             try {
-                RecipeManager.Recipe recipe = new RecipeManager.Recipe(name, type, items, Arrays.<String>asList(shape), results.get(0), advancedData);
+                RecipeManager.Recipe recipe = RecipeManager.INSTANCE.new Recipe(name, type, items, Arrays.<String>asList(shape), results.get(0), advancedData);
                 RecipeManager.INSTANCE.addRecipe(recipe);
                 if(MechanicalCore.inst() == null) {
                     player.printError("You do not have mechanics enabled, or Java has bugged and unloaded it (Did you use /reload?)!");
@@ -164,7 +164,6 @@ public class RecipeCommands {
                     return;
                 }
                 MechanicalCore.inst().getCustomCrafting().addRecipe(recipe);
-                RecipeManager.INSTANCE.save();
                 player.print("Successfully added a new " + type.name() + " recipe!");
             } catch (Exception e) {
                 player.printError("Error adding recipe! See console for more details!");
@@ -205,10 +204,9 @@ public class RecipeCommands {
             }
 
             try {
-                RecipeManager.Recipe recipe = new RecipeManager.Recipe(name, type, ingredients, results.get(0), advancedData);
+                RecipeManager.Recipe recipe = RecipeManager.INSTANCE.new Recipe(name, type, ingredients, results.get(0), advancedData);
                 RecipeManager.INSTANCE.addRecipe(recipe);
                 MechanicalCore.inst().getCustomCrafting().addRecipe(recipe);
-                RecipeManager.INSTANCE.save();
                 player.print("Successfully added a new " + type.name() + " recipe!");
             } catch (Exception e) {
                 player.printError("Error adding recipe! See console for more details!");

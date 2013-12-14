@@ -3,6 +3,7 @@ package com.sk89q.craftbook.circuits.gates.world.entity;
 import java.util.Locale;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
@@ -21,12 +22,12 @@ import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
+import com.sk89q.craftbook.util.EntityUtil;
 import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.ItemSyntax;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
-import com.sk89q.worldedit.blocks.BlockID;
 
 public class AdvancedEntitySpawner extends AbstractIC {
 
@@ -57,7 +58,9 @@ public class AdvancedEntitySpawner extends AbstractIC {
         String[] splitLine3 = RegexUtil.ASTERISK_PATTERN.split(getSign().getLine(3).trim());
         type = EntityType.fromName(splitLine3[0].trim().toLowerCase(Locale.ENGLISH));
         if (type == null) {
-            type = EntityType.PIG;
+            type = EntityType.valueOf(splitLine3[0].trim().toUpperCase(Locale.ENGLISH));
+            if(type == null)
+                type = EntityType.PIG;
         }
 
         try {
@@ -78,15 +81,13 @@ public class AdvancedEntitySpawner extends AbstractIC {
         if (!chip.getInput(0)) return;
         Block left = SignUtil.getLeftBlock(BukkitUtil.toSign(getSign()).getBlock());
         ChangedSign effectSign = null;
-        if (left.getTypeId() == BlockID.WALL_SIGN) {
+        if (left.getType() == Material.WALL_SIGN)
             effectSign = BukkitUtil.toChangedSign(left);
-        }
 
         Block right = SignUtil.getRightBlock(BukkitUtil.toSign(getSign()).getBlock());
         ChangedSign armourSign = null;
-        if (right.getTypeId() == BlockID.WALL_SIGN) {
+        if (right.getType() == Material.WALL_SIGN)
             armourSign = BukkitUtil.toChangedSign(right);
-        }
 
         for (int i = 0; i < amount; i++) {
             Entity ent = BukkitUtil.toSign(getSign()).getWorld().spawn(location, type.getEntityClass());
@@ -126,7 +127,7 @@ public class AdvancedEntitySpawner extends AbstractIC {
 
                     String[] data = RegexUtil.COLON_PATTERN.split(bit);
 
-                    if (data[0].equalsIgnoreCase("e")) CreatureSpawner.setEntityData(ent, bit.substring(2));
+                    if (data[0].equalsIgnoreCase("e")) EntityUtil.setEntityData(ent, bit.substring(2));
                     else if (data[0].equalsIgnoreCase("r")) {
                         EntityType rider = EntityType.fromName(data[1].trim());
                         Entity rid = BukkitUtil.toSign(getSign()).getWorld().spawnEntity(location, rider);
@@ -158,22 +159,16 @@ public class AdvancedEntitySpawner extends AbstractIC {
                     }
                 }
                 if (upwards == null) {
-                    if (BukkitUtil.toSign(effectSign).getBlock().getRelative(0, 1,
-                            0).getTypeId() == BlockID.WALL_SIGN) {
-                        effectSign = BukkitUtil.toChangedSign(BukkitUtil.toSign(effectSign).getBlock().getRelative(0,
-                                1, 0));
+                    if (BukkitUtil.toSign(effectSign).getBlock().getRelative(0, 1, 0).getType() == Material.WALL_SIGN) {
+                        effectSign = BukkitUtil.toChangedSign(BukkitUtil.toSign(effectSign).getBlock().getRelative(0, 1, 0));
                         upwards = true;
-                    } else if (BukkitUtil.toSign(effectSign).getBlock().getRelative(0, -1,
-                            0).getTypeId() == BlockID.WALL_SIGN) {
-                        effectSign = BukkitUtil.toChangedSign(BukkitUtil.toSign(effectSign).getBlock().getRelative(0,
-                                -1, 0));
+                    } else if (BukkitUtil.toSign(effectSign).getBlock().getRelative(0, -1, 0).getType() == Material.WALL_SIGN) {
+                        effectSign = BukkitUtil.toChangedSign(BukkitUtil.toSign(effectSign).getBlock().getRelative(0, -1, 0));
                         upwards = false;
                     } else break;
                 } else {
-                    if (BukkitUtil.toSign(effectSign).getBlock().getRelative(0,
-                            upwards ? 1 : -1, 0).getTypeId() == BlockID.WALL_SIGN) effectSign = BukkitUtil
-                            .toChangedSign(BukkitUtil.toSign(effectSign).getBlock().getRelative(0,
-                                    upwards ? 1 : -1, 0));
+                    if (BukkitUtil.toSign(effectSign).getBlock().getRelative(0, upwards ? 1 : -1, 0).getType() == Material.WALL_SIGN)
+                        effectSign = BukkitUtil.toChangedSign(BukkitUtil.toSign(effectSign).getBlock().getRelative(0, upwards ? 1 : -1, 0));
                     else break;
                 }
             }
@@ -209,11 +204,13 @@ public class AdvancedEntitySpawner extends AbstractIC {
         public void verify(ChangedSign sign) throws ICVerificationException {
 
             String[] splitLine3 = RegexUtil.ASTERISK_PATTERN.split(sign.getLine(3).trim());
-            if (EntityType.fromName(splitLine3[0].trim().toLowerCase(Locale.ENGLISH)) == null) {
+            EntityType type = EntityType.fromName(splitLine3[0].trim().toLowerCase(Locale.ENGLISH));
+            if(type == null)
+                type = EntityType.valueOf(splitLine3[0].trim().toUpperCase(Locale.ENGLISH));
+            if (type == null)
                 throw new ICVerificationException("Invalid Entity! See bukkit EntityType list!");
-            } else if (!EntityType.fromName(splitLine3[0].trim().toLowerCase(Locale.ENGLISH)).isSpawnable()) {
+            else if (!type.isSpawnable())
                 throw new ICVerificationException("Entity is not spawnable!");
-            }
         }
     }
 }

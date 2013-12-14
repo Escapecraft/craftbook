@@ -3,18 +3,24 @@ package com.sk89q.craftbook.util;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
+import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.material.MaterialData;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
-import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.ItemID;
 
 public class ItemUtil {
@@ -70,7 +76,7 @@ public class ItemUtil {
      * @param exclusions The list of items to exclude, skipped if empty.
      * @return If the item passes the filters.
      */
-    public static boolean doesItemPassFilters(ItemStack stack, HashSet<ItemStack> inclusions, HashSet<ItemStack> exclusions) {
+    public static boolean doesItemPassFilters(ItemStack stack, Set<ItemStack> inclusions, Set<ItemStack> exclusions) {
 
         boolean passesFilters = true;
         if(inclusions != null && inclusions.size() > 0) {
@@ -105,7 +111,7 @@ public class ItemUtil {
         return passesFilters;
     }
 
-    public static boolean areItemsSimilar(ItemStack item, int type) {
+    public static boolean areItemsSimilar(ItemStack item, Material type) {
 
         return areItemsSimilar(item, new MaterialData(type, (byte) 0));
     }
@@ -122,20 +128,99 @@ public class ItemUtil {
 
     public static boolean areItemsSimilar(MaterialData data, MaterialData comparedData) {
 
-        return data.getItemTypeId() == comparedData.getItemTypeId();
+        return data.getItemType() == comparedData.getItemType();
     }
 
-    public static final char COLOR_CHAR = '\u00A7';
-    private static final Pattern STRIP_RESET_PATTERN = Pattern.compile("(?i)" + String.valueOf(COLOR_CHAR) + "[Rr]");
+    private static final Pattern STRIP_RESET_PATTERN = Pattern.compile("(?i)" + String.valueOf('\u00A7') + "[Rr]");
 
     //TODO Move to a StringUtil.
     public static String stripResetChar(String message) {
 
-        if (message == null) {
+        if (message == null)
             return null;
-        }
 
         return STRIP_RESET_PATTERN.matcher(message).replaceAll("");
+    }
+
+    public static boolean areRecipesIdentical(Recipe rec1, Recipe rec2) {
+
+        if(ItemUtil.areItemsIdentical(rec1.getResult(), rec2.getResult())) {
+            CraftBookPlugin.logDebugMessage("Recipes have same results!", "advanced-data.compare-recipes");
+            if(rec1 instanceof ShapedRecipe && rec2 instanceof ShapedRecipe) {
+                CraftBookPlugin.logDebugMessage("Shaped recipe!", "advanced-data.compare-recipes.shaped");
+                ShapedRecipe recipe1 = (ShapedRecipe) rec1;
+                ShapedRecipe recipe2 = (ShapedRecipe) rec2;
+                if(recipe1.getShape().length == recipe2.getShape().length) {
+                    CraftBookPlugin.logDebugMessage("Same size!", "advanced-data.compare-recipes.shaped");
+                    List<ItemStack> stacks1 = new ArrayList<ItemStack>();
+
+                    for(String s : recipe1.getShape())
+                        for(char c : s.toCharArray())
+                            for(Entry<Character, ItemStack> entry : recipe1.getIngredientMap().entrySet())
+                                if(entry.getKey().charValue() == c)
+                                    stacks1.add(entry.getValue());
+                    List<ItemStack> stacks2 = new ArrayList<ItemStack>();
+
+                    for(String s : recipe2.getShape())
+                        for(char c : s.toCharArray())
+                            for(Entry<Character, ItemStack> entry : recipe2.getIngredientMap().entrySet())
+                                if(entry.getKey().charValue() == c)
+                                    stacks2.add(entry.getValue());
+
+                    if(stacks2.size() != stacks1.size()) {
+                        CraftBookPlugin.logDebugMessage("Recipes have different amounts of ingredients!", "advanced-data.compare-recipes.shaped");
+                        return false;
+                    }
+                    List<ItemStack> test = new ArrayList<ItemStack>();
+                    test.addAll(stacks1);
+                    if(test.size() == 0) {
+                        CraftBookPlugin.logDebugMessage("Recipes are the same!", "advanced-data.compare-recipes.shaped");
+                        return true;
+                    }
+                    if(!test.removeAll(stacks2) && test.size() > 0) {
+                        CraftBookPlugin.logDebugMessage("Recipes are NOT the same!", "advanced-data.compare-recipes.shaped");
+                        return false;
+                    }
+                    if(test.size() > 0) {
+                        CraftBookPlugin.logDebugMessage("Recipes are NOT the same!", "advanced-data.compare-recipes.shaped");
+                        return false;
+                    }
+                }
+            } else if(rec1 instanceof ShapelessRecipe && rec2 instanceof ShapelessRecipe) {
+
+                CraftBookPlugin.logDebugMessage("Shapeless Recipe!", "advanced-data.compare-recipes.shapeless");
+                ShapelessRecipe recipe1 = (ShapelessRecipe) rec1;
+                ShapelessRecipe recipe2 = (ShapelessRecipe) rec2;
+
+                if(VerifyUtil.withoutNulls(recipe1.getIngredientList()).size() != VerifyUtil.withoutNulls(recipe2.getIngredientList()).size()) {
+                    CraftBookPlugin.logDebugMessage("Recipes have different amounts of ingredients!", "advanced-data.compare-recipes.shapeless");
+                    return false;
+                }
+
+                CraftBookPlugin.logDebugMessage("Same Size!", "advanced-data.compare-recipes.shapeless");
+
+                List<ItemStack> test = new ArrayList<ItemStack>();
+                test.addAll(VerifyUtil.<ItemStack>withoutNulls(recipe1.getIngredientList()));
+                if(test.size() == 0) {
+                    CraftBookPlugin.logDebugMessage("Recipes are the same!", "advanced-data.compare-recipes.shapeless");
+                    return true;
+                }
+                if(!test.removeAll(VerifyUtil.<ItemStack>withoutNulls(recipe2.getIngredientList())) && test.size() > 0) {
+                    CraftBookPlugin.logDebugMessage("Recipes are NOT the same!", "advanced-data.compare-recipes.shapeless");
+                    return false;
+                }
+                if(test.size() > 0) {
+                    CraftBookPlugin.logDebugMessage("Recipes are NOT the same!", "advanced-data.compare-recipes.shapeless");
+                    return false;
+                }
+            }
+
+            CraftBookPlugin.logDebugMessage("Recipes are the same!", "advanced-data.compare-recipes");
+
+            return true;
+        }
+
+        return false;
     }
 
     public static boolean areItemsIdentical(ItemStack item, ItemStack item2) {
@@ -155,10 +240,12 @@ public class ItemUtil {
                 CraftBookPlugin.logDebugMessage("Both have metadata", "item-checks.meta");
                 if(item.getItemMeta().hasDisplayName() == item2.getItemMeta().hasDisplayName()) {
                     CraftBookPlugin.logDebugMessage("Both have names", "item-checks.meta.names");
-                    CraftBookPlugin.logDebugMessage("ItemStack1 Display Name: " + item.getItemMeta().getDisplayName() + ". ItemStack2 Display Name: " + item2.getItemMeta().getDisplayName(), "item-checks.meta.names");
-                    if(!item.getItemMeta().getDisplayName().equalsIgnoreCase("$IGNORE") && !item2.getItemMeta().getDisplayName().equalsIgnoreCase("$IGNORE") && !stripResetChar(item.getItemMeta().getDisplayName().trim().replace("'", "")).equals(stripResetChar(item2.getItemMeta().getDisplayName().trim().replace("'", ""))))
-                        return false;
-                    CraftBookPlugin.logDebugMessage("Items share display names", "item-checks.meta.names");
+                    if(item.getItemMeta().hasDisplayName()) {
+                        CraftBookPlugin.logDebugMessage("ItemStack1 Display Name: " + item.getItemMeta().getDisplayName() + ". ItemStack2 Display Name: " + item2.getItemMeta().getDisplayName(), "item-checks.meta.names");
+                        if(!item.getItemMeta().getDisplayName().equalsIgnoreCase("$IGNORE") && !item2.getItemMeta().getDisplayName().equalsIgnoreCase("$IGNORE") && !ChatColor.translateAlternateColorCodes('&', stripResetChar(item.getItemMeta().getDisplayName().trim().replace("'", ""))).equals(ChatColor.translateAlternateColorCodes('&', stripResetChar(item2.getItemMeta().getDisplayName().trim().replace("'", "")))))
+                            return false;
+                        CraftBookPlugin.logDebugMessage("Items share display names", "item-checks.meta.names");
+                    }
                 } else {
                     if(!(item.getItemMeta().hasDisplayName() && item.getItemMeta().getDisplayName().equalsIgnoreCase("$IGNORE")) && !(item2.getItemMeta().hasDisplayName() && item2.getItemMeta().getDisplayName().equalsIgnoreCase("$IGNORE")))
                         return false;
@@ -170,7 +257,7 @@ public class ItemUtil {
                             return false;
                         for(int i = 0; i < item.getItemMeta().getLore().size(); i++) {
                             CraftBookPlugin.logDebugMessage("ItemStack1 Lore: " + item.getItemMeta().getLore().get(i) + ". ItemStack2 Lore: " + item2.getItemMeta().getLore().get(i), "item-checks.meta.lores");
-                            if(!item.getItemMeta().getLore().get(i).equalsIgnoreCase("$IGNORE") && !item2.getItemMeta().getLore().get(i).equalsIgnoreCase("$IGNORE") && !stripResetChar(item.getItemMeta().getLore().get(i).trim().replace("'", "")).equals(stripResetChar(item2.getItemMeta().getLore().get(i).trim().replace("'", ""))))
+                            if(!item.getItemMeta().getLore().get(i).equalsIgnoreCase("$IGNORE") && !item2.getItemMeta().getLore().get(i).equalsIgnoreCase("$IGNORE") && !ChatColor.translateAlternateColorCodes('&', stripResetChar(item.getItemMeta().getLore().get(i).trim().replace("'", ""))).equals(ChatColor.translateAlternateColorCodes('&', stripResetChar(item2.getItemMeta().getLore().get(i).trim().replace("'", "")))))
                                 return false;
                             CraftBookPlugin.logDebugMessage("Items share same lore", "item-checks.meta.lores");
                         }
@@ -212,7 +299,7 @@ public class ItemUtil {
             return !isStackValid(item) && !isStackValid(item2);
         else {
 
-            if(item.getTypeId() != item2.getTypeId())
+            if(item.getType() != item2.getType())
                 return false;
             if(item.getData().getData() != item2.getData().getData() && item.getData().getData() >= 0 && item2.getData().getData() >= 0)
                 return false;
@@ -263,17 +350,17 @@ public class ItemUtil {
 
     public static ItemStack getCookedResult(ItemStack item) {
 
-        switch (item.getTypeId()) {
-            case ItemID.RAW_BEEF:
-                return new ItemStack(ItemID.COOKED_BEEF);
-            case ItemID.RAW_CHICKEN:
-                return new ItemStack(ItemID.COOKED_CHICKEN);
-            case ItemID.RAW_FISH:
-                return new ItemStack(ItemID.COOKED_FISH);
-            case ItemID.RAW_PORKCHOP:
-                return new ItemStack(ItemID.COOKED_PORKCHOP);
-            case ItemID.POTATO:
-                return new ItemStack(ItemID.BAKED_POTATO);
+        switch (item.getType()) {
+            case RAW_BEEF:
+                return new ItemStack(Material.COOKED_BEEF);
+            case RAW_CHICKEN:
+                return new ItemStack(Material.COOKED_CHICKEN);
+            case RAW_FISH:
+                return new ItemStack(Material.COOKED_FISH, 1, item.getDurability());
+            case PORK:
+                return new ItemStack(Material.GRILLED_PORK);
+            case POTATO_ITEM:
+                return new ItemStack(Material.BAKED_POTATO);
             default:
                 return null;
         }
@@ -286,29 +373,33 @@ public class ItemUtil {
 
     public static ItemStack getSmeletedResult(ItemStack item) {
 
-        switch (item.getTypeId()) {
-            case BlockID.COBBLESTONE:
-                return new ItemStack(BlockID.STONE);
-            case BlockID.CACTUS:
-                return new ItemStack(ItemID.INK_SACK, 1, (short) 2);
-            case BlockID.LOG:
-                return new ItemStack(ItemID.COAL, 1, (short) 1);
-            case BlockID.IRON_ORE:
-                return new ItemStack(ItemID.IRON_BAR);
-            case BlockID.REDSTONE_ORE:
-                return new ItemStack(ItemID.REDSTONE_DUST);
-            case BlockID.EMERALD_ORE:
-                return new ItemStack(ItemID.EMERALD);
-            case BlockID.GOLD_ORE:
-                return new ItemStack(ItemID.GOLD_BAR);
-            case BlockID.DIAMOND_ORE:
-                return new ItemStack(ItemID.DIAMOND);
-            case BlockID.SAND:
-                return new ItemStack(BlockID.GLASS);
-            case ItemID.CLAY_BALL:
-                return new ItemStack(ItemID.BRICK_BAR);
-            case BlockID.NETHERRACK:
-                return new ItemStack(ItemID.NETHER_BRICK);
+        switch (item.getType()) {
+            case COBBLESTONE:
+                return new ItemStack(Material.STONE);
+            case CACTUS:
+                return new ItemStack(Material.INK_SACK, 1, (short) 2);
+            case LOG:
+                return new ItemStack(Material.COAL, 1, (short) 1);
+            case IRON_ORE:
+                return new ItemStack(Material.IRON_INGOT);
+            case REDSTONE_ORE:
+                return new ItemStack(Material.REDSTONE, 4);
+            case EMERALD_ORE:
+                return new ItemStack(Material.EMERALD);
+            case GOLD_ORE:
+                return new ItemStack(Material.GOLD_INGOT);
+            case DIAMOND_ORE:
+                return new ItemStack(Material.DIAMOND);
+            case SAND:
+                return new ItemStack(Material.GLASS);
+            case CLAY_BALL:
+                return new ItemStack(Material.CLAY_BRICK);
+            case NETHERRACK:
+                return new ItemStack(Material.NETHER_BRICK_ITEM);
+            case CLAY:
+                return new ItemStack(Material.HARD_CLAY);
+            case QUARTZ_ORE:
+                return new ItemStack(Material.QUARTZ);
             default:
                 return null;
         }
@@ -322,33 +413,34 @@ public class ItemUtil {
      */
     public static boolean isAFuel(ItemStack item) {
 
-        switch(item.getTypeId()) {
-            case ItemID.COAL:
-            case BlockID.LOG:
-            case BlockID.WOOD:
-            case BlockID.WOODEN_STEP:
-            case BlockID.SAPLING:
-            case ItemID.WOOD_AXE:
-            case ItemID.WOOD_HOE:
-            case ItemID.WOOD_PICKAXE:
-            case ItemID.WOOD_SHOVEL:
-            case ItemID.WOOD_SWORD:
-            case BlockID.WOODEN_PRESSURE_PLATE:
-            case ItemID.STICK:
-            case BlockID.FENCE:
-            case BlockID.FENCE_GATE:
-            case BlockID.WOODEN_STAIRS:
-            case BlockID.TRAP_DOOR:
-            case BlockID.WORKBENCH:
-            case BlockID.CHEST:
-            case BlockID.TRAPPED_CHEST:
-            case BlockID.JUKEBOX:
-            case BlockID.NOTE_BLOCK:
-            case BlockID.BROWN_MUSHROOM_CAP:
-            case BlockID.RED_MUSHROOM_CAP:
-            case ItemID.BLAZE_ROD:
-            case ItemID.LAVA_BUCKET:
-            case BlockID.BOOKCASE:
+        switch(item.getType()) {
+            case COAL:
+            case COAL_BLOCK:
+            case LOG:
+            case WOOD:
+            case WOOD_STEP:
+            case SAPLING:
+            case WOOD_AXE:
+            case WOOD_HOE:
+            case WOOD_PICKAXE:
+            case WOOD_SPADE:
+            case WOOD_SWORD:
+            case WOOD_PLATE:
+            case STICK:
+            case FENCE:
+            case FENCE_GATE:
+            case WOOD_STAIRS:
+            case TRAP_DOOR:
+            case WORKBENCH:
+            case CHEST:
+            case TRAPPED_CHEST:
+            case JUKEBOX:
+            case NOTE_BLOCK:
+            case HUGE_MUSHROOM_1:
+            case HUGE_MUSHROOM_2:
+            case BLAZE_ROD:
+            case LAVA_BUCKET:
+            case BOOKSHELF:
                 return true;
             default:
                 return false;
@@ -363,19 +455,19 @@ public class ItemUtil {
      */
     public static boolean isAPotionIngredient(ItemStack item) {
 
-        switch(item.getTypeId()) {
-            case ItemID.NETHER_WART_SEED:
-            case ItemID.LIGHTSTONE_DUST:
-            case ItemID.REDSTONE_DUST:
-            case ItemID.SPIDER_EYE:
-            case ItemID.MAGMA_CREAM:
-            case ItemID.SUGAR:
-            case ItemID.GLISTERING_MELON:
-            case ItemID.GHAST_TEAR:
-            case ItemID.BLAZE_POWDER:
-            case ItemID.FERMENTED_SPIDER_EYE:
-            case ItemID.SULPHUR:
-            case ItemID.GOLDEN_CARROT:
+        switch(item.getType()) {
+            case NETHER_WARTS:
+            case GLOWSTONE_DUST:
+            case REDSTONE:
+            case SPIDER_EYE:
+            case MAGMA_CREAM:
+            case SUGAR:
+            case SPECKLED_MELON:
+            case GHAST_TEAR:
+            case BLAZE_POWDER:
+            case FERMENTED_SPIDER_EYE:
+            case SULPHUR:
+            case GOLDEN_CARROT:
                 return true;
             default:
                 return false;
@@ -400,6 +492,15 @@ public class ItemUtil {
         return false;
     }
 
+    public static boolean containsRawMaterials(Inventory inv) {
+
+        for (ItemStack it : inv.getContents()) {
+            if (isStackValid(it) && isFurnacable(it))
+                return true;
+        }
+        return false;
+    }
+
     public static boolean isFurnacable(ItemStack item) {
 
         return isCookable(item) || isSmeltable(item);
@@ -412,15 +513,14 @@ public class ItemUtil {
 
     public static ItemStack getUsedItem(ItemStack item) {
 
-        if (item.getTypeId() == ItemID.MUSHROOM_SOUP) {
-            item.setTypeId(ItemID.BOWL); // Get your bowl back
-        } else if (item.getTypeId() == ItemID.POTION) {
-            item.setTypeId(ItemID.GLASS_BOTTLE); // Get your bottle back
-        } else if (item.getTypeId() == ItemID.LAVA_BUCKET || item.getTypeId() == ItemID.WATER_BUCKET || item
-                .getTypeId() == ItemID.MILK_BUCKET) {
-            item.setTypeId(ItemID.BUCKET); // Get your bucket back
+        if (item.getType() == Material.MUSHROOM_SOUP) {
+            item.setType(Material.BOWL); // Get your bowl back
+        } else if (item.getType() == Material.POTION) {
+            item.setType(Material.GLASS_BOTTLE); // Get your bottle back
+        } else if (item.getType() == Material.LAVA_BUCKET || item.getType() == Material.WATER_BUCKET || item.getType() == Material.MILK_BUCKET) {
+            item.setType(Material.BUCKET); // Get your bucket back
         } else if (item.getAmount() == 1) {
-            item.setTypeId(0);
+            item.setType(Material.AIR);
         } else {
             item.setAmount(item.getAmount() - 1);
         }

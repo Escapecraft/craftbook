@@ -28,12 +28,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
+import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.craftbook.util.Tuple2;
 
 // import java.io.*;
 
@@ -57,19 +56,19 @@ public class CauldronCookbook {
         try {
             CauldronCookbook recipes = readCauldronRecipes("cauldron-recipes.txt");
             if (recipes.size() != 0) {
-                log.info(recipes.size() + " cauldron recipe(s) loaded");
+                CraftBookPlugin.logger().info(recipes.size() + " cauldron recipe(s) loaded");
             } else {
-                log.warning("cauldron-recipes.txt had no recipes");
+                CraftBookPlugin.logger().warning("cauldron-recipes.txt had no recipes");
             }
         } catch (FileNotFoundException e) {
-            log.info("cauldron-recipes.txt not found: " + e.getMessage());
+            CraftBookPlugin.logger().info("cauldron-recipes.txt not found: " + e.getMessage());
             try {
-                log.info("Looked in: " + CraftBookPlugin.inst().getDataFolder().getCanonicalPath());
+                CraftBookPlugin.logger().info("Looked in: " + CraftBookPlugin.inst().getDataFolder().getCanonicalPath());
             } catch (IOException ioe) {
                 // Eat error
             }
         } catch (IOException e) {
-            log.warning("cauldron-recipes.txt not loaded: " + e.getMessage());
+            CraftBookPlugin.logger().warning("cauldron-recipes.txt not loaded: " + e.getMessage());
         }
     }
 
@@ -77,11 +76,6 @@ public class CauldronCookbook {
      * For fast recipe lookup.
      */
     private final List<Recipe> recipes = new ArrayList<Recipe>();
-
-    /**
-     * For logging purposes.
-     */
-    static final Logger log = Logger.getLogger("Minecraft");
 
     /**
      * Adds a recipe.
@@ -102,7 +96,7 @@ public class CauldronCookbook {
      *
      * @return a recipe matching the given ingredients
      */
-    public Recipe find(Map<Tuple2<Integer, Short>, Integer> ingredients) {
+    public Recipe find(Map<ItemInfo, Integer> ingredients) {
 
         for (Recipe recipe : recipes) { if (recipe.hasAllIngredients(ingredients)) return recipe; }
         return null;
@@ -140,11 +134,11 @@ public class CauldronCookbook {
                 }
                 String[] parts = RegexUtil.COLON_PATTERN.split(line);
                 if (parts.length < 3) {
-                    log.log(Level.WARNING, "Invalid cauldron recipe line in " + file.getName() + ": '" + line + "'");
+                    CraftBookPlugin.logger().log(Level.WARNING, "Invalid cauldron recipe line in " + file.getName() + ": '" + line + "'");
                 } else {
                     String name = parts[0];
-                    List<Tuple2<Integer, Short>> ingredients = parseCauldronItems(parts[1]);
-                    List<Tuple2<Integer, Short>> results = parseCauldronItems(parts[2]);
+                    List<ItemInfo> ingredients = parseCauldronItems(parts[1]);
+                    List<ItemInfo> results = parseCauldronItems(parts[2]);
                     String[] groups = null;
                     if (parts.length >= 4 && !parts[3].trim().isEmpty()) {
                         groups = RegexUtil.COMMA_PATTERN.split(parts[3]);
@@ -168,11 +162,11 @@ public class CauldronCookbook {
     /**
      * Parse a list of cauldron items.
      */
-    private List<Tuple2<Integer, Short>> parseCauldronItems(String list) {
+    private List<ItemInfo> parseCauldronItems(String list) {
 
         String[] parts = RegexUtil.COMMA_PATTERN.split(list);
 
-        List<Tuple2<Integer, Short>> out = new ArrayList<Tuple2<Integer, Short>>();
+        List<ItemInfo> out = new ArrayList<ItemInfo>();
 
         for (String part : parts) {
             int multiplier = 1;
@@ -193,7 +187,7 @@ public class CauldronCookbook {
                         s = Short.valueOf(split[1]);
                     }
                     for (int i = 0; i < multiplier; i++) {
-                        out.add(new Tuple2<Integer, Short>(id, s));
+                        out.add(new ItemInfo(id, s));
                     }
                 } catch (NumberFormatException e) {
                     /*
@@ -201,11 +195,11 @@ public class CauldronCookbook {
                      * 
                      * if (item > 0) { for (int i = 0; i < multiplier; i++) { out.add(item); } } else {
                      */
-                    log.log(Level.WARNING, "Cauldron: Unknown item " + part);
+                    CraftBookPlugin.logger().log(Level.WARNING, "Cauldron: Unknown item " + part);
                     // }
                 }
             } catch (NumberFormatException e) { // Bad multiplier
-                log.log(Level.WARNING, "Cauldron: Bad multiplier in '" + part + "'");
+                CraftBookPlugin.logger().log(Level.WARNING, "Cauldron: Bad multiplier in '" + part + "'");
             }
         }
         return out;
@@ -223,16 +217,15 @@ public class CauldronCookbook {
         /**
          * Stores a list of ingredients.
          */
-        private final List<Tuple2<Integer, Short>> ingredients;
+        private final List<ItemInfo> ingredients;
         /**
          * Stores a list of ingredients.
          */
-        private final Map<Tuple2<Integer, Short>, Integer> ingredientLookup = new HashMap<Tuple2<Integer, Short>,
-                Integer>();
+        private final Map<ItemInfo, Integer> ingredientLookup = new HashMap<ItemInfo, Integer>();
         /**
          * List of resulting items or blocks.
          */
-        private final List<Tuple2<Integer, Short>> results;
+        private final List<ItemInfo> results;
         /**
          * List of groups that can use this recipe. This may be null.
          */
@@ -246,8 +239,7 @@ public class CauldronCookbook {
          * @param results
          * @param groups
          */
-        public Recipe(String name, List<Tuple2<Integer, Short>> ingredients, List<Tuple2<Integer, Short>> results,
-                String[] groups) {
+        public Recipe(String name, List<ItemInfo> ingredients, List<ItemInfo> results, String[] groups) {
 
             this.name = name;
             this.ingredients = Collections.unmodifiableList(ingredients);
@@ -255,7 +247,7 @@ public class CauldronCookbook {
             this.groups = groups;
 
             // Make a list of required ingredients by item ID
-            for (Tuple2<Integer, Short> id : ingredients) {
+            for (ItemInfo id : ingredients) {
                 if (ingredientLookup.containsKey(id)) {
                     ingredientLookup.put(id, ingredientLookup.get(id) + 1);
                 } else {
@@ -275,7 +267,7 @@ public class CauldronCookbook {
         /**
          * @return the ingredients
          */
-        public List<Tuple2<Integer, Short>> getIngredients() {
+        public List<ItemInfo> getIngredients() {
 
             return ingredients;
         }
@@ -293,10 +285,10 @@ public class CauldronCookbook {
          *
          * @param check
          */
-        public boolean hasAllIngredients(Map<Tuple2<Integer, Short>, Integer> check) {
+        public boolean hasAllIngredients(Map<ItemInfo, Integer> check) {
 
-            for (Map.Entry<Tuple2<Integer, Short>, Integer> entry : ingredientLookup.entrySet()) {
-                Tuple2<Integer, Short> id = entry.getKey();
+            for (Map.Entry<ItemInfo, Integer> entry : ingredientLookup.entrySet()) {
+                ItemInfo id = entry.getKey();
                 if (!check.containsKey(id)) return false;
                 else if (check.get(id) < entry.getValue()) return false;
             }
@@ -306,7 +298,7 @@ public class CauldronCookbook {
         /**
          * @return the results
          */
-        public List<Tuple2<Integer, Short>> getResults() {
+        public List<ItemInfo> getResults() {
 
             return results;
         }

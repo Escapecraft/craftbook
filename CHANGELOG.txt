@@ -1,3 +1,288 @@
+3.8b1
+* Fixed RandomBit counting levers that didn't exist.
+* Fixed ChipState not being able to detect the existance of outputs.
+* Fixed messages not showing in colour.
+* Fixed many issues with the Random ICs.
+* Fixed ExitRemover still occuring on dead carts.
+* Fixed Teleport mechanic teleporting to any sign, not just teleporter signs. (Thanks ScoreUnder)
+* Updated compilation to 1.7.2, although CraftBook already supported 1.7.2.
++ Added an option to not trample snow that is in its lowest form.
++ Added Stained Glass support to pipes. Stained Glass will only transport to stained glass of the same colour (or non-stained glass).
+* Converted a majority of mechanics over to the new system.
+* Recoded Bridges and Doors. Both use the new system and share a lot of code.
++ Added the world name to /cb report -i (Thanks dddeeefff)
++ Added recipe permission text to the localizable messages list.
+* Fixed ProgrammableFireworkDisplay spawning fireworks in unloaded chunks.
++ Added support for item amounts to CartDeposit.
+* Fixed a BetterPhysics dupe.
+* Recoded pipes. Pipes now are event based and therefore are much more intergratable into external things. Other plugins can interact with pipes now.
++ Added pipe support to Bridges and Doors.
++ Added success message to Payment mechanic.
++ Added support for a dropper to be used instead of a piston in a pipe. This acts as a dropoff point that items will be shot from.
++ Added support for pipes to place into hoppers and jukeboxes.
++ Added glass pane to pipes to act as a junction block. Stained glass panes only conduct to their own colour.
+* Tweaked DaySensor.
+* Fixed fishes losing their type in Cooking Pots.
+
+3.7.14
+* Fixed CommandItems _EITHER sections.
++ Added minOn to random IC's.
+* Fixed Random IC's not triggering redstone update if lever was already toggled previously.
++ Add SearchArea to SentryGun IC.
+
+3.7.13
+* Fixed Iron, CLay balls, potatoes and netherrack in Cooking Pot.
++ Added Quartz ore to cooking pot.
++ Added ItemStack and SearchArea support to ItemSensor.
++ Added ItemClick events to CommandItems.
++ Added more translatable lines of text.
+* Tweaked Teleporter SearchArea support.
+* Fixed SearchArea with entity detection for regions being off.
+* Fixed gate signs being wrong.
+* Fixed many major gate bugs. Dupes etc.
++ Added Chat Event to CommandItems and @m to get message.
+- Removed Legacy directional coding.
+* Tweaked code to be more ready for 1.7/1.8 etc. Config also now can use names instead of any Item ID.
++ Added CommandItems parsing to ItemSyntax. You can now use the name of a CommandItem in place of an item anywhere in CraftBook.
+
+3.7.12
+* Fixed an error with CommandSigns.
+* Fixed CommandItems ingame creator requiring uppercase for sneak state.
+* Fixed BetterLeads causing errors with numerous mobs.
+* Fixed a few performance issues with LanguageManager.
++ Added radius/offset to MessageSender IC.
+* Fixed a LightSwitch bug.
+* More changes towards removing Item ID dependency.
+* Allowed bridges to work with signs on the side of the bridge, instead of only on top of/below.
+
+3.7.11.2
+* LanguageManager now loads all missing text into language files upon startup.
+* EntitySpawner IC's can now use alternative names for entities.
+* Fixed an error with BetterLeads.
+* Fixed an URGENT sign bug with Chunk Anchor.
+
+3.7.11
+* Converted most of the 'Mechanics' portion of CraftBook to use the new mechanics system. There are still a fair few mechanics to port over.
++ Added an option to disable/enable CommandSigns via redstone.
+* Fixed an error with Languages scan feature.
++ Added a 'keep-on-death' CommandItem option.
++ Added an option to TreeLopper to also break leaves.
+* Fixed all mob EntityType's seeing players as mobs.
++ Added support for named entities to mob drops. (Using | to seperate name)
+
+3.7.10
+* Fixed and tweaked HeadDrops.
+* Fixed a few TreeLopper errors.
+* Fixed an AutoUpdater connection error being displayed in the console.
+* Fixed CookingPot super fast cooking using very odd logic.
+* Tweaked Area namespace shortening.
++ Added a 'Marquee' mechanic. Prints variables to the player when right clicked.
++ Added an option to completely scan messages for localizable text, instead of just checking if the entire message is localizable.
+* Reworked Persistent Storage system. It now can not be disabled, but instead an option to have it store its data completely in memory without saving it to file is available. (Practically the same as off, but without breaking every mechanic.)
+* Fixed Snow not obeying WorldGuard/Protection plugin protections.
+
+3.7.9
+* Updated AutoUpdater to comply with bukkit standards.
+* Fixed potential bridge errors.
+* Fixed Auto Updater connection errors.
+* Fixed a HeadDrops error.
+* Fixed multiple gate errors.
+* Fixed /area save with long usernames and shorten enable.
++ Added an option to propel minecarts with the cart dispenser.
+
+3.7.8
++ Added data value support for all mechanics, allowed usage of names instead of item ids. (Item ID usage may be removed in the future - eg 1.7)
+- Removed Experimental Right Click option - it didn't work too well, and only created complexity.
+* Fixed Command-Items.yml not being created sometimes.
+* Fixed some logged messages not being prefixed.
+* Fixed absolute coordinates on ICs not working.
+* Slightly optimized cooking pots.
+* Fixed cooking pots always being in super fast mode.
+* Fixed BoatWaterPlaceOnly being super-pedantic.
+* Fixed TreeLopper planting saplings underground.
+* Disabled CustomDrops, CustomCrafting and CommandItems by default.
+* Enabled PersistentStorage by default.
++ Added 'dummy' persistent storage type. Stores it in the plugin with no external data - THIS IS NOT PERISTENT AND IS SIMILAR TO DISABLING, BUT WITH MORE FUNCTIONALITY
+* Replaced NoCheatPlus detection with a better plugin compatability system.
+* Tweak a few yml files containing item ids.
+* Slightly tweaked BetterPhysics.
+
+3.7.7
+* Fixed TreeLopper not planting saplings if configured to, and the bottom block was the one broken.
++ Added an experimental persistent storage system. This currently does absolutely nothing, but will do lots in the future.
+* Fixed LightSensor offset being on the same line as the light level.
+* Fixed LightSensor default offset being the block the sign is connected to, which is usually 0 light.
++ Added block data support to chairs.
+* Fixed AutoUpdater exemption system with new build system.
++ Added an option to only allow boat placement in water.
+
+3.7.6
+* Fixed a visual oddity revolving sneaking and chairs upon dismount.
+* Fixed sign posts breaking due to IC shorthand.
+* Fixed many playlist related errors and issues.
+* Fixed oddities revolving jukeboxes.
+* Allowed IC's to be informed of when they are broken - allows for better cleanups. (Jukebox IC stops playing on break, for example)
++ Added the ability to damage tools the correct amount for TreeLopper.
++ Added an option to allow TreeLopper to plant saplings automagically.
+* Fixed a gate related error.
++ Added a few new mob heads to HeadDrops, and used the Mojang names for existing ones.
+* Fixed an invalid character existing inside books.txt
+* Replaced the missing language file text with the default message.
+* Moved the bookcase read text to the languages file from the configuration.
+* Fixed Chairs still throwing errors although they were supposed to be caught.
+* Fixed colour codes tripping the item identical checks.
+* Fixed chairs being enabled by default, when they required dependencies.
++ Added overrides for any mechanic that breaks blocks with drops, so that they can get more realistic drops. If a drop is wrong, make an issue and I'll fix it.
+
+3.7.5
+* Fixed CartMessenger
++ Added .others permission for /comitems give
++ Added MobRepel mode to BetterLeads
+* Many optimizations to plugin
+* Fixed Chairs. (ProtocolLib required again!)
+* Language files auto-generate instead of being included. Fixes issues with different encodings.
+* Fixed gates at the same spot across multiple worlds
++ Added an option to show player head names on right click. Also convert skins on right click too if the skin is old (Mob Heads).
+* Fixed ContainerCollector dupe bug.
+* Fixed a few Playlist errors, it will now print a warning to the console and just skip the line if it is invalid.
+* Fixed a major bug prohibitting many mechanics from working.
+
+3.7.4
+* Fixed multiple errors related to the parsing of items.
++ Added EntityType options to the potion inducer IC. Old IC's will be converted.
++ Added an option to parse CraftBook variables in chat.
++ Added permission nodes to have variables parsed in commands/chat.
+* Heavily optimized cooking pots.
+* Fixed /comitems give -p [player].
+* Optimized BetterPistons.
+* Major optimizations to almost all mechanics.
++ Added variable support to a lot of mechanics that didn't support them before. Like PLC [Code Block] signs.
+
+3.7.3
++ Added a Sign Editor functionality to SignCopier. (Edit the copied sign)
+* Fix SentryGun not allowing offset.
+* Reworked internal systems of most newer mechanics.  /cb reload should be much more stable.
+* Fix ItemDispenser offset being off by 1.
++ Add Redstone Jukebox mechanic. Can currently only turn on due to bukkit limitations.
++ Added Trapped Chest support to all rail mechanics.
+* Show the permission error messages by default.
+
+3.7.2
+* Tweaked Glowstone and Jack O Lantern mechanics. This should lower memory load by a little, and should have no side effects.
++ Added persistent hitch BetterLead mechanic.
++ Added remove owner only BetterLead mechanic. (Only removes owned animals owned by the player breaking the leash hitch)
+* Fixed leashes being removed even in creative mode.
++ Added a CommandHelper function, cb_var(varname) and cb_var(varname, namespace). These require CraftBook in the CommandHelper extensions folder FOR NOW. More will be added soon.
+* Fixed Crusher piston breaking the item that is dropped by the block.
+* Fixed CombineHarvester not harvesting cocoa beans.
+* Fixed a few rare errors.
++ Added LIVING and NON_LIVING entity types.
+* Tweaked Custom Crafting. Furnace recipes may allow restrictive metadata.
+* Fixed a MoreRails option.
+
+3.7.1
+* Fixed BetterPistons detecting signs that it shouldn't detect.
+* Fixed a Station error that occurs if bukkit sends an invalid cart to the plugin.
++ Added an option to not show permission error messages.
+* Fixed IC's using SearchArea erroring if a WG region isn't available or not installed.
++ Added SearchArea support to: EntitySensor, PotionInducer, AnimalBreeder, AnimalHarvester, EntityTrap and PlayerInventorySensor.
++ Added an option to break IC's if an error occurs from them.
+* Fixed an error with HeadDrops when breaking entities with no names. (Eg, leash hooks)
+* Improved the README file to more closely resemble that of WorldEdit.
++ Added a BetterLeads mechanic, that allows for extra mobs to be leashed, and hostile mobs not to target their leash-holder.
+* Fixed CraftBook failing to start if it encounters an invalid language file.
+* Fixed invalid Payment sign mechanics.
+* Replaced BlockVector with Vector, to provide compatability to a potential upcoming breaking change in WorldEdit.
+* Heavily optimized many portions of the plugin.
+* Fixed the gate search radius option not working for block type detection.
+* Fixed a potential error in MaxSpeed Cart Mechanic.
+* Tweaked default IC max range. It is now 10 from 15.
+* Fixed Sheep heads having the wrong skin and added a few more conversion skins.
++ Added Chicken, Ocelot and Witch heads.
+
+3.7
+* Fixed an error with chairs and 'RequireSigns'.
+* Fixed BlockBreaker requiring data on the sign if the ID is supplied.
+* Tweaked the AutoUpdater. It should now work with Beta's.
+* Fixed $IGNORE not ignoring names in ItemSyntax.
++ Added an option to change the velocity of MoreRails Ladders.
++ Added a 'ticket' system to Stations.
+
+3.7b6
++ Allowed for Cauldrons to look for items above the Cauldron block. Meaning you can still use them even though items bounce.
++ Added ItemMeta support to Cauldrons.
+* Fixed a few dupe bugs.
+* Fixed a few event ignoring bugs.
+* Fixed CartDispenser not working when a cart runs over it.
++ Added commands to create CommandItems ingame. Supports everything the config can do.
++ Added a -p flag to the CommandItems give command. Allowing you to give to players.
+* Fixed HeadDrops CustomSkin/Rates being case sensitive.
+* Fixed ContainerStacker only working with chests.
+* Heavily optimized Planter IC.
+* Fixed PlayerSensor not obeying flags in a region.
+* Fix a HeadDrops error.
+* Fix an EntityCannon error when an invalid EntityType is entered.
+* Fixed PotionInducer not using the Beacon particles for potions.
++ Added a new system for IC search areas, that is not implemented fully yet.
++ Added WorldGuard region support to Teleporter IC's.
+
+3.7b5
++ Added boat max speed modifier.
++ Added boat deceleration modifiers.
++ Added LandBoats mechanic.
+* Fixed a few NoCheatPlus compatability issues.
+* Fixed CartDeposit not allowing high data values.
+* Fixed a bug where playlists would not work with radius.
+* Small potential bug fixes.
++ Added an option to change gate search radius.
++ Added an option to change the rate at which Realistic Snow falls.
++ Added an option to require signs on chairs.
+* Fixed an error with chair health regen.
++ Added a Boat Exit Remover mechanic.
+* Tweak footprints.
+* Fixed RailPlacer taking too many rails.
+* Fixed Station not propelling carts on redstone power.
+* Recoded chairs. They now no longer require ProtocolLib and work on 1.6. We are aware of any possible issues and are working for a fix.
+* Fixed a bug that occurs when indirect-redstone is not enabled.
+* Few tweaks to elevators.
+* Removed the require-sneak option for chairs. (This was necessary, sorry)
+* Fixed many bugs that could occur with event ignoring across multiple mechanics.
++ Added an ITEM_PICKUP event to CommandItems.
+* Tweaked Doors and Bridges to allow them to be made of 'replacable blocks'.
+* Fixed a Typographical Error in HiddenSwitches that caused keys not to function.
+* Fixed a Perlstone error.
+* Fixed HiddenSwitches saying it successfully toggled when it didn't.
+* Fixex a Coal related cooking pot dupe.
+* Tweaked CustomCrafting to be more future-proof with item-metadata.
++ Added melons and pumpkins to CombineHarvester.
+
+3.7 Beta 4
++ Added an option to have much more realistic randoms with a very small cost of CPU usage.
+* Fixed bookcases failing to read a line.
+* Heavily optimized Bookcases.
++ Added 1.6 blocks to CookingPot and other item parsing systems.
++ Added debug flags for the startup process.
+* Fixed CommandItems spamming the console for each entry.
+* Fixed a few potential bugs.
++ Added ITEM_CONSUME event to CommandItems.
+* Fixed a few CommandItems bugs with inventory becoming out of sync.
++ Added ITEM_DROP event to CommandItems.
++ Added ITEM_BREAK event to CommandItems.
++ Added a sneaking requirement option to CommandItems. (Allows for not sneaking, sneaking and either)
+* Tweaked the Chairs sneaking option to also allow for 3 states, sneaking; not sneaking and either.
++ Added Data Value support to a few mechanics that didn't have data value support.
++ Added an option for chairs to allow players to sit whilst holding blocks.
+* Fixed chairs causing items that place blocks to cause the blocks to be placed.
+* Fixed some variable permission checks not occuring.
+* Tweaked block protection messages.
+* Fixed Per-Player Languages on 1.6.
+* Fix /cb reload errors if ICs are disabled.
+* Compiled with 1.6.2.
+* Fixed the CartSlowdown option.
++ Added an option for CartRemoveOnExit to give the items.
+* Fixed CartDeposit.
++ Added Horses to CreatureSpawner and AdvancedEntitySpawner.
+
 3.7 Beta 3
 * Fix a few /area toggle x,y,z bugs. (Like it not toggling back/setting state)
 + Added an erase mode to Entity Trap (MC1204)

@@ -1,61 +1,121 @@
 package com.sk89q.craftbook.util;
 
+import java.util.ArrayList;
+import java.util.List;
 
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.material.MaterialData;
+
+@SuppressWarnings("deprecation")
 public class ItemInfo {
 
-    public int id;
-    public int data;
+    public MaterialData data;
 
-    public ItemInfo(int id, int data) {
+    public ItemInfo(Material id, int data) {
 
-        this.id = id;
-        this.data = data;
+        this.data = new MaterialData(id, (byte) data);
     }
 
+    @Deprecated
+    public ItemInfo(int id, int data) {
+
+        this.data = new MaterialData(id, (byte) data);
+    }
+
+    public ItemInfo(Block block) {
+
+        data = new MaterialData(block.getType(), block.getData());
+    }
+
+    public ItemInfo(String string) {
+
+        this(ItemSyntax.getItem(string));
+    }
+
+    public ItemInfo(ItemStack item) {
+
+        data = item.getData();
+    }
+
+    @Deprecated
     public int getId() {
 
-        return id;
+        return data.getItemTypeId();
+    }
+
+    public Material getType() {
+
+        return data.getItemType();
     }
 
     public void setId(int id) {
 
-        this.id = id;
+        data = new MaterialData(id, data.getData());
     }
 
     public int getData() {
 
-        return data;
+        return data.getData();
     }
 
     public void setData(int data) {
 
-        this.data = data;
+        this.data.setData((byte) data);
     }
 
-    public static ItemInfo parseFromString(String string) {
+    public MaterialData getMaterialData() {
 
-        int id = Integer.parseInt(RegexUtil.COLON_PATTERN.split(string)[0]);
-        int data = -1;
+        return data;
+    }
 
-        try {
-            data = Integer.parseInt(RegexUtil.COLON_PATTERN.split(string)[1]);
-        } catch (Exception e) {
-            data = -1;
-        }
+    public boolean isSame(Block block) {
 
-        return new ItemInfo(id, data);
+        if(block.getType() == data.getItemType())
+            if(data.getData() == -1 || block.getData() == data.getData())
+                return true;
+        return false;
+    }
+
+    public boolean isSame(ItemStack stack) {
+
+        if(stack.getType() == data.getItemType())
+            if(data.getData() == -1 || stack.getData().getData() == data.getData())
+                return true;
+        return false;
+    }
+
+    public static List<ItemInfo> parseListFromString(List<String> strings) {
+
+        List<ItemInfo> infos = new ArrayList<ItemInfo>();
+
+        for(String string: strings)
+            infos.add(new ItemInfo(string));
+
+        return infos;
+    }
+
+    public static List<String> toStringList(List<ItemInfo> items) {
+
+        List<String> infos = new ArrayList<String>();
+
+        for(ItemInfo string: items)
+            infos.add(string.toString());
+
+        return infos;
     }
 
     @Override
     public String toString() {
 
-        return id + ":" + data;
+        return data.getItemType().name() + ":" + data.getData();
     }
 
     @Override
     public int hashCode() {
 
-        return (id * 1103515245 + 12345 ^ (data == -1 ? 0 : data) * 1103515245 + 12345) * 1103515245 + 12345;
+        return (data.getItemType().hashCode() * 1103515245 + 12345 ^ (data.getData() == -1 ? 0 : data.getData()) * 1103515245 + 12345) * 1103515245 + 12345;
     }
 
     @Override

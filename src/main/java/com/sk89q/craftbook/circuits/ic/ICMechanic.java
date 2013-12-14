@@ -20,19 +20,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.PersistentMechanic;
-import com.sk89q.craftbook.SourcedBlockRedstoneEvent;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.craftbook.circuits.pipe.PipePutEvent;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
+import com.sk89q.craftbook.util.events.SourcedBlockRedstoneEvent;
 import com.sk89q.worldedit.BlockWorldVector;
-import com.sk89q.worldedit.blocks.BlockID;
 
 /**
  * Mechanic wrapper for ICs. The mechanic manager dispatches events to this mechanic,
@@ -79,7 +80,7 @@ public class ICMechanic extends PersistentMechanic {
         // abort if the current did not change
         if (event.getNewCurrent() == event.getOldCurrent()) return;
 
-        if (block.getTypeId() == BlockID.WALL_SIGN) {
+        if (block.getType() == Material.WALL_SIGN) {
             final Block source = event.getSource();
             // abort if the sign is the source or the block the sign is attached to
             if (SignUtil.getBackBlock(block).equals(source) || block.equals(source)) return;
@@ -89,10 +90,9 @@ public class ICMechanic extends PersistentMechanic {
                 @Override
                 public void run() {
 
-                    if (block.getTypeId() != BlockID.WALL_SIGN) return;
+                    if (block.getType() != Material.WALL_SIGN) return;
                     try {
-                        ChipState chipState = family.detect(BukkitUtil.toWorldVector(source),
-                                BukkitUtil.toChangedSign(block));
+                        ChipState chipState = family.detect(BukkitUtil.toWorldVector(source), BukkitUtil.toChangedSign(block));
                         int cnt = 0;
                         for (int i = 0; i < chipState.getInputCount(); i++) {
                             if (chipState.isTriggered(i)) {
@@ -132,7 +132,7 @@ public class ICMechanic extends PersistentMechanic {
         BlockWorldVector pt = getTriggerPositions().get(0);
         Block block = BukkitUtil.toWorld(pt).getBlockAt(BukkitUtil.toLocation(pt));
 
-        if (block.getTypeId() == BlockID.WALL_SIGN) {
+        if (block.getType() == Material.WALL_SIGN) {
 
             ChangedSign sign = BukkitUtil.toChangedSign(block);
             if (sign == null || !ic.getSign().equals(sign)) {
@@ -159,6 +159,13 @@ public class ICMechanic extends PersistentMechanic {
     public void onBlockBreak(BlockBreakEvent event) {
         // remove the ic from cache
         ICManager.removeCachedIC(pos);
+        ic.onICBreak(event);
+    }
+
+    @Override
+    public void onPipePut(PipePutEvent event) {
+        if(ic instanceof PipeInputIC)
+            ((PipeInputIC) ic).onPipeTransfer(event);
     }
 
     public IC getIC() {

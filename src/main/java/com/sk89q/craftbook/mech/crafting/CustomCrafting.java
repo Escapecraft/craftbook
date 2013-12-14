@@ -12,29 +12,30 @@ import java.util.Map.Entry;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.FurnaceSmeltEvent;
+import org.bukkit.event.inventory.InventoryAction;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.inventory.CraftingInventory;
+import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.FurnaceRecipe;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.permissions.PermissionAttachment;
 
+import com.sk89q.craftbook.AbstractCraftBookMechanic;
+import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.mech.crafting.RecipeManager.RecipeType;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.ParsingUtil;
-import com.sk89q.craftbook.util.VerifyUtil;
 import com.sk89q.util.yaml.YAMLFormat;
 import com.sk89q.util.yaml.YAMLProcessor;
 
@@ -43,24 +44,32 @@ import com.sk89q.util.yaml.YAMLProcessor;
  *
  * @author Me4502
  */
-public class CustomCrafting implements Listener {
+public class CustomCrafting extends AbstractCraftBookMechanic {
 
-    protected final RecipeManager recipes;
     protected final CraftBookPlugin plugin = CraftBookPlugin.inst();
 
-    public static final HashMap<Recipe, RecipeManager.Recipe> advancedRecipes = new HashMap<Recipe, RecipeManager.Recipe>();
+    public static final Map<Recipe, RecipeManager.Recipe> advancedRecipes = new HashMap<Recipe, RecipeManager.Recipe>();
 
-    public CustomCrafting() {
+    @Override
+    public boolean enable() {
 
         plugin.createDefaultConfiguration(new File(plugin.getDataFolder(), "crafting-recipes.yml"), "crafting-recipes.yml");
-        recipes = new RecipeManager(new YAMLProcessor(new File(plugin.getDataFolder(), "crafting-recipes.yml"), true, YAMLFormat.EXTENDED));
-        Collection<RecipeManager.Recipe> recipeCollection = recipes.getRecipes();
+        new RecipeManager(new YAMLProcessor(new File(plugin.getDataFolder(), "crafting-recipes.yml"), true, YAMLFormat.EXTENDED));
+        Collection<RecipeManager.Recipe> recipeCollection = RecipeManager.INSTANCE.getRecipes();
         int recipes = 0;
-        for (RecipeManager.Recipe r : recipeCollection) {
+        for (RecipeManager.Recipe r : recipeCollection)
             if(addRecipe(r))
                 recipes++;
-        }
         plugin.getLogger().info("Registered " + recipes + " custom recipes!");
+
+        return true;
+    }
+
+    @Override
+    public void disable () {
+
+        advancedRecipes.clear();
+        RecipeManager.INSTANCE = null;
     }
 
     /**
@@ -68,41 +77,29 @@ public class CustomCrafting implements Listener {
      */
     public boolean addRecipe(RecipeManager.Recipe r) {
         try {
+            Recipe sh = null;
+
             if (r.getType() == RecipeManager.RecipeType.SHAPELESS) {
-                ShapelessRecipe sh = new ShapelessRecipe(r.getResult().getItemStack());
-                for (CraftingItemStack is : r.getIngredients()) {
-                    sh.addIngredient(is.getItemStack().getAmount(), is.getItemStack().getType(), is.getItemStack().getData().getData());
-                }
-                plugin.getServer().addRecipe(sh);
-                if(r.hasAdvancedData()) {
-                    advancedRecipes.put(sh, r);
-                    CraftBookPlugin.logDebugMessage("Adding a new recipe with advanced data!", "advanced-data.init");
-                }
+                sh = new ShapelessRecipe(r.getResult().getItemStack());
+                for (CraftingItemStack is : r.getIngredients())
+                    ((ShapelessRecipe) sh).addIngredient(is.getItemStack().getAmount(), is.getItemStack().getType(), is.getItemStack().getData().getData());
             } else if (r.getType() == RecipeManager.RecipeType.SHAPED) {
-                ShapedRecipe sh = new ShapedRecipe(r.getResult().getItemStack());
-                sh.shape(r.getShape());
-                for (Entry<CraftingItemStack, Character> is : r.getShapedIngredients().entrySet()) {
-                    sh.setIngredient(is.getValue().charValue(), is.getKey().getItemStack().getType(), is.getKey().getItemStack().getData().getData());
-                }
-                plugin.getServer().addRecipe(sh);
-                if(r.hasAdvancedData()) {
-                    advancedRecipes.put(sh, r);
-                    CraftBookPlugin.logDebugMessage("Adding a new recipe with advanced data!", "advanced-data.init");
-                }
+                sh = new ShapedRecipe(r.getResult().getItemStack());
+                ((ShapedRecipe) sh).shape(r.getShape());
+                for (Entry<CraftingItemStack, Character> is : r.getShapedIngredients().entrySet())
+                    ((ShapedRecipe) sh).setIngredient(is.getValue().charValue(), is.getKey().getItemStack().getType(), is.getKey().getItemStack().getData().getData());
             } else if (r.getType() == RecipeManager.RecipeType.FURNACE) {
-                FurnaceRecipe sh = new FurnaceRecipe(r.getResult().getItemStack(), r.getIngredients().toArray(new CraftingItemStack[r.getIngredients().size()])[0].getItemStack().getType());
-                for (CraftingItemStack is : r.getIngredients()) {
-                    sh.setInput(is.getItemStack().getType(), is.getItemStack().getData().getData());
-                }
-                plugin.getServer().addRecipe(sh);
-                if(r.hasAdvancedData()) {
-                    advancedRecipes.put(sh, r);
-                    CraftBookPlugin.logDebugMessage("Adding a new recipe with advanced data!", "advanced-data.init");
-                }
-            } else {
+                sh = new FurnaceRecipe(r.getResult().getItemStack(), r.getIngredients().toArray(new CraftingItemStack[r.getIngredients().size()])[0].getItemStack().getType());
+                for (CraftingItemStack is : r.getIngredients())
+                    ((FurnaceRecipe) sh).setInput(is.getItemStack().getType(), is.getItemStack().getData().getData());
+            } else
                 return false;
+
+            plugin.getServer().addRecipe(sh);
+            if(r.hasAdvancedData()) {
+                advancedRecipes.put(sh, r);
+                CraftBookPlugin.logDebugMessage("Adding a new recipe with advanced data!", "advanced-data.init");
             }
-            //plugin.getLogger().info("Registered a new " + r.getType().toString().toLowerCase(Locale.ENGLISH) + " recipe!");
 
             return true;
         } catch (IllegalArgumentException e) {
@@ -117,20 +114,22 @@ public class CustomCrafting implements Listener {
         return false;
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
     public void prepareCraft(PrepareItemCraftEvent event) {
 
         ItemStack bits = null;
         Player p = null;
+        LocalPlayer lp = null;
         try {
             p = (Player) event.getViewers().get(0);
+            lp = CraftBookPlugin.inst().wrapPlayer(p);
         } catch(Exception e){}
         CraftBookPlugin.logDebugMessage("Pre-Crafting has been initiated!", "advanced-data");
         try {
             boolean hasFailed = false;
             for(Recipe rec : advancedRecipes.keySet()) {
 
-                if(checkRecipes(rec, event.getRecipe())) {
+                if(ItemUtil.areRecipesIdentical(rec, event.getRecipe())) {
 
                     thisrecipe: {
                     RecipeManager.Recipe recipe = advancedRecipes.get(rec);
@@ -182,7 +181,7 @@ public class CustomCrafting implements Listener {
                     if(p != null && recipe.hasAdvancedData("permission-node")) {
                         CraftBookPlugin.logDebugMessage("A recipe with permission nodes detected!", "advanced-data");
                         if(!p.hasPermission((String) recipe.getAdvancedData("permission-node"))) {
-                            p.sendMessage(ChatColor.RED + "You do not have permission to craft this recipe!");
+                            lp.printError("mech.custom-crafting.recipe-permission");
                             ((CraftingInventory)event.getView().getTopInventory()).setResult(null);
                             return;
                         }
@@ -210,15 +209,43 @@ public class CustomCrafting implements Listener {
         }
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
-    public void prepareFurnace(FurnaceSmeltEvent event) {
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
+    public void prepareFurnace(InventoryClickEvent event) {
+
+        if(!(event.getInventory() instanceof FurnaceInventory)) return;
+        if(event.getAction() != InventoryAction.PLACE_ALL && event.getAction() != InventoryAction.PLACE_ONE && event.getAction() != InventoryAction.PLACE_SOME) return;
+        if(event.getSlot() != 0) return;
+
+        boolean shouldCancel = false;
+
+        for(Recipe rec : advancedRecipes.keySet()) {
+            if(!(rec instanceof FurnaceRecipe)) continue;
+            FurnaceRecipe frec = (FurnaceRecipe) rec;
+            if(ItemUtil.areBaseItemsIdentical(frec.getInput(), event.getCurrentItem())) {
+
+                RecipeManager.Recipe recipe = advancedRecipes.get(rec);
+                if(ItemUtil.areItemsIdentical(event.getCurrentItem(), recipe.getIngredients().get(0).getItemStack())) {
+                    shouldCancel = false;
+                    break;
+                } else {
+                    shouldCancel = true;
+                    continue;
+                }
+            }
+        }
+
+        if(shouldCancel)
+            event.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
+    public void onFurnaceCook(FurnaceSmeltEvent event) {
 
         ItemStack bits = null;
         CraftBookPlugin.logDebugMessage("Smelting has been initiated!", "advanced-data");
         for(Recipe rec : advancedRecipes.keySet()) {
 
-            if(!(rec instanceof FurnaceRecipe))
-                continue;
+            if(!(rec instanceof FurnaceRecipe)) continue;
             try {
                 if(checkFurnaceRecipes((FurnaceRecipe) rec, event.getSource(), event.getResult())) {
 
@@ -264,7 +291,6 @@ public class CustomCrafting implements Listener {
         }
     }
 
-    @SuppressWarnings("unchecked")
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
     public void onCraft(CraftItemEvent event) {
 
@@ -272,59 +298,60 @@ public class CustomCrafting implements Listener {
         Player p = (Player) event.getWhoClicked();
         for(Recipe rec : advancedRecipes.keySet()) {
 
-            try {
-                if(checkRecipes(rec, event.getRecipe())) {
-                    CraftBookPlugin.logDebugMessage("A recipe with custom data is being crafted!", "advanced-data");
-                    RecipeManager.Recipe recipe = advancedRecipes.get(rec);
-                    if(recipe.hasAdvancedData("permission-node")) {
-                        CraftBookPlugin.logDebugMessage("A recipe with permission nodes detected!", "advanced-data");
-                        if(!event.getWhoClicked().hasPermission((String) recipe.getAdvancedData("permission-node"))) {
-                            p.sendMessage(ChatColor.RED + "You do not have permission to craft this recipe!");
-                            event.setCancelled(true);
-                            return;
-                        }
-                    }
-                    if(recipe.hasAdvancedData("extra-results")) {
-                        CraftBookPlugin.logDebugMessage("A recipe with extra results is detected!", "advanced-data");
-                        ArrayList<CraftingItemStack> stacks = new ArrayList<CraftingItemStack>((Collection<CraftingItemStack>) recipe.getAdvancedData("extra-results"));
-                        for(CraftingItemStack stack : stacks) {
-                            if(stack.hasAdvancedData("chance"))
-                                if(CraftBookPlugin.inst().getRandom().nextDouble() < (Double)stack.getAdvancedData("chance"))
-                                    continue;
-                            HashMap<Integer, ItemStack> leftovers = event.getWhoClicked().getInventory().addItem(stack.getItemStack());
-                            if(!leftovers.isEmpty()) {
-                                for(ItemStack istack : leftovers.values())
-                                    event.getWhoClicked().getWorld().dropItemNaturally(event.getWhoClicked().getLocation(), istack);
-                            }
-                        }
-                    }
-                    if(recipe.hasAdvancedData("commands-player") || recipe.hasAdvancedData("commands-console")) {
-                        CraftBookPlugin.logDebugMessage("A recipe with commands is detected!", "advanced-data");
-                        if(recipe.hasAdvancedData("commands-console")) {
-                            for(String s : (List<String>)recipe.getAdvancedData("commands-console")) {
-                                s = ParsingUtil.parseLine(s, p);
-                                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), s);
-                            }
-                        }
-                        if(recipe.hasAdvancedData("commands-player")) {
-                            for(String s : (List<String>)recipe.getAdvancedData("commands-player")) {
-                                s = ParsingUtil.parseLine(s, p);
-                                PermissionAttachment att = p.addAttachment(CraftBookPlugin.inst());
-                                att.setPermission("*", true);
-                                boolean wasOp = p.isOp();
-                                p.setOp(true);
-                                Bukkit.dispatchCommand(p, s);
-                                att.remove();
-                                p.setOp(wasOp);
-                            }
-                        }
-                    }
+            if(ItemUtil.areRecipesIdentical(rec, event.getRecipe())) {
+                CraftBookPlugin.logDebugMessage("A recipe with custom data is being crafted!", "advanced-data");
+                RecipeManager.Recipe recipe = advancedRecipes.get(rec);
+                applyPostData(recipe, p, event);
+                event.setCurrentItem(applyAdvancedEffects(event.getCurrentItem(), event.getRecipe(), (Player) event.getWhoClicked()));
+                break;
+            }
+        }
+    }
 
-                    event.setCurrentItem(applyAdvancedEffects(event.getCurrentItem(), event.getRecipe(), (Player) event.getWhoClicked()));
-                    break;
-                }
-            } catch(InvalidCraftingException e){
+    @SuppressWarnings("unchecked")
+    public void applyPostData(RecipeManager.Recipe recipe, Player p, InventoryClickEvent event) {
+
+        if(recipe.hasAdvancedData("permission-node")) {
+            CraftBookPlugin.logDebugMessage("A recipe with permission nodes detected!", "advanced-data");
+            if(!event.getWhoClicked().hasPermission((String) recipe.getAdvancedData("permission-node"))) {
+                p.sendMessage(ChatColor.RED + "You do not have permission to craft this recipe!");
                 event.setCancelled(true);
+                return;
+            }
+        }
+        if(recipe.hasAdvancedData("extra-results")) {
+            CraftBookPlugin.logDebugMessage("A recipe with extra results is detected!", "advanced-data");
+            ArrayList<CraftingItemStack> stacks = new ArrayList<CraftingItemStack>((Collection<CraftingItemStack>) recipe.getAdvancedData("extra-results"));
+            for(CraftingItemStack stack : stacks) {
+                if(stack.hasAdvancedData("chance"))
+                    if(CraftBookPlugin.inst().getRandom().nextDouble() < (Double)stack.getAdvancedData("chance"))
+                        continue;
+                HashMap<Integer, ItemStack> leftovers = event.getWhoClicked().getInventory().addItem(stack.getItemStack());
+                if(!leftovers.isEmpty()) {
+                    for(ItemStack istack : leftovers.values())
+                        event.getWhoClicked().getWorld().dropItemNaturally(event.getWhoClicked().getLocation(), istack);
+                }
+            }
+        }
+        if(recipe.hasAdvancedData("commands-player") || recipe.hasAdvancedData("commands-console")) {
+            CraftBookPlugin.logDebugMessage("A recipe with commands is detected!", "advanced-data");
+            if(recipe.hasAdvancedData("commands-console")) {
+                for(String s : (List<String>)recipe.getAdvancedData("commands-console")) {
+                    s = ParsingUtil.parseLine(s, p);
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), s);
+                }
+            }
+            if(recipe.hasAdvancedData("commands-player")) {
+                for(String s : (List<String>)recipe.getAdvancedData("commands-player")) {
+                    s = ParsingUtil.parseLine(s, p);
+                    PermissionAttachment att = p.addAttachment(CraftBookPlugin.inst());
+                    att.setPermission("*", true);
+                    boolean wasOp = p.isOp();
+                    p.setOp(true);
+                    Bukkit.dispatchCommand(p, s);
+                    att.remove();
+                    p.setOp(wasOp);
+                }
             }
         }
     }
@@ -332,18 +359,13 @@ public class CustomCrafting implements Listener {
     public static ItemStack craftItem(Recipe recipe) {
 
         for(Recipe rec : advancedRecipes.keySet()) {
-            try {
-                if(checkRecipes(rec, recipe))
-                    return applyAdvancedEffects(recipe.getResult(),rec, null);
-            } catch (InvalidCraftingException e){
-                return null; //Invalid Recipe.
-            }
+            if(ItemUtil.areRecipesIdentical(rec, recipe))
+                return applyAdvancedEffects(recipe.getResult(),rec, null);
         }
 
         return recipe.getResult();
     }
 
-    @SuppressWarnings("unchecked")
     private static ItemStack applyAdvancedEffects(ItemStack stack, Recipe rep, Player player) {
 
         RecipeManager.Recipe recipe = advancedRecipes.get(rep);
@@ -352,112 +374,16 @@ public class CustomCrafting implements Listener {
             return stack;
 
         ItemStack res = stack.clone();
-        if(recipe.getResult().hasAdvancedData("name")) {
-            ItemMeta meta = res.getItemMeta();
-            meta.setDisplayName(ChatColor.RESET + ParsingUtil.parseLine((String) recipe.getResult().getAdvancedData("name"), player));
-            res.setItemMeta(meta);
-        }
-        if(recipe.getResult().hasAdvancedData("lore")) {
-            ItemMeta meta = res.getItemMeta();
-            List<String> lore = new ArrayList<String>();
-            for(String s : (List<String>) recipe.getResult().getAdvancedData("lore"))
-                lore.add(ParsingUtil.parseLine(s, player));
-            meta.setLore(lore);
-            res.setItemMeta(meta);
-        }
-        if(recipe.getResult().hasAdvancedData("enchants")) {
-            for(Entry<Enchantment,Integer> enchants : ((Map<Enchantment,Integer>)recipe.getResult().getAdvancedData("enchants")).entrySet())
-                res.addUnsafeEnchantment(enchants.getKey(), enchants.getValue());
-        }
+        if(recipe.getResult().hasAdvancedData("item-meta"))
+            res.setItemMeta(recipe.getResult().getItemStack().getItemMeta());
         return res;
     }
 
     private static boolean checkFurnaceRecipes(FurnaceRecipe rec1, ItemStack source, ItemStack result) throws InvalidCraftingException {
 
-        if(ItemUtil.areItemsIdentical(rec1.getInput(), source))
-            if(ItemUtil.areItemsIdentical(rec1.getResult(), result))
+        if(ItemUtil.areBaseItemsIdentical(rec1.getInput(), source))
+            if(ItemUtil.areBaseItemsIdentical(rec1.getResult(), result))
                 return true;
-
-        return false;
-    }
-
-    private static boolean checkRecipes(Recipe rec1, Recipe rec2) throws InvalidCraftingException {
-
-        if(ItemUtil.areItemsIdentical(rec1.getResult(), rec2.getResult())) {
-            CraftBookPlugin.logDebugMessage("Recipes have same results!", "advanced-data.compare-recipes");
-            if(rec1 instanceof ShapedRecipe && rec2 instanceof ShapedRecipe) {
-                CraftBookPlugin.logDebugMessage("Shaped recipe!", "advanced-data.compare-recipes.shaped");
-                ShapedRecipe recipe1 = (ShapedRecipe) rec1;
-                ShapedRecipe recipe2 = (ShapedRecipe) rec2;
-                if(recipe1.getShape().length == recipe2.getShape().length) {
-                    CraftBookPlugin.logDebugMessage("Same size!", "advanced-data.compare-recipes.shaped");
-                    List<ItemStack> stacks1 = new ArrayList<ItemStack>();
-
-                    for(String s : recipe1.getShape())
-                        for(char c : s.toCharArray())
-                            for(Entry<Character, ItemStack> entry : recipe1.getIngredientMap().entrySet())
-                                if(entry.getKey().charValue() == c)
-                                    stacks1.add(entry.getValue());
-                    List<ItemStack> stacks2 = new ArrayList<ItemStack>();
-
-                    for(String s : recipe2.getShape())
-                        for(char c : s.toCharArray())
-                            for(Entry<Character, ItemStack> entry : recipe2.getIngredientMap().entrySet())
-                                if(entry.getKey().charValue() == c)
-                                    stacks2.add(entry.getValue());
-
-                    if(stacks2.size() != stacks1.size()) {
-                        CraftBookPlugin.logDebugMessage("Recipes have different amounts of ingredients!", "advanced-data.compare-recipes.shaped");
-                        return false;
-                    }
-                    List<ItemStack> test = new ArrayList<ItemStack>();
-                    test.addAll(stacks1);
-                    if(test.size() == 0) {
-                        CraftBookPlugin.logDebugMessage("Recipes are the same!", "advanced-data.compare-recipes.shaped");
-                        return true;
-                    }
-                    if(!test.removeAll(stacks2) && test.size() > 0) {
-                        CraftBookPlugin.logDebugMessage("Recipes are NOT the same!", "advanced-data.compare-recipes.shaped");
-                        return false;
-                    }
-                    if(test.size() > 0) {
-                        CraftBookPlugin.logDebugMessage("Recipes are NOT the same!", "advanced-data.compare-recipes.shaped");
-                        return false;
-                    }
-                }
-            } else if(rec1 instanceof ShapelessRecipe && rec2 instanceof ShapelessRecipe) {
-
-                CraftBookPlugin.logDebugMessage("Shapeless Recipe!", "advanced-data.compare-recipes.shapeless");
-                ShapelessRecipe recipe1 = (ShapelessRecipe) rec1;
-                ShapelessRecipe recipe2 = (ShapelessRecipe) rec2;
-
-                if(VerifyUtil.withoutNulls(recipe1.getIngredientList()).size() != VerifyUtil.withoutNulls(recipe2.getIngredientList()).size()) {
-                    CraftBookPlugin.logDebugMessage("Recipes have different amounts of ingredients!", "advanced-data.compare-recipes.shapeless");
-                    return false;
-                }
-
-                CraftBookPlugin.logDebugMessage("Same Size!", "advanced-data.compare-recipes.shapeless");
-
-                List<ItemStack> test = new ArrayList<ItemStack>();
-                test.addAll(VerifyUtil.<ItemStack>withoutNulls(recipe1.getIngredientList()));
-                if(test.size() == 0) {
-                    CraftBookPlugin.logDebugMessage("Recipes are the same!", "advanced-data.compare-recipes.shapeless");
-                    return true;
-                }
-                if(!test.removeAll(VerifyUtil.<ItemStack>withoutNulls(recipe2.getIngredientList())) && test.size() > 0) {
-                    CraftBookPlugin.logDebugMessage("Recipes are NOT the same!", "advanced-data.compare-recipes.shapeless");
-                    return false;
-                }
-                if(test.size() > 0) {
-                    CraftBookPlugin.logDebugMessage("Recipes are NOT the same!", "advanced-data.compare-recipes.shapeless");
-                    return false;
-                }
-            }
-
-            CraftBookPlugin.logDebugMessage("Recipes are the same!", "advanced-data.compare-recipes");
-
-            return true;
-        }
 
         return false;
     }

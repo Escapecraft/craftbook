@@ -1,14 +1,15 @@
 package com.sk89q.craftbook.circuits.ic;
 
 import org.apache.commons.lang.Validate;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.material.Lever;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.BlockWorldVector;
-import com.sk89q.worldedit.blocks.BlockID;
 
 /**
  * @author Silthus
@@ -36,7 +37,10 @@ public abstract class AbstractChipState implements ChipState {
     public boolean get(int pin) {
 
         Block block = getBlock(pin);
-        return block != null && (block.isBlockIndirectlyPowered() || block.getTypeId() == BlockID.REDSTONE_REPEATER_ON);
+        if(block == null) return false;
+        if(block.getType() == Material.LEVER)
+            return ((Lever) block.getState().getData()).isPowered();
+        return block.isBlockIndirectlyPowered() || block.getType() == Material.DIODE_BLOCK_ON;
     }
 
     @Override
@@ -60,8 +64,7 @@ public abstract class AbstractChipState implements ChipState {
 
         Block block = getBlock(pin);
         if (block != null)
-            if (block.getTypeId() == BlockID.REDSTONE_WIRE || block.getTypeId() == BlockID.REDSTONE_REPEATER_OFF ||
-            block.getTypeId() == BlockID.REDSTONE_REPEATER_ON)
+            if (block.getType() == Material.REDSTONE_WIRE || block.getType() == Material.DIODE_BLOCK_OFF || block.getType() == Material.DIODE_BLOCK_ON || block.getType() == Material.LEVER)
                 return true;
         return false;
     }

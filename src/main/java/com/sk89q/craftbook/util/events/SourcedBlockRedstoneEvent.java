@@ -14,7 +14,7 @@
  * see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.craftbook;
+package com.sk89q.craftbook.util.events;
 
 import org.bukkit.block.Block;
 import org.bukkit.event.HandlerList;
@@ -39,6 +39,26 @@ public class SourcedBlockRedstoneEvent extends BlockRedstoneEvent {
     public Block getSource() {
 
         return source;
+    }
+
+    public boolean hasChanged() {
+
+        return getOldCurrent() != getNewCurrent();
+    }
+
+    public boolean isMinor() {
+
+        return !hasChanged() || wasOn() == isOn();
+    }
+
+    public boolean isOn() {
+
+        return getNewCurrent() > 0;
+    }
+
+    public boolean wasOn() {
+
+        return getOldCurrent() > 0;
     }
 
     @Override

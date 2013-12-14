@@ -3,6 +3,8 @@ package com.sk89q.craftbook.circuits.gates.world.blocks;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -12,7 +14,6 @@ import org.bukkit.inventory.ItemStack;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
@@ -20,9 +21,10 @@ import com.sk89q.craftbook.circuits.ic.ConfigurableIC;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
 import com.sk89q.craftbook.circuits.ic.RestrictedIC;
+import com.sk89q.craftbook.circuits.pipe.PipeRequestEvent;
+import com.sk89q.craftbook.util.BlockUtil;
 import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.util.yaml.YAMLProcessor;
-import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.BlockType;
 
 public class Driller extends AbstractSelfTriggeredIC {
@@ -102,23 +104,22 @@ public class Driller extends AbstractSelfTriggeredIC {
 
         boolean hasChest = chest != null;
 
-        int brokenType = 0;
-        while (brokenType == 0) {
+        Material brokenType = Material.AIR;
+        while (brokenType == Material.AIR) {
 
             if (blockToBreak.getLocation().getBlockY() == 0) return false;
             blockToBreak = blockToBreak.getRelative(0, -1, 0);
-            brokenType = blockToBreak.getTypeId();
-            if (brokenType == BlockID.BEDROCK) return false;
+            brokenType = blockToBreak.getType();
+            if (brokenType == Material.BEDROCK) return false;
             if (!((Factory)getFactory()).breakNonNatural)
-                if (brokenType != BlockID.AIR && !BlockType.isNaturalTerrainBlock(brokenType)) return false;
+                if (brokenType != Material.AIR && !BlockType.isNaturalTerrainBlock(brokenType.getId())) return false;
         }
 
-        List<ItemStack> drops = new ArrayList<ItemStack>(blockToBreak.getDrops());
-        if(hasChest && chest.getInventory().getItem(0) != null) {
-            drops = new ArrayList<ItemStack>(blockToBreak.getDrops(chest.getInventory().getItem(0)));
-        }
+        ItemStack tool = null;
+        if(hasChest && chest.getInventory().getItem(0) != null)
+            tool = chest.getInventory().getItem(0);
 
-        for (ItemStack stack : drops) {
+        for (ItemStack stack : BlockUtil.getBlockDrops(blockToBreak, tool)) {
 
             List<ItemStack> toDrop = new ArrayList<ItemStack>();
             toDrop.add(stack);
@@ -130,8 +131,13 @@ public class Driller extends AbstractSelfTriggeredIC {
             BlockFace back = SignUtil.getBack(BukkitUtil.toSign(getSign()).getBlock());
             Block pipe = getBackBlock().getRelative(back);
 
-            if(Pipes.Factory.setupPipes(pipe, getBackBlock(), toDrop.toArray(new ItemStack[toDrop.size()])) != null)
+            PipeRequestEvent event = new PipeRequestEvent(pipe, toDrop, getBackBlock());
+            Bukkit.getPluginManager().callEvent(event);
+
+            if(!event.isValid())
                 continue;
+
+            toDrop = event.getItems();
 
             if (!toDrop.isEmpty()) {
                 for (ItemStack d : toDrop) {
@@ -140,10 +146,10 @@ public class Driller extends AbstractSelfTriggeredIC {
             }
         }
 
-        brokenType = blockToBreak.getTypeId();
-        blockToBreak.setTypeId(0);
+        brokenType = blockToBreak.getType();
+        blockToBreak.setType(Material.AIR);
 
-        return !(brokenType == BlockID.LAVA || brokenType == BlockID.WATER || brokenType == BlockID.STATIONARY_LAVA || brokenType == BlockID.STATIONARY_WATER);
+        return !(brokenType == Material.LAVA || brokenType == Material.WATER || brokenType == Material.STATIONARY_LAVA || brokenType == Material.STATIONARY_WATER);
 
     }
 

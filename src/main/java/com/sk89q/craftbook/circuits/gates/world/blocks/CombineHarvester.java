@@ -1,9 +1,10 @@
 package com.sk89q.craftbook.circuits.gates.world.blocks;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -11,19 +12,17 @@ import org.bukkit.block.Chest;
 import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
+import com.sk89q.craftbook.circuits.pipe.PipeRequestEvent;
+import com.sk89q.craftbook.util.BlockUtil;
 import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.Vector;
-import com.sk89q.worldedit.blocks.BlockID;
-import com.sk89q.worldedit.blocks.ItemID;
 
 public class CombineHarvester extends AbstractSelfTriggeredIC {
 
@@ -84,8 +83,8 @@ public class CombineHarvester extends AbstractSelfTriggeredIC {
 
                     if (harvestable(b)) {
 
-                        collectDrops(getDrops(b));
-                        b.setTypeId(0);
+                        collectDrops(BlockUtil.getBlockDrops(b, null));
+                        b.setType(Material.AIR);
                         return true;
                     }
                 }
@@ -98,19 +97,21 @@ public class CombineHarvester extends AbstractSelfTriggeredIC {
 
         BlockFace back = SignUtil.getBack(BukkitUtil.toSign(getSign()).getBlock());
         Block pipe = getBackBlock().getRelative(back);
-        if(Pipes.Factory.setupPipes(pipe, getBackBlock(), drops) != null)
-            return;
-        if (onBlock.getRelative(0, 1, 0).getTypeId() == BlockID.CHEST) {
+
+        PipeRequestEvent event = new PipeRequestEvent(pipe, Arrays.asList(drops), getBackBlock());
+        Bukkit.getPluginManager().callEvent(event);
+
+        if(!event.isValid()) return;
+
+        if (onBlock.getRelative(0, 1, 0).getType() == Material.CHEST) {
 
             Chest c = (Chest) onBlock.getRelative(0, 1, 0).getState();
-            HashMap<Integer, ItemStack> leftovers = c.getInventory().addItem(drops);
+            HashMap<Integer, ItemStack> leftovers = c.getInventory().addItem(event.getItems().toArray(new ItemStack[event.getItems().size()]));
             for (ItemStack item : leftovers.values()) {
-
                 onBlock.getWorld().dropItemNaturally(BukkitUtil.toSign(getSign()).getLocation().add(0.5, 0, 0.5), item);
             }
         } else {
-            for (ItemStack item : drops) {
-
+            for (ItemStack item : event.getItems()) {
                 onBlock.getWorld().dropItemNaturally(BukkitUtil.toSign(getSign()).getLocation().add(0.5, 0, 0.5), item);
             }
         }
@@ -118,56 +119,28 @@ public class CombineHarvester extends AbstractSelfTriggeredIC {
 
     public boolean harvestable(Block block) {
 
-        if((block.getTypeId() == BlockID.CROPS || block.getTypeId() == BlockID.CARROTS || block.getTypeId() == BlockID.POTATOES) && block.getData() >= 0x7)
+        if((block.getType() == Material.CROPS || block.getType() == Material.CARROT || block.getType() == Material.POTATO) && block.getData() >= 0x7)
             return true;
 
-        if(block.getTypeId() == BlockID.CACTUS && block.getRelative(0, -1, 0).getTypeId() == BlockID.CACTUS && block.getRelative(0, 1, 0).getTypeId() != BlockID.CACTUS)
+        if(block.getType() == Material.CACTUS && block.getRelative(0, -1, 0).getType() == Material.CACTUS && block.getRelative(0, 1, 0).getType() != Material.CACTUS)
             return true;
 
-        if(block.getTypeId() == BlockID.REED && block.getRelative(0, -1, 0).getTypeId() == BlockID.REED && block.getRelative(0, 1, 0).getTypeId() != BlockID.REED)
+        if(block.getType() == Material.SUGAR_CANE && block.getRelative(0, -1, 0).getType() == Material.SUGAR_CANE && block.getRelative(0, 1, 0).getType() != Material.SUGAR_CANE)
             return true;
 
-        if(block.getTypeId() == BlockID.VINE && block.getRelative(0, 1, 0).getTypeId() == BlockID.VINE && block.getRelative(0, -1, 0).getTypeId() != BlockID.VINE)
+        if(block.getType() == Material.VINE && block.getRelative(0, 1, 0).getType() == Material.VINE && block.getRelative(0, -1, 0).getType() != Material.VINE)
             return true;
 
-        if(block.getTypeId() == BlockID.COCOA_PLANT && ((block.getData() & 0x8) == 0x8 || (block.getData() & 0xC) == 0xC))
+        if(block.getType() == Material.COCOA && ((block.getData() & 0x8) == 0x8 || (block.getData() & 0xC) == 0xC))
             return true;
 
-        if(block.getTypeId() == BlockID.NETHER_WART && block.getData() >= 0x3)
+        if(block.getType() == Material.NETHER_STALK && block.getData() >= 0x3)
+            return true;
+
+        if(block.getType() == Material.MELON_BLOCK || block.getType() == Material.PUMPKIN)
             return true;
 
         return false;
-    }
-
-    public ItemStack[] getDrops(Block b) {
-
-        List<ItemStack> drops = new ArrayList<ItemStack>();
-
-        if (b.getTypeId() == BlockID.CROPS) {
-
-            drops.add(new ItemStack(ItemID.WHEAT, 1));
-            int amount = CraftBookPlugin.inst().getRandom().nextInt(4);
-            if(amount > 0)
-                drops.add(new ItemStack(ItemID.SEEDS, amount));
-        } else if (b.getTypeId() == BlockID.CARROTS) {
-
-            drops.add(new ItemStack(ItemID.CARROT, 1 + CraftBookPlugin.inst().getRandom().nextInt(4)));
-        } else if (b.getTypeId() == BlockID.POTATOES) {
-
-            drops.add(new ItemStack(ItemID.POTATO, 1 + CraftBookPlugin.inst().getRandom().nextInt(4)));
-            if(CraftBookPlugin.inst().getRandom().nextInt(50) == 0)
-                drops.add(new ItemStack(ItemID.POISONOUS_POTATO, 1));
-        } else if (b.getTypeId() == BlockID.NETHER_WART) {
-
-            drops.add(new ItemStack(ItemID.NETHER_WART_SEED, 2 + CraftBookPlugin.inst().getRandom().nextInt(3)));
-        } else if (b.getTypeId() == BlockID.REED) {
-
-            drops.add(new ItemStack(ItemID.SUGAR_CANE_ITEM, 1));
-        } else {
-            drops.addAll(b.getDrops());
-        }
-
-        return drops.toArray(new ItemStack[drops.size()]);
     }
 
     public static class Factory extends AbstractICFactory {

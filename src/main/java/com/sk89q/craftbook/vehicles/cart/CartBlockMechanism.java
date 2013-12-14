@@ -1,14 +1,14 @@
 package com.sk89q.craftbook.vehicles.cart;
 
-import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Minecart;
-import org.bukkit.event.Listener;
 
+import com.sk89q.craftbook.AbstractCraftBookMechanic;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
+import com.sk89q.craftbook.util.EntityUtil;
 import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.craftbook.util.RedstoneUtil;
 import com.sk89q.craftbook.util.RedstoneUtil.Power;
@@ -21,7 +21,7 @@ import com.sk89q.craftbook.util.RedstoneUtil.Power;
  *
  * @author hash
  */
-public abstract class CartBlockMechanism implements Listener {
+public abstract class CartBlockMechanism extends AbstractCraftBookMechanic {
 
     protected final ItemInfo material;
 
@@ -117,20 +117,10 @@ public abstract class CartBlockMechanism implements Listener {
     public static Minecart getCart(Block rail) {
 
         for (Entity ent : rail.getChunk().getEntities()) {
-            if (!(ent instanceof Minecart)) {
+            if (!(ent instanceof Minecart))
                 continue;
-            }
-            Location entLoc = ent.getLocation();
-            if (entLoc.getBlockX() != rail.getX()) {
-                continue;
-            }
-            if (entLoc.getBlockY() != rail.getY()) {
-                continue;
-            }
-            if (entLoc.getBlockZ() != rail.getZ()) {
-                continue;
-            }
-            return (Minecart) ent;
+            if(EntityUtil.isEntityInBlock(ent, rail))
+                return (Minecart) ent;
         }
         return null;
     }

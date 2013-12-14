@@ -2,6 +2,9 @@ package com.sk89q.craftbook.circuits.gates.world.items;
 
 import java.util.List;
 
+import net.minecraft.util.com.google.common.collect.Lists;
+
+import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -11,12 +14,12 @@ import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.craftbook.circuits.Pipes;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
+import com.sk89q.craftbook.circuits.pipe.PipeRequestEvent;
 import com.sk89q.craftbook.util.InventoryUtil;
 import com.sk89q.craftbook.util.ItemSyntax;
 import com.sk89q.craftbook.util.ItemUtil;
@@ -73,8 +76,9 @@ public class ContainerCollector extends AbstractSelfTriggeredIC {
 
         boolean collected = false;
         for (Item item : ItemUtil.getItemsAtBlock(BukkitUtil.toSign(getSign()).getBlock()))
-            if(collectItem(item))
-                collected = true;
+            if(item.isValid() && !item.isDead())
+                if(collectItem(item))
+                    collected = true;
 
         return collected;
     }
@@ -96,9 +100,10 @@ public class ContainerCollector extends AbstractSelfTriggeredIC {
         BlockFace back = SignUtil.getBack(BukkitUtil.toSign(getSign()).getBlock());
         Block pipe = getBackBlock().getRelative(back);
 
-        Pipes pipes = Pipes.Factory.setupPipes(pipe, getBackBlock(), stack);
+        PipeRequestEvent event = new PipeRequestEvent(pipe, Lists.newArrayList(stack), getBackBlock());
+        Bukkit.getPluginManager().callEvent(event);
 
-        if(pipes != null && pipes.getItems().isEmpty()) {
+        if(event.getItems().isEmpty()) {
             item.remove();
             return true;
         }
@@ -113,7 +118,10 @@ public class ContainerCollector extends AbstractSelfTriggeredIC {
             return true;
         } else {
             if(ItemUtil.areItemsIdentical(leftovers.get(0), stack) && leftovers.get(0).getAmount() != stack.getAmount()) {
-                item.setItemStack(leftovers.get(0));
+                if(!ItemUtil.isStackValid(leftovers.get(0)))
+                    item.remove();
+                else
+                    item.setItemStack(leftovers.get(0));
                 return true;
             }
         }

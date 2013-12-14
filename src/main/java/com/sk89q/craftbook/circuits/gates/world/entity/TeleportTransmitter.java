@@ -1,21 +1,21 @@
 package com.sk89q.craftbook.circuits.gates.world.entity;
 
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
 import com.sk89q.craftbook.ChangedSign;
+import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
+import com.sk89q.craftbook.circuits.ic.ICVerificationException;
 import com.sk89q.craftbook.util.HistoryHashMap;
-import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.LocationUtil;
+import com.sk89q.craftbook.util.SearchArea;
 import com.sk89q.craftbook.util.Tuple2;
-import com.sk89q.worldedit.Vector;
 
 public class TeleportTransmitter extends AbstractSelfTriggeredIC {
 
@@ -40,15 +40,13 @@ public class TeleportTransmitter extends AbstractSelfTriggeredIC {
         return "TELEPORT OUT";
     }
 
-    Vector radius;
-    Location offset;
+    SearchArea area;
 
     @Override
     public void load() {
 
         band = getLine(2);
-        offset = ICUtil.parseBlockLocation(getSign(), 3).getLocation();
-        radius = ICUtil.parseRadius(getSign(), 3);
+        area = SearchArea.createArea(BukkitUtil.toSign(getSign()).getBlock(), getLine(3));
     }
 
     @Override
@@ -66,17 +64,19 @@ public class TeleportTransmitter extends AbstractSelfTriggeredIC {
     }
 
     public void sendPlayer() {
+
         Player closest = null;
 
-        for (Player e : offset.getWorld().getPlayers()) {
-            if (e == null || !e.isValid() || !LocationUtil.isWithinRadius(offset, e.getLocation(), radius) || e.isDead())
+        for (Player e : area.getPlayersInArea()) {
+            if (e == null || !e.isValid() || e.isDead())
                 continue;
 
             if (closest == null) closest = e;
-            else if (LocationUtil.getDistanceSquared(closest.getLocation(), offset) > LocationUtil.getDistanceSquared(e.getLocation(), offset)) closest = e;
+            if(area.getCenter() == null) break;
+            else if (LocationUtil.getDistanceSquared(closest.getLocation(), area.getCenter()) >= LocationUtil.getDistanceSquared(e.getLocation(), area.getCenter())) closest = e;
         }
         if (closest != null && !setValue(band, new Tuple2<Long, String>(System.currentTimeMillis(), closest.getName())))
-            closest.sendMessage(ChatColor.RED + "This Teleporter Frequency is currently busy! Try again soon!");
+            closest.sendMessage(ChatColor.RED + "This Teleporter Frequency is currently busy! Try again soon (3s)!");
     }
 
     public static Tuple2<Long, String> getValue(String band) {
@@ -99,7 +99,7 @@ public class TeleportTransmitter extends AbstractSelfTriggeredIC {
         if (memory.containsKey(band)) {
             long time = System.currentTimeMillis() - memory.get(band).a;
             int seconds = (int) (time / 1000) % 60;
-            if (seconds > 5) { // Expired.
+            if (seconds > 3) { // Expired.
                 memory.remove(band);
             } else return false;
         }
@@ -124,6 +124,13 @@ public class TeleportTransmitter extends AbstractSelfTriggeredIC {
         public String getShortDescription() {
 
             return "Transmitter for the teleportation network.";
+        }
+
+        @Override
+        public void verify(ChangedSign sign) throws ICVerificationException {
+
+            if(!SearchArea.isValidArea(BukkitUtil.toSign(sign).getBlock(), sign.getLine(3)))
+                throw new ICVerificationException("Invalid SearchArea on 4th line!");
         }
 
         @Override

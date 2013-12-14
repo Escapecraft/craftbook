@@ -17,6 +17,7 @@ public abstract class LocalConfiguration {
     public boolean variablesDefaultGlobal;
     public boolean variablesCommandBlockOverride;
     public boolean variablesPlayerCommandOverride;
+    public boolean variablesPlayerChatOverride;
 
     // Circuits
     // Circuits - IC
@@ -29,17 +30,20 @@ public abstract class LocalConfiguration {
     public LocationCheckType ICdefaultCoordinate;
     public boolean ICSavePersistentData;
     public boolean ICMidiUsePercussion;
+    public boolean ICBreakOnError;
     // Circuits - Wiring
     public boolean netherrackEnabled;
     public boolean pumpkinsEnabled;
     public boolean glowstoneEnabled;
-    public int glowstoneOffBlock;
+    public ItemInfo glowstoneOffBlock;
     // Circuits - Pipes
     public boolean pipesEnabled;
     public boolean pipesDiagonal;
-    public int pipeInsulator;
+    public ItemInfo pipeInsulator;
     public boolean pipeStackPerPull;
     public boolean pipeRequireSign;
+    // Circuits - Redstone Jukebox
+    public boolean jukeboxEnabled;
 
     // Mechanics
     // Mechanics - AI
@@ -49,7 +53,7 @@ public abstract class LocalConfiguration {
     public List<String> aiAttackPassiveEnabled;
     // Mechanics - Ammeter
     public boolean ammeterEnabled;
-    public int ammeterItem;
+    public ItemInfo ammeterItem;
     // Mechanics - Area
     public boolean areaEnabled;
     public boolean areaAllowRedstone;
@@ -57,6 +61,13 @@ public abstract class LocalConfiguration {
     public boolean areaShortenNames;
     public int areaMaxAreaSize;
     public int areaMaxAreaPerUser;
+    // Mechanics - BetterLeads
+    public boolean leadsEnabled;
+    public boolean leadsStopTarget;
+    public boolean leadsOwnerBreakOnly;
+    public boolean leadsHitchPersists;
+    public boolean leadsMobRepellant;
+    public List<String> leadsAllowedMobs;
     // Mechanics - BetterPhysics
     public boolean physicsEnabled;
     public boolean physicsLadders;
@@ -65,32 +76,32 @@ public abstract class LocalConfiguration {
     public boolean pistonsEnabled;
     public boolean pistonsCrusher;
     public boolean pistonsCrusherInstaKill;
-    public List<Integer> pistonsCrusherBlacklist;
+    public List<ItemInfo> pistonsCrusherBlacklist;
     public boolean pistonsSuperPush;
     public boolean pistonsSuperSticky;
-    public List<Integer> pistonsMovementBlacklist;
+    public List<ItemInfo> pistonsMovementBlacklist;
     public boolean pistonsBounce;
-    public List<Integer> pistonsBounceBlacklist;
+    public List<ItemInfo> pistonsBounceBlacklist;
     // Mechanics - Bookcase
     public boolean bookcaseEnabled;
     public boolean bookcaseReadHoldingBlock;
     public boolean bookcaseReadWhenSneaking;
-    public String bookcaseReadLine;
     // Mechanics - Bridge
     public boolean bridgeEnabled;
     public boolean bridgeAllowRedstone;
     public int bridgeMaxLength;
     public int bridgeMaxWidth;
-    public List<Integer> bridgeBlocks;
+    public List<ItemInfo> bridgeBlocks;
     // Mechanics - Cauldron
     public boolean cauldronEnabled;
     public boolean cauldronUseSpoons;
     // Mechanics - Chair
     public boolean chairEnabled;
-    public boolean chairSneak;
+    public boolean chairAllowHeldBlock;
     public boolean chairHealth;
-    public List<Integer> chairBlocks;
+    public List<ItemInfo> chairBlocks;
     public boolean chairFacing;
+    public boolean chairRequireSign;
     // Mechanics - Chunk Anchor
     public boolean chunkAnchorEnabled;
     public boolean chunkAnchorRedstone;
@@ -99,6 +110,7 @@ public abstract class LocalConfiguration {
     public boolean commandItemsEnabled;
     // Mechanics - Command Signs
     public boolean commandSignEnabled;
+    public boolean commandSignAllowRedstone;
     // Mechanics - Cooking Pot
     public boolean cookingPotEnabled;
     public boolean cookingPotFuel;
@@ -123,7 +135,7 @@ public abstract class LocalConfiguration {
     public boolean doorAllowRedstone;
     public int doorMaxLength;
     public int doorMaxWidth;
-    public List<Integer> doorBlocks;
+    public List<ItemInfo> doorBlocks;
     // Mechanics - Elevator
     public boolean elevatorEnabled;
     public boolean elevatorButtonEnabled;
@@ -132,15 +144,16 @@ public abstract class LocalConfiguration {
     public double elevatorMoveSpeed;
     // Mechanics - Footprints
     public boolean footprintsEnabled;
-    public List<Integer> footprintsBlocks;
+    public List<ItemInfo> footprintsBlocks;
     // Mechanics - Gate
     public boolean gateEnabled;
     public boolean gateAllowRedstone;
     public boolean gateLimitColumns;
     public int gateColumnLimit;
-    public List<Integer> gateBlocks;
+    public List<ItemInfo> gateBlocks;
     public boolean gateEnforceType;
     public int gateColumnHeight;
+    public int gateSearchRadius;
     // Mechanics - Head Drops
     public boolean headDropsEnabled;
     public boolean headDropsMobs;
@@ -150,6 +163,7 @@ public abstract class LocalConfiguration {
     public boolean headDropsDropOverrideNatural;
     public double headDropsDropRate;
     public double headDropsLootingRateModifier;
+    public boolean headDropsShowNameClick;
     public HashMap<String, Double> headDropsCustomDropRate;
     public HashMap<String, String> headDropsCustomSkins;
     // Mechanics - Hidden Switch
@@ -157,46 +171,52 @@ public abstract class LocalConfiguration {
     public boolean hiddenSwitchAnyside;
     // Mechanics - Legacy Cauldron
     public boolean legacyCauldronEnabled;
-    public int legacyCauldronBlock;
+    public ItemInfo legacyCauldronBlock;
     // Mechanics - Lightstone
     public boolean lightstoneEnabled;
-    public int lightstoneItem;
+    public ItemInfo lightstoneItem;
     // Mechanics - Light Switch
     public boolean lightSwitchEnabled;
     public int lightSwitchMaxRange;
     public int lightSwitchMaxLights;
     // Mechanics - Map Changer
     public boolean mapChangerEnabled;
+    // Mechanics - Marquee
+    public boolean marqueeEnabled;
     // Mechanics - Paintings
     public boolean paintingsEnabled;
     // Mechanics - Payment
     public boolean paymentEnabled;
     // Mechanics - Lightstone
     public boolean signCopyEnabled;
-    public int signCopyItem;
+    public ItemInfo signCopyItem;
     // Mechanics - Snow
     public boolean snowPiling;
     public boolean snowTrample;
+    public boolean snowPartialTrample;
     public boolean snowPlace;
     public boolean snowSlowdown;
     public boolean snowRealistic;
     public boolean snowHighPiles;
     public boolean snowJumpTrample;
-    public List<Integer> snowRealisticReplacables;
+    public List<ItemInfo> snowRealisticReplacables;
+    public int snowFallAnimationSpeed;
     // Mechanics - Teleporter
     public boolean teleporterEnabled;
     public boolean teleporterRequireSign;
     public int teleporterMaxRange;
     // Mechanis - TreeLopper
     public boolean treeLopperEnabled;
-    public List<Integer> treeLopperBlocks;
-    public List<Integer> treeLopperItems;
+    public List<ItemInfo> treeLopperBlocks;
+    public List<ItemInfo> treeLopperItems;
     public int treeLopperMaxSize;
     public boolean treeLopperAllowDiagonals;
     public boolean treeLopperEnforceData;
+    public boolean treeLopperPlaceSapling;
+    public boolean treeLopperBreakLeaves;
     // Mechanics - XPStorer
     public boolean xpStorerEnabled;
-    public int xpStorerBlock;
+    public ItemInfo xpStorerBlock;
 
     // Vehicles
     // Vehicles - Minecart Decay Options
@@ -237,6 +257,7 @@ public abstract class LocalConfiguration {
     public ItemInfo minecartDispenserBlock;
     public boolean minecartDispenserLegacy;
     public boolean minecartDispenserAntiSpam;
+    public boolean minecartDispenserPropel;
     // Vehicles - Minecart MaxSpeed Options
     public boolean minecartMaxSpeedEnabled;
     public ItemInfo minecartMaxSpeedBlock;
@@ -247,6 +268,7 @@ public abstract class LocalConfiguration {
     // Vehicles - Minecart More Rails Options
     public boolean minecartMoreRailsEnabled;
     public boolean minecartMoreRailsLadder;
+    public double minecartMoreRailsLadderVelocity;
     public boolean minecartMoreRailsPressurePlate;
     // Vehicles - Minecart Remove Entities Options
     public boolean minecartRemoveEntitiesEnabled;
@@ -258,6 +280,7 @@ public abstract class LocalConfiguration {
     public boolean minecartBlockMobEntryEnabled;
     // Vehicles - Minecart Remove On Exit Options
     public boolean minecartRemoveOnExitEnabled;
+    public boolean minecartRemoveOnExitGiveItem;
     // Vehicles - Minecart Collision Entry Options
     public boolean minecartCollisionEntryEnabled;
     // Vehicles - Minecart Item Pickup Options
@@ -272,7 +295,7 @@ public abstract class LocalConfiguration {
     public double minecartSpeedModifierMaxSpeed;
     public double minecartSpeedModifierOffRail;
     // Vehicles - Minecart Empty Slowdown Options
-    public boolean minecartEmptySlowdownEnable;
+    public boolean minecartEmptySlowdownStopperEnable;
     // Vehicles - Minecart No Collide Options
     public boolean minecartNoCollideEnable;
     public boolean minecartNoCollideEmpty;
@@ -283,6 +306,18 @@ public abstract class LocalConfiguration {
     // Vehicles - Boat Remove Entities Options
     public boolean boatRemoveEntitiesEnabled;
     public boolean boatRemoveEntitiesOtherBoats;
+    // Vehicles - Boat Speed Modifier Options
+    public boolean boatSpeedModifierEnable;
+    public double boatSpeedModifierMaxSpeed;
+    public double boatSpeedModifierUnnoccupiedDeceleration;
+    public double boatSpeedModifierOccupiedDeceleration;
+    // Vehicles - Boat Land Boats Options
+    public boolean boatLandBoatsEnable;
+    // Vehicles - Boat Remove On Exit Options
+    public boolean boatRemoveOnExitEnabled;
+    public boolean boatRemoveOnExitGiveItem;
+    // Vehicles - Boat Water Place Only Options
+    public boolean boatWaterPlaceOnly;
 
 
     /**

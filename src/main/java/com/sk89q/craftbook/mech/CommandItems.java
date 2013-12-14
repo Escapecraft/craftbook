@@ -8,28 +8,38 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemBreakEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.permissions.PermissionAttachment;
 
+import com.sk89q.craftbook.AbstractCraftBookMechanic;
+import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.mech.CommandItems.CommandItemDefinition.ClickType;
@@ -38,19 +48,20 @@ import com.sk89q.craftbook.util.ItemSyntax;
 import com.sk89q.craftbook.util.ItemUtil;
 import com.sk89q.craftbook.util.ParsingUtil;
 import com.sk89q.craftbook.util.RegexUtil;
+import com.sk89q.craftbook.util.TernaryState;
 import com.sk89q.craftbook.util.Tuple2;
 import com.sk89q.util.yaml.YAMLFormat;
 import com.sk89q.util.yaml.YAMLProcessor;
 
-public class CommandItems implements Listener {
+public class CommandItems extends AbstractCraftBookMechanic {
 
     public static CommandItems INSTANCE;
 
     private YAMLProcessor config;
 
-    private HashSet<CommandItemDefinition> definitions = new HashSet<CommandItemDefinition>();
+    private Set<CommandItemDefinition> definitions;
 
-    private HashMap<Tuple2<String, String>, Integer> cooldownPeriods = new HashMap<Tuple2<String, String>, Integer>();
+    private Map<Tuple2<String, String>, Integer> cooldownPeriods;
 
     public CommandItemDefinition getDefinitionByName(String name) {
 
@@ -61,12 +72,54 @@ public class CommandItems implements Listener {
         return null;
     }
 
-    public CommandItems() {
+    @Override
+    public void disable () {
+        definitions = null;
+        cooldownPeriods = null;
+        config = null;
+        INSTANCE = null;
+    }
+
+    @Override
+    public boolean enable() {
 
         INSTANCE = this;
+
+        definitions = new HashSet<CommandItemDefinition>();
+        cooldownPeriods = new HashMap<Tuple2<String, String>, Integer>();
+
         CraftBookPlugin.inst().createDefaultConfiguration(new File(CraftBookPlugin.inst().getDataFolder(), "command-items.yml"), "command-items.yml");
+        if(!new File(CraftBookPlugin.inst().getDataFolder(), "command-items.yml").exists()) try {
+            new File(CraftBookPlugin.inst().getDataFolder(), "command-items.yml").createNewFile(); //Just incase it wasn't packaged for some odd reason.
+        } catch (IOException e1) {
+        }
         config = new YAMLProcessor(new File(CraftBookPlugin.inst().getDataFolder(), "command-items.yml"), false, YAMLFormat.EXTENDED);
-        load();
+
+        try {
+            config.load();
+        } catch (IOException e) {
+            BukkitUtil.printStacktrace(e);
+            return false;
+        }
+
+        int amount = 0;
+
+        for(String key : config.getKeys("command-items")) {
+
+            CommandItemDefinition comdef = CommandItemDefinition.load(config, "command-items." + key);
+            if(addDefinition(comdef)) {
+                CraftBookPlugin.logDebugMessage("Added CommandItem: " + key, "command-items.initialize");
+                amount++;
+            } else
+                CraftBookPlugin.logger().warning("Failed to add CommandItem: " + key);
+        }
+
+        if(amount == 0) return false;
+
+        config.save();
+
+        CraftBookPlugin.logger().info("Successfully added " + amount + " CommandItems!");
+
         if(definitions.size() > 0)
             Bukkit.getScheduler().runTaskTimer(CraftBookPlugin.inst(), new Runnable() {
 
@@ -85,25 +138,31 @@ public class CommandItems implements Listener {
                     }
                 }
             }, 1, 20);
+
+        if(CraftBookPlugin.inst().getPersistentStorage().get("command-items.death-items") == null)
+            CraftBookPlugin.inst().getPersistentStorage().set("command-items.death-items", new HashMap<String, List<ItemStack>>());
+
+        return true;
     }
 
-    public void load() {
+    public boolean addDefinition(CommandItemDefinition def) {
 
-        try {
-            config.load();
-        } catch (IOException e) {
-            BukkitUtil.printStacktrace(e);
-            return;
+        return definitions.add(def);
+    }
+
+    public void save() {
+
+        config.addNode("command-items");
+
+        for(CommandItemDefinition def : definitions) {
+            config.addNode("command-items." + def.name);
+            def.save(config, "command-items." + def.name);
         }
 
-        for(String key : config.getKeys("command-items")) {
+        config.save();
 
-            CommandItemDefinition comdef = CommandItemDefinition.readDefinition(config, "command-items." + key);
-            if(definitions.add(comdef))
-                CraftBookPlugin.logger().info("Added CommandItem: " + key);
-            else
-                CraftBookPlugin.logger().warning("Failed to add CommandItem: " + key);
-        }
+        disable();
+        enable();
     }
 
     @EventHandler(priority=EventPriority.HIGHEST)
@@ -165,8 +224,99 @@ public class CommandItems implements Listener {
         performCommandItems(event.getPlayer().getItemInHand(), event.getPlayer(), event);
     }
 
+    @EventHandler(priority=EventPriority.HIGHEST)
+    public void onItemConsume(final PlayerItemConsumeEvent event) {
+
+        if(event.getItem() == null)
+            return;
+
+        performCommandItems(event.getItem(), event.getPlayer(), event);
+    }
+
+    @EventHandler(priority=EventPriority.HIGHEST)
+    public void onItemDrop(final PlayerDropItemEvent event) {
+
+        if(event.getItemDrop() == null || !ItemUtil.isStackValid(event.getItemDrop().getItemStack()))
+            return;
+
+        performCommandItems(event.getItemDrop().getItemStack(), event.getPlayer(), event);
+    }
+
+    @EventHandler(priority=EventPriority.HIGHEST)
+    public void onItemBreak(final PlayerItemBreakEvent event) {
+
+        if(event.getBrokenItem() == null)
+            return;
+
+        performCommandItems(event.getBrokenItem(), event.getPlayer(), event);
+    }
+
+    @EventHandler(priority=EventPriority.HIGHEST)
+    public void onItemPickup(final PlayerPickupItemEvent event) {
+
+        if(event.getItem() == null)
+            return;
+
+        performCommandItems(event.getItem().getItemStack(), event.getPlayer(), event);
+    }
+
+    @SuppressWarnings("unchecked")
+    @EventHandler(priority=EventPriority.HIGHEST)
+    public void onPlayerDeath(PlayerDeathEvent event) {
+
+        Iterator<ItemStack> stackIt = event.getDrops().iterator();
+        while(stackIt.hasNext()) {
+            final ItemStack stack = stackIt.next();
+            performCommandItems(stack, event.getEntity(), event);
+            for(CommandItemDefinition def : definitions) {
+                if(ItemUtil.areItemsIdentical(stack, def.getItem())) {
+                    stackIt.remove();
+                    Map<String, List<ItemStack>> items = (Map<String, List<ItemStack>>) CraftBookPlugin.inst().getPersistentStorage().get("command-items.death-items");
+                    List<ItemStack> its = items.get(event.getEntity().getName());
+                    if(its == null) its = new ArrayList<ItemStack>();
+                    its.add(stack);
+                    items.put(event.getEntity().getName(), its);
+                    CraftBookPlugin.inst().getPersistentStorage().set("command-items.death-items", items);
+                }
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerItemClick(InventoryClickEvent event) {
+
+        if(event.getCurrentItem() == null || !(event.getWhoClicked() instanceof Player))
+            return;
+
+        performCommandItems(event.getCurrentItem(), (Player) event.getWhoClicked(), event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
+
+        if(event.getPlayer().getItemInHand() == null)
+            return;
+
+        performCommandItems(event.getPlayer().getItemInHand(), event.getPlayer(), event);
+    }
+
+    @SuppressWarnings("unchecked")
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+
+        Map<String, List<ItemStack>> items = (Map<String, List<ItemStack>>) CraftBookPlugin.inst().getPersistentStorage().get("command-items.death-items");
+        if(!items.containsKey(event.getPlayer().getName())) return;
+        List<ItemStack> its = items.get(event.getPlayer().getName());
+        for(ItemStack it : its)
+            event.getPlayer().getInventory().addItem(it);
+        items.remove(event.getPlayer().getName());
+        CraftBookPlugin.inst().getPersistentStorage().set("command-items.death-items", items);
+    }
+
     @SuppressWarnings("deprecation")
     public void performCommandItems(ItemStack item, final Player player, final Event event) {
+
+        LocalPlayer lplayer = CraftBookPlugin.inst().wrapPlayer(player);
 
         for(CommandItemDefinition def : definitions) {
             current: {
@@ -174,61 +324,100 @@ public class CommandItems implements Listener {
                 final CommandItemDefinition comdef = def;
 
                 if(comdef.clickType != ClickType.ANY) {
-                    if(comdef.clickType == ClickType.CLICK_RIGHT || comdef.clickType == ClickType.CLICK_LEFT || comdef.clickType == ClickType.CLICK_EITHER) {
 
-                        if(!(event instanceof PlayerInteractEvent))
+                    //Mouse
+
+                    if(comdef.clickType == ClickType.CLICK_RIGHT && (!(event instanceof PlayerInteractEvent) || !(((PlayerInteractEvent) event).getAction() == Action.RIGHT_CLICK_AIR || ((PlayerInteractEvent) event).getAction() == Action.RIGHT_CLICK_BLOCK)))
+                        break current;
+
+                    if(comdef.clickType == ClickType.CLICK_LEFT && (!(event instanceof PlayerInteractEvent) || !(((PlayerInteractEvent) event).getAction() == Action.LEFT_CLICK_AIR || ((PlayerInteractEvent) event).getAction() == Action.LEFT_CLICK_BLOCK)))
+                        break current;
+
+                    if(comdef.clickType == ClickType.CLICK_EITHER && (!(event instanceof PlayerInteractEvent) || !(((PlayerInteractEvent) event).getAction() == Action.LEFT_CLICK_AIR || ((PlayerInteractEvent) event).getAction() == Action.LEFT_CLICK_BLOCK || ((PlayerInteractEvent) event).getAction() == Action.RIGHT_CLICK_AIR || ((PlayerInteractEvent) event).getAction() == Action.RIGHT_CLICK_BLOCK)))
+                        break current;
+
+                    //Entity
+
+                    if(comdef.clickType == ClickType.ENTITY_RIGHT && !(event instanceof PlayerInteractEntityEvent))
+                        break current;
+
+                    if(comdef.clickType == ClickType.ENTITY_LEFT && (!(event instanceof EntityDamageByEntityEvent) || !(((EntityDamageByEntityEvent) event).getDamager() instanceof Player)))
+                        break current;
+
+                    if(comdef.clickType == ClickType.ENTITY_EITHER && !(event instanceof PlayerInteractEntityEvent) && (!(event instanceof EntityDamageByEntityEvent) || !(((EntityDamageByEntityEvent) event).getDamager() instanceof Player)))
+                        break current;
+
+                    if(comdef.clickType == ClickType.ENTITY_ARROW && (!(event instanceof EntityDamageByEntityEvent) || !(((EntityDamageByEntityEvent) event).getDamager() instanceof Projectile)))
+                        break current;
+
+                    //Block
+
+                    if(comdef.clickType == ClickType.BLOCK_BREAK && !(event instanceof BlockBreakEvent))
+                        break current;
+
+                    if(comdef.clickType == ClickType.BLOCK_PLACE && !(event instanceof BlockPlaceEvent))
+                        break current;
+
+                    if(comdef.clickType == ClickType.BLOCK_EITHER && !(event instanceof BlockPlaceEvent) && !(event instanceof BlockBreakEvent))
+                        break current;
+
+                    //Item
+
+                    if(comdef.clickType == ClickType.ITEM_CONSUME && !(event instanceof PlayerItemConsumeEvent))
+                        break current;
+
+                    if(comdef.clickType == ClickType.ITEM_DROP && !(event instanceof PlayerDropItemEvent))
+                        break current;
+
+                    if(comdef.clickType == ClickType.ITEM_BREAK && !(event instanceof PlayerItemBreakEvent))
+                        break current;
+
+                    if(comdef.clickType == ClickType.ITEM_PICKUP && !(event instanceof PlayerPickupItemEvent))
+                        break current;
+
+                    if((comdef.clickType == ClickType.ITEM_CLICK_EITHER || comdef.clickType == ClickType.ITEM_CLICK_LEFT || comdef.clickType == ClickType.ITEM_CLICK_RIGHT) && !(event instanceof InventoryClickEvent))
+                        break current;
+                    else if (event instanceof InventoryClickEvent) {
+                        if(comdef.clickType == ClickType.ITEM_CLICK_LEFT && !((InventoryClickEvent) event).getClick().isLeftClick())
                             break current;
-
-                        if(comdef.clickType == ClickType.CLICK_RIGHT && !(((PlayerInteractEvent) event).getAction() == Action.RIGHT_CLICK_AIR || ((PlayerInteractEvent) event).getAction() == Action.RIGHT_CLICK_BLOCK))
-                            break current;
-
-                        if(comdef.clickType == ClickType.CLICK_LEFT && !(((PlayerInteractEvent) event).getAction() == Action.LEFT_CLICK_AIR || ((PlayerInteractEvent) event).getAction() == Action.LEFT_CLICK_BLOCK))
-                            break current;
-                    } else if (comdef.clickType == ClickType.ENTITY_RIGHT || comdef.clickType == ClickType.ENTITY_LEFT || comdef.clickType == ClickType.ENTITY_ARROW || comdef.clickType == ClickType.ENTITY_EITHER) {
-
-                        if(!(event instanceof PlayerInteractEntityEvent) && !(event instanceof EntityDamageByEntityEvent))
-                            break current;
-
-                        if(comdef.clickType == ClickType.ENTITY_RIGHT && !(event instanceof PlayerInteractEntityEvent))
-                            break current;
-
-                        if(comdef.clickType == ClickType.ENTITY_LEFT && (!(event instanceof EntityDamageByEntityEvent) || !(((EntityDamageByEntityEvent) event).getDamager() instanceof Player)))
-                            break current;
-
-                        if(comdef.clickType == ClickType.ENTITY_ARROW && (!(event instanceof EntityDamageByEntityEvent) || !(((EntityDamageByEntityEvent) event).getDamager() instanceof Projectile)))
-                            break current;
-                    } else if (comdef.clickType == ClickType.BLOCK_BREAK || comdef.clickType == ClickType.BLOCK_PLACE || comdef.clickType == ClickType.BLOCK_EITHER) {
-
-                        if(!(event instanceof BlockPlaceEvent) && !(event instanceof BlockBreakEvent))
-                            break current;
-
-                        if(comdef.clickType == ClickType.BLOCK_BREAK && !(event instanceof BlockBreakEvent))
-                            break current;
-
-                        if(comdef.clickType == ClickType.BLOCK_PLACE && !(event instanceof BlockPlaceEvent))
+                        else if(comdef.clickType == ClickType.ITEM_CLICK_RIGHT && !((InventoryClickEvent) event).getClick().isRightClick())
                             break current;
                     }
+
+                    //Player
+
+                    if(comdef.clickType == ClickType.PLAYER_DEATH && !(event instanceof PlayerDeathEvent))
+                        break current;
+
+                    if(comdef.clickType == ClickType.PLAYER_CHAT && !(event instanceof AsyncPlayerChatEvent))
+                        break current;
                 }
 
-                if(!player.hasPermission("craftbook.mech.commanditems") || comdef.permNode != null && !comdef.permNode.isEmpty() && !player.hasPermission(comdef.permNode)) {
-                    player.sendMessage(ChatColor.RED + "You don't have permissions to use this mechanic!");
+                if(comdef.requireSneaking == TernaryState.TRUE && !lplayer.isSneaking())
+                    break current;
+                if(comdef.requireSneaking == TernaryState.FALSE && lplayer.isSneaking())
+                    break current;
+
+                if(!lplayer.hasPermission("craftbook.mech.commanditems") || comdef.permNode != null && !comdef.permNode.isEmpty() && !lplayer.hasPermission(comdef.permNode)) {
+                    if(CraftBookPlugin.inst().getConfiguration().showPermissionMessages)
+                        lplayer.printError("mech.use-permission");
                     break current;
                 }
 
-                if(cooldownPeriods.containsKey(new Tuple2<String, String>(player.getName(), comdef.name))) {
-                    player.sendMessage(ChatColor.RED + "You have to wait " + cooldownPeriods.get(new Tuple2<String, String>(player.getName(), comdef.name)) + " seconds to use this again!");
+                if(cooldownPeriods.containsKey(new Tuple2<String, String>(lplayer.getName(), comdef.name))) {
+                    lplayer.printError(lplayer.translate("mech.command-items.wait") + " " + cooldownPeriods.get(new Tuple2<String, String>(lplayer.getName(), comdef.name)) + " " + lplayer.translate("mech.command-items.wait-seconds"));
                     break current;
                 }
 
                 for(ItemStack stack : def.consumables) {
                     if(!player.getInventory().containsAtLeast(stack, stack.getAmount())) {
-                        player.sendMessage(ChatColor.RED + "You need " + stack.getAmount() + " of " + stack.getType().name() + " to use this command!");
+                        lplayer.printError(lplayer.translate("mech.command-items.need") + " " + stack.getAmount() + " " + stack.getType().name() + " " + lplayer.translate("mech.command-items.need-use"));
                         break current;
                     }
                 }
                 if(def.consumables.length > 0) {
                     if(!player.getInventory().removeItem(def.consumables).isEmpty()) {
-                        player.sendMessage(ChatColor.RED + "Inventory became out of sync during usage of command-items!");
+                        lplayer.printError("mech.command-items.out-of-sync");
                         break current;
                     } else
                         player.updateInventory();
@@ -238,13 +427,14 @@ public class CommandItems implements Listener {
                         player.getItemInHand().setAmount(player.getItemInHand().getAmount() - 1);
                     else
                         player.setItemInHand(null);
+                    player.updateInventory();
                 }
 
                 for(String command : comdef.commands)
                     doCommand(command, event, comdef, player);
 
-                if(comdef.cooldown > 0 && !player.hasPermission("craftbook.mech.commanditems.bypasscooldown"))
-                    cooldownPeriods.put(new Tuple2<String, String>(player.getName(), comdef.name), comdef.cooldown);
+                if(comdef.cooldown > 0 && !lplayer.hasPermission("craftbook.mech.commanditems.bypasscooldown"))
+                    cooldownPeriods.put(new Tuple2<String, String>(lplayer.getName(), comdef.name), comdef.cooldown);
 
                 if(comdef.delayedCommands.length > 0)
                     Bukkit.getScheduler().runTaskLater(CraftBookPlugin.inst(), new Runnable() {
@@ -276,9 +466,11 @@ public class CommandItems implements Listener {
         if(event instanceof PlayerInteractEntityEvent && ((PlayerInteractEntityEvent) event).getRightClicked() instanceof Player)
             command = command.replace("@d", ((Player) ((PlayerInteractEntityEvent) event).getRightClicked()).getName());
         if(event instanceof BlockEvent && ((BlockEvent) event).getBlock() != null)
-            command = command.replace("@b", ((BlockEvent) event).getBlock().getTypeId() + ((BlockEvent) event).getBlock().getData() == 0 ? "" : ":" + ((BlockEvent) event).getBlock().getData());
+            command = command.replace("@b", ((BlockEvent) event).getBlock().getType().name() + (((BlockEvent) event).getBlock().getData() == 0 ? "" : ":") + ((BlockEvent) event).getBlock().getData());
         if(event instanceof EntityEvent && ((EntityEvent) event).getEntityType() != null && command.contains("@e"))
             command = command.replace("@e", ((EntityEvent) event).getEntityType().getName());
+        if(event instanceof AsyncPlayerChatEvent && command.contains("@m"))
+            command = command.replace("@m", ((AsyncPlayerChatEvent) event).getMessage());
 
         command = ParsingUtil.parseLine(command, player);
         if(comdef.type == CommandType.CONSOLE)
@@ -314,12 +506,16 @@ public class CommandItems implements Listener {
         private ItemStack[] consumables;
         private boolean consumeSelf;
 
+        private TernaryState requireSneaking;
+
+        private boolean keepOnDeath;
+
         public ItemStack getItem() {
 
             return stack;
         }
 
-        private CommandItemDefinition(String name, ItemStack stack, CommandType type, ClickType clickType, String permNode, String[] commands, int delay, String[] delayedCommands, int cooldown, boolean cancelAction, ItemStack[] consumables, boolean consumeSelf) {
+        public CommandItemDefinition(String name, ItemStack stack, CommandType type, ClickType clickType, String permNode, String[] commands, int delay, String[] delayedCommands, int cooldown, boolean cancelAction, ItemStack[] consumables, boolean consumeSelf, TernaryState requireSneaking, boolean keepOnDeath) {
 
             this.name = name;
             this.stack = stack;
@@ -333,9 +529,11 @@ public class CommandItems implements Listener {
             this.cancelAction = cancelAction;
             this.consumables = consumables;
             this.consumeSelf = consumeSelf;
+            this.requireSneaking = requireSneaking;
+            this.keepOnDeath = keepOnDeath;
         }
 
-        public static CommandItemDefinition readDefinition(YAMLProcessor config, String path) {
+        public static CommandItemDefinition load(YAMLProcessor config, String path) {
 
             String name = RegexUtil.PERIOD_PATTERN.split(path)[1];
             ItemStack stack = ItemSyntax.getItem(config.getString(path + ".item"));
@@ -358,8 +556,33 @@ public class CommandItems implements Listener {
             } catch(Exception ignored){}
 
             boolean consumeSelf = config.getBoolean(path + ".consume-self", false);
+            TernaryState requireSneaking = TernaryState.getFromString(config.getString(path + ".require-sneaking-state", "either"));
 
-            return new CommandItemDefinition(name, stack, type, clickType, permNode, commands.toArray(new String[commands.size()]), delay, delayedCommands.toArray(new String[delayedCommands.size()]), cooldown, cancelAction, consumables.toArray(new ItemStack[consumables.size()]), consumeSelf);
+            boolean keepOnDeath = config.getBoolean(path + ".keep-on-death", false);
+
+            return new CommandItemDefinition(name, stack, type, clickType, permNode, commands.toArray(new String[commands.size()]), delay, delayedCommands.toArray(new String[delayedCommands.size()]), cooldown, cancelAction, consumables.toArray(new ItemStack[consumables.size()]), consumeSelf, requireSneaking, keepOnDeath);
+        }
+
+        public void save(YAMLProcessor config, String path) {
+
+            config.setProperty(path + ".item", ItemSyntax.getStringFromItem(getItem()));
+            config.setProperty(path + ".commands", commands);
+            config.setProperty(path + ".permission-node", permNode);
+            config.setProperty(path + ".run-as", type.name());
+            config.setProperty(path + ".click-type", clickType.name());
+            config.setProperty(path + ".delay", delay);
+            if(delay > 0)
+                config.setProperty(path + ".delayed-commands", delayedCommands);
+            config.setProperty(path + ".cooldown", cooldown);
+            config.setProperty(path + ".cancel-action", cancelAction);
+
+            List<String> consumables = new ArrayList<String>();
+            for(ItemStack s : this.consumables)
+                consumables.add(ItemSyntax.getStringFromItem(s));
+            config.setProperty(path + ".consumed-items", consumables);
+            config.setProperty(path + ".consume-self", consumeSelf);
+            config.setProperty(path + ".require-sneaking-state", requireSneaking.name());
+            config.setProperty(path + ".keep-on-death", keepOnDeath);
         }
 
         public enum CommandType {
@@ -369,7 +592,7 @@ public class CommandItems implements Listener {
 
         public enum ClickType {
 
-            CLICK_LEFT,CLICK_RIGHT,CLICK_EITHER,ENTITY_RIGHT,ENTITY_LEFT,ENTITY_ARROW,ENTITY_EITHER,BLOCK_BREAK,BLOCK_PLACE,BLOCK_EITHER,ANY;
+            CLICK_LEFT,CLICK_RIGHT,CLICK_EITHER,ENTITY_RIGHT,ENTITY_LEFT,ENTITY_ARROW,ENTITY_EITHER,BLOCK_BREAK,BLOCK_PLACE,BLOCK_EITHER,ANY,ITEM_CONSUME,ITEM_DROP,ITEM_BREAK,ITEM_PICKUP,ITEM_CLICK_LEFT,ITEM_CLICK_RIGHT,ITEM_CLICK_EITHER,PLAYER_DEATH,PLAYER_CHAT;
         }
     }
 }

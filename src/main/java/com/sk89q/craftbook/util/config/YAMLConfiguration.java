@@ -13,8 +13,6 @@ import com.sk89q.craftbook.LocalConfiguration;
 import com.sk89q.craftbook.util.ICUtil.LocationCheckType;
 import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.util.yaml.YAMLProcessor;
-import com.sk89q.worldedit.blocks.BlockID;
-import com.sk89q.worldedit.blocks.ItemID;
 
 /**
  * A implementation of YAML based off of {@link com.sk89q.worldedit.util.YAMLConfiguration} for CraftBook.
@@ -40,13 +38,17 @@ public class YAMLConfiguration extends LocalConfiguration {
         variablesEnabled = config.getBoolean("common.variables.enable", true);
 
         config.setComment("common.variables.default-to-global", "When a variable is accessed via command, if no namespace is provided... It will default to global. If this is false, it will use the players name.");
-        variablesDefaultGlobal = config.getBoolean("common.variables.default-to-global", true);
+        variablesDefaultGlobal = config.getBoolean("common.variables.default-to-global", false);
 
         config.setComment("common.variables.enable-in-commandblocks", "Allows variables to work inside CommandBlocks and on the Console.");
         variablesCommandBlockOverride = config.getBoolean("common.variables.enable-in-commandblocks", false);
 
         config.setComment("common.variables.enable-in-player-commands", "Allows variables to work in any command a player performs.");
         variablesPlayerCommandOverride = config.getBoolean("common.variables.enable-in-player-commands", false);
+
+        config.setComment("common.variables.enable-in-player-chat", "Allow variables to work in player chat.");
+        variablesPlayerChatOverride = config.getBoolean("common.variables.enable-in-player-chat", false);
+
 
         /* Circuits Configuration */
 
@@ -57,8 +59,8 @@ public class YAMLConfiguration extends LocalConfiguration {
         config.setComment("circuits.ics.cache", "Saves many CPU cycles with a VERY small cost to memory (Highly Recommended)");
         ICCached = config.getBoolean("circuits.ics.cache", true);
 
-        config.setComment("circuits.ics.max-radius", "The max radius IC's with a radius setting can use.");
-        ICMaxRange = config.getInt("circuits.ics.max-radius", 15);
+        config.setComment("circuits.ics.max-radius", "The max radius IC's with a radius setting can use. (WILL cause lag at higher values)");
+        ICMaxRange = config.getInt("circuits.ics.max-radius", 10);
 
         config.setComment("circuits.ics.allow-short-hand", "Allows the usage of IC Shorthand, which is an easier way to create ICs.");
         ICShortHandEnabled = config.getBoolean("circuits.ics.allow-short-hand", true);
@@ -78,6 +80,9 @@ public class YAMLConfiguration extends LocalConfiguration {
         config.setComment("circuits.ics.midi-use-percussion", "Plays the MIDI percussion channel when using a MIDI playing IC. Note: This may sound horrible on some songs.");
         ICMidiUsePercussion = config.getBoolean("circuits.ics.midi-use-percussion", false);
 
+        config.setComment("circuits.ics.break-on-error", "Break the IC sign when an error occurs from that specific IC.");
+        ICBreakOnError = config.getBoolean("circuits.ics.break-on-error", false);
+
 
         // Circuits Configuration Listener
         config.setComment("circuits.wiring.netherrack-enabled", "Enables the redstone netherrack mechanic, which lights netherrack when it is powered.");
@@ -90,7 +95,7 @@ public class YAMLConfiguration extends LocalConfiguration {
         glowstoneEnabled = config.getBoolean("circuits.wiring.glowstone-enabled", false);
 
         config.setComment("circuits.wiring.glowstone-off-block", "Sets the block that the redstone glowstone mechanic turns into when turned off.");
-        glowstoneOffBlock = config.getInt("circuits.wiring.glowstone-off-block", BlockID.GLASS);
+        glowstoneOffBlock = new ItemInfo(config.getString("circuits.wiring.glowstone-off-block", "GLASS"));
 
 
         // Pipes Configuration Listener
@@ -101,13 +106,17 @@ public class YAMLConfiguration extends LocalConfiguration {
         pipesDiagonal = config.getBoolean("circuits.pipes.allow-diagonal", false);
 
         config.setComment("circuits.pipes.insulator-block", "When pipes work diagonally, this block allows the pipe to be insulated to not work diagonally.");
-        pipeInsulator = config.getInt("circuits.pipes.insulator-block", BlockID.CLOTH);
+        pipeInsulator = new ItemInfo(config.getString("circuits.pipes.insulator-block", "WOOL"));
 
         config.setComment("circuits.pipes.stack-per-move", "This option stops the pipes taking the entire chest on power, and makes it just take a single stack.");
         pipeStackPerPull = config.getBoolean("circuits.pipes.stack-per-move", true);
 
         config.setComment("circuits.pipes.require-sign", "Requires pipes to have a [Pipe] sign connected to them. This is the only way to require permissions to make pipes.");
         pipeRequireSign = config.getBoolean("circuits.pipes.require-sign", false);
+
+        // Redstone Jukebox Configuration Listener
+        config.setComment("circuits.jukebox.enable", "Enables the redstone jukebox mechanic.");
+        jukeboxEnabled = config.getBoolean("circuits.jukebox.enable", true);
 
         /* Mechanism Configuration */
 
@@ -130,7 +139,7 @@ public class YAMLConfiguration extends LocalConfiguration {
         ammeterEnabled = config.getBoolean("mechanics.ammeter.enable", true);
 
         config.setComment("mechanics.ammeter.item", "Set the item that is the ammeter tool.");
-        ammeterItem = config.getInt("mechanics.ammeter.item", ItemID.COAL);
+        ammeterItem = new ItemInfo(config.getString("mechanics.ammeter.item", "COAL"));
 
 
         // Area Configuration Listener
@@ -152,6 +161,27 @@ public class YAMLConfiguration extends LocalConfiguration {
         config.setComment("mechanics.area.max-per-user", "Sets the max amount of ToggleAreas that can be within one namespace.");
         areaMaxAreaPerUser = config.getInt("mechanics.area.max-per-user", 30);
 
+
+        // Better Leads Configuration Listener
+        config.setComment("mechanics.better-leads.enable", "Enables BetterLeads Mechanics.");
+        leadsEnabled = config.getBoolean("mechanics.better-leads.enable", false);
+
+        config.setComment("mechanics.better-leads.stop-mob-target", "Stop hostile mobs targeting you if you are holding them on a leash.");
+        leadsStopTarget = config.getBoolean("mechanics.better-leads.stop-mob-target", false);
+
+        config.setComment("mechanics.better-leads.owner-unleash-only", "Only allow the owner of tameable entities to unleash them from a leash hitch.");
+        leadsOwnerBreakOnly = config.getBoolean("mechanics.better-leads.owner-unleash-only", false);
+
+        config.setComment("mechanics.better-leads.hitch-persists", "Stop leash hitches breaking when clicked no entities are attached. This allows for a public horse hitch or similar.");
+        leadsHitchPersists = config.getBoolean("mechanics.better-leads.hitch-persists", false);
+
+        config.setComment("mechanics.better-leads.mob-repel", "If you have a mob tethered to you, mobs of that type will not target you.");
+        leadsMobRepellant = config.getBoolean("mechanics.better-leads.mob-repel", false);
+
+        config.setComment("mechanics.better-leads.allowed-mobs", "The list of mobs that can be tethered with a lead.");
+        leadsAllowedMobs = config.getStringList("mechanics.better-leads.allowed-mobs", Arrays.asList("ZOMBIE","SPIDER"));
+
+
         // Better Physics Configuration Listener
         config.setComment("mechanics.better-physics.enable", "Enables BetterPhysics Mechanics. (This must be enabled for any sub-mechanic to work)");
         physicsEnabled = config.getBoolean("mechanics.better-physics.enable", false);
@@ -171,7 +201,7 @@ public class YAMLConfiguration extends LocalConfiguration {
         pistonsCrusherInstaKill = config.getBoolean("mechanics.better-pistons.crushers-kill-mobs", false);
 
         config.setComment("mechanics.better-pistons.crusher-blacklist", "A list of blocks that the Crusher piston can not break.");
-        pistonsCrusherBlacklist = config.getIntList("mechanics.better-pistons.crusher-blacklist", Arrays.asList(BlockID.OBSIDIAN, BlockID.BEDROCK));
+        pistonsCrusherBlacklist = ItemInfo.parseListFromString(config.getStringList("mechanics.better-pistons.crusher-blacklist", Arrays.asList("OBSIDIAN", "BEDROCK")));
 
         config.setComment("mechanics.better-pistons.super-sticky", "Enables BetterPistons SuperSticky Mechanic.");
         pistonsSuperSticky = config.getBoolean("mechanics.better-pistons.super-sticky", true);
@@ -180,13 +210,13 @@ public class YAMLConfiguration extends LocalConfiguration {
         pistonsSuperPush = config.getBoolean("mechanics.better-pistons.super-push", true);
 
         config.setComment("mechanics.better-pistons.movement-blacklist", "A list of blocks that the movement related BetterPistons can not interact with.");
-        pistonsMovementBlacklist = config.getIntList("mechanics.better-pistons.movement-blacklist", Arrays.asList(BlockID.OBSIDIAN, BlockID.BEDROCK));
+        pistonsMovementBlacklist = ItemInfo.parseListFromString(config.getStringList("mechanics.better-pistons.movement-blacklist", Arrays.asList("OBSIDIAN", "BEDROCK")));
 
         config.setComment("mechanics.better-pistons.bounce", "Enables BetterPistons Bounce Mechanic.");
         pistonsBounce = config.getBoolean("mechanics.better-pistons.bounce", true);
 
         config.setComment("mechanics.better-pistons.bounce-blacklist", "A list of blocks that the Bounce piston can not bounce.");
-        pistonsBounceBlacklist = config.getIntList("mechanics.better-pistons.bounce-blacklist", Arrays.asList(BlockID.OBSIDIAN, BlockID.BEDROCK));
+        pistonsBounceBlacklist = ItemInfo.parseListFromString(config.getStringList("mechanics.better-pistons.bounce-blacklist", Arrays.asList("OBSIDIAN", "BEDROCK")));
 
         config.setComment("mechanics.better-pistons.max-distance", "The maximum distance a BetterPiston can interact with blocks from.");
         pistonMaxDistance = config.getInt("mechanics.better-pistons.max-distance", 12);
@@ -201,9 +231,6 @@ public class YAMLConfiguration extends LocalConfiguration {
 
         config.setComment("mechanics.bookcase.read-when-holding-block", "Allow bookshelves to work when the player is holding a block.");
         bookcaseReadHoldingBlock = config.getBoolean("mechanics.bookcase.read-when-holding-block", false);
-
-        config.setComment("mechanics.bookcase.read-line", "The line that is displayed as you right click a bookshelf.");
-        bookcaseReadLine = config.getString("mechanics.bookcase.read-line", "You pick up a book...");
 
 
         // Bridge Configuration Listener
@@ -220,11 +247,11 @@ public class YAMLConfiguration extends LocalConfiguration {
         bridgeMaxWidth = config.getInt("mechanics.bridge.max-width", 5);
 
         config.setComment("mechanics.bridge.blocks", "Blocks bridges can use.");
-        bridgeBlocks = config.getIntList("mechanics.bridge.blocks", Arrays.asList(4, 5, 20, 43));
+        bridgeBlocks = ItemInfo.parseListFromString(config.getStringList("mechanics.bridge.blocks", Arrays.asList("COBBLESTONE", "WOOD", "GLASS", "DOUBLE_STEP", "WOOD_DOUBLE_STEP")));
 
 
         // Cauldron Configuration Listener
-        config.setComment("mechanics.cauldron.enable", "Enable the cauldron mechanic");
+        config.setComment("mechanics.cauldron.enable", "Enable the cauldron mechanic.");
         cauldronEnabled = config.getBoolean("mechanics.cauldron.enable", true);
 
         config.setComment("mechanics.cauldron.spoons", "Require spoons to cook cauldron recipes.");
@@ -233,19 +260,22 @@ public class YAMLConfiguration extends LocalConfiguration {
 
         // Chair Configuration Listener
         config.setComment("mechanics.chair.enable", "Enable chair mechanic.");
-        chairEnabled = config.getBoolean("mechanics.chair.enable", true);
+        chairEnabled = config.getBoolean("mechanics.chair.enable", false);
 
-        config.setComment("mechanics.chair.require-sneak", "Require sneaking to activate chair mechanic.");
-        chairSneak = config.getBoolean("mechanics.chair.require-sneak", true);
+        config.setComment("mechanics.chair.allow-holding-blocks", "Allow players to sit in chairs when holding blocks.");
+        chairAllowHeldBlock = config.getBoolean("mechanics.chair.allow-holding-blocks", false);
 
         config.setComment("mechanics.chair.regen-health", "Regenerate health when sitting down.");
         chairHealth = config.getBoolean("mechanics.chair.regen-health", true);
 
         config.setComment("mechanics.chair.blocks", "A list of blocks that can be sat on.");
-        chairBlocks = config.getIntList("mechanics.chair.blocks", Arrays.asList(53, 67, 108, 109, 114, 128, 134, 135, 136, 156));
+        chairBlocks = ItemInfo.parseListFromString(config.getStringList("mechanics.chair.blocks", Arrays.asList("WOOD_STAIRS", "COBBLESTONE_STAIRS", "BRICK_STAIRS", "SMOOTH_STAIRS", "NETHER_BRICK_STAIRS", "SANDSTONE_STAIRS", "SPRUCE_WOOD_STAIRS", "BIRCH_WOOD_STAIRS", "JUNGLE_WOOD_STAIRS", "QUARTZ_STAIRS")));
 
         config.setComment("mechanics.chair.face-correct-direction", "When the player sits, automatically face them the direction of the chair. (If possible)");
         chairFacing = config.getBoolean("mechanics.chair.face-correct-direction", true);
+
+        config.setComment("mechanics.chair.require-sign", "Require a sign to be attached to the chair in order to work!");
+        chairRequireSign = config.getBoolean("mechanics.chair.require-sign", false);
 
 
         // Chunk Anchor Configuration Listener
@@ -261,12 +291,15 @@ public class YAMLConfiguration extends LocalConfiguration {
 
         // Command Items Configuration Listener
         config.setComment("mechanics.command-items.enable", "Enables the CommandItems mechanic.");
-        commandItemsEnabled = config.getBoolean("mechanics.command-items.enable", true);
+        commandItemsEnabled = config.getBoolean("mechanics.command-items.enable", false);
 
 
         // Command Sign Configuration Listener
         config.setComment("mechanics.command-sign.enable", "Enable command signs.");
         commandSignEnabled = config.getBoolean("mechanics.command-sign.enable", true);
+
+        config.setComment("mechanics.command-sign.allow-redstone", "Enable CommandSigns via redstone.");
+        commandSignAllowRedstone = config.getBoolean("mechanics.command-sign.allow-redstone", true);
 
 
         // Cooking Pot Configuration Listener
@@ -291,7 +324,7 @@ public class YAMLConfiguration extends LocalConfiguration {
 
         // Custom Crafting Configuration Listener
         config.setComment("mechanics.custom-crafting.enable", "Enable custom crafting.");
-        customCraftingEnabled = config.getBoolean("mechanics.custom-crafting.enable", true);
+        customCraftingEnabled = config.getBoolean("mechanics.custom-crafting.enable", false);
 
 
         // Custom Dispensing Configuration Listener
@@ -316,7 +349,7 @@ public class YAMLConfiguration extends LocalConfiguration {
 
         // Custom Drops Configuration Listener
         config.setComment("mechanics.custom-drops.enable", "Enable Custom Drops.");
-        customDropEnabled = config.getBoolean("mechanics.custom-drops.enable", true);
+        customDropEnabled = config.getBoolean("mechanics.custom-drops.enable", false);
 
         config.setComment("mechanics.custom-drops.require-permissions", "Require a permission node to get custom drops.");
         customDropPermissions = config.getBoolean("mechanics.custom-drops.require-permissions", false);
@@ -336,7 +369,7 @@ public class YAMLConfiguration extends LocalConfiguration {
         doorMaxWidth = config.getInt("mechanics.door.max-width", 5);
 
         config.setComment("mechanics.door.blocks", "A list of blocks that a door can be made out of.");
-        doorBlocks = config.getIntList("mechanics.door.blocks", Arrays.asList(4, 5, 20, 43));
+        doorBlocks = ItemInfo.parseListFromString(config.getStringList("mechanics.door.blocks", Arrays.asList("COBBLESTONE", "WOOD", "GLASS", "DOUBLE_STEP", "WOOD_DOUBLE_STEP")));
 
 
         // Elevator Configuration Listener
@@ -361,7 +394,7 @@ public class YAMLConfiguration extends LocalConfiguration {
         footprintsEnabled = config.getBoolean("mechanics.footprints.enable", false);
 
         config.setComment("mechanics.footprints.blocks", "The list of blocks that footprints appear on.");
-        footprintsBlocks = config.getIntList("mechanics.footprints.blocks", Arrays.asList(3, 12, 78, 80));
+        footprintsBlocks = ItemInfo.parseListFromString(config.getStringList("mechanics.footprints.blocks", Arrays.asList("DIRT", "SAND", "SNOW", "SNOW_BLOCK", "ICE")));
 
 
         // Gate Configuration Listener
@@ -378,13 +411,16 @@ public class YAMLConfiguration extends LocalConfiguration {
         gateColumnLimit = config.getInt("mechanics.gate.max-columns", 14);
 
         config.setComment("mechanics.gate.blocks", "The list of blocks that a gate can use.");
-        gateBlocks = config.getIntList("mechanics.gate.blocks", Arrays.asList(85, 101, 102, 113));
+        gateBlocks = ItemInfo.parseListFromString(config.getStringList("mechanics.gate.blocks", Arrays.asList("FENCE", "IRON_FENCE", "THIN_GLASS", "NETHER_FENCE")));
 
         config.setComment("mechanics.gate.enforce-type", "Make sure gates are only able to toggle a specific material type. This prevents transmutation.");
         gateEnforceType = config.getBoolean("mechanics.gate.enforce-type", true);
 
         config.setComment("mechanics.gate.max-column-height", "The max height of a column.");
         gateColumnHeight = config.getInt("mechanics.gate.max-column-height", 12);
+
+        config.setComment("mechanics.gate.gate-search-radius", "The radius around the sign the gate checks for fences in. Note: This is doubled upwards.");
+        gateSearchRadius = config.getInt("mechanics.gate.gate-search-radius", 3);
 
 
         // Head Drops Configuration Listener
@@ -396,46 +432,68 @@ public class YAMLConfiguration extends LocalConfiguration {
         headDropsDropOverrideNatural = config.getBoolean("mechanics.head-drops.override-natural-head-drops", false);
         headDropsDropRate = config.getDouble("mechanics.head-drops.drop-rate", 0.05);
         headDropsLootingRateModifier = config.getDouble("mechanics.head-drops.looting-rate-modifier", 0.05);
+        headDropsShowNameClick = config.getBoolean("mechanics.head-drops.show-name-right-click", true);
         headDropsCustomDropRate = new HashMap<String, Double>();
         if(config.getKeys("mechanics.head-drops.drop-rates") != null) {
             for(String key : config.getKeys("mechanics.head-drops.drop-rates"))
-                headDropsCustomDropRate.put(key, config.getDouble("mechanics.head-drops.drop-rates." + key));
+                headDropsCustomDropRate.put(key.toUpperCase(), config.getDouble("mechanics.head-drops.drop-rates." + key));
         } else
             config.addNode("mechanics.head-drops.drop-rates");
         headDropsCustomSkins = new HashMap<String, String>();
         if(config.getKeys("mechanics.head-drops.custom-mob-skins") != null) {
             for(String key : config.getKeys("mechanics.head-drops.custom-mob-skins"))
-                headDropsCustomSkins.put(key, config.getString("mechanics.head-drops.custom-mob-skins." + key));
+                headDropsCustomSkins.put(key.toUpperCase(), config.getString("mechanics.head-drops.custom-mob-skins." + key));
         } else
             config.addNode("mechanics.head-drops.custom-mob-skins");
 
 
         // Hidden Switch Configuration Listener
+        config.setComment("mechanics.hidden-switch.enable", "Enables the Hidden Switch mechanic.");
         hiddenSwitchEnabled = config.getBoolean("mechanics.hidden-switch.enable", true);
+
+        config.setComment("mechanics.hidden-switch.any-side", "Allows the Hidden Switch to be activated from any side of the block.");
         hiddenSwitchAnyside = config.getBoolean("mechanics.hidden-switch.any-side", true);
 
 
         // Legacy Cauldron Configuration Listener
+        config.setComment("mechanics.legacy-cauldron.enable", "Enables the Legacy Cauldron mechanic.");
         legacyCauldronEnabled = config.getBoolean("mechanics.legacy-cauldron.enable", true);
-        legacyCauldronBlock = config.getInt("mechanics.legacy-cauldron.block", BlockID.STONE);
+
+        config.setComment("mechanics.legacy-cauldron.block", "The block to use as the casing for the legacy cauldron.");
+        legacyCauldronBlock = new ItemInfo(config.getString("mechanics.legacy-cauldron.block", "STONE"));
 
 
         // Lightstone Configuration Listener
+        config.setComment("mechanics.lightstone.enable", "Enables the LightStone mechanic.");
         lightstoneEnabled = config.getBoolean("mechanics.lightstone.enable", true);
-        lightstoneItem = config.getInt("mechanics.lightstone.item", ItemID.LIGHTSTONE_DUST);
+
+        config.setComment("mechanics.lightstone.item", "The item that the lightstone mechanic uses.");
+        lightstoneItem = new ItemInfo(config.getString("mechanics.lightstone.item", "GLOWSTONE_DUST"));
 
 
         // Light Switch Configuration Listener
+        config.setComment("mechanics.light-switch.enable", "Enables the Light Switch mechanic.");
         lightSwitchEnabled = config.getBoolean("mechanics.light-switch.enable", true);
+
+        config.setComment("mechanics.light-switch.max-range", "The maximum range that the mechanic searches for lights in.");
         lightSwitchMaxRange = config.getInt("mechanics.light-switch.max-range", 10);
+
+        config.setComment("mechanics.light-switch.max-lights", "The maximum amount of lights that a Light Switch can toggle per usage.");
         lightSwitchMaxLights = config.getInt("mechanics.light-switch.max-lights", 20);
 
 
         // Map Changer Configuration Listener
+        config.setComment("mechanics.map-changer.enable", "Enables the Map Changer mechanic.");
         mapChangerEnabled = config.getBoolean("mechanics.map-changer.enable", true);
 
 
+        // Marquee Configuration Listener
+        config.setComment("mechanics.marquee.enable", "Enables the Marquee mechanic.");
+        marqueeEnabled = config.getBoolean("mechanics.marquee.enable", true);
+
+
         // Painting Switcher Configuration Listener
+        config.setComment("mechanics.paintings.enable", "Enables the Painting Switcher mechanic.");
         paintingsEnabled = config.getBoolean("mechanics.paintings.enable", true);
 
 
@@ -444,39 +502,54 @@ public class YAMLConfiguration extends LocalConfiguration {
 
 
         // SignCopy Configuration Listener
+        config.setComment("mechanics.sign-copy.enable", "Enables the Sign Copy mechanic.");
         signCopyEnabled = config.getBoolean("mechanics.sign-copy.enable", true);
-        signCopyItem = config.getInt("mechanics.sign-copy.item", ItemID.INK_SACK);
+
+        config.setComment("mechanics.sign-copy.item", "The item the Sign Copy mechanic uses.");
+        signCopyItem = new ItemInfo(config.getString("mechanics.sign-copy.item", "INK_SACK:0"));
 
 
         // Snow Configuration Listener
         snowPiling = config.getBoolean("mechanics.snow.piling", false);
         snowTrample = config.getBoolean("mechanics.snow.trample", false);
+        snowPartialTrample = config.getBoolean("mechanics.snow.partial-trample-only", false);
         snowPlace = config.getBoolean("mechanics.snow.place", false);
         snowSlowdown = config.getBoolean("mechanics.snow.slowdown", false);
         snowRealistic = config.getBoolean("mechanics.snow.realistic", false);
         snowHighPiles = config.getBoolean("mechanics.snow.high-piling", false);
         snowJumpTrample = config.getBoolean("mechanics.snow.jump-trample", false);
-        snowRealisticReplacables = config.getIntList("mechanics.snow.replacable-blocks", Arrays.asList(BlockID.LONG_GRASS, BlockID.DEAD_BUSH, BlockID.FIRE, BlockID.RED_FLOWER, BlockID.YELLOW_FLOWER, BlockID.BROWN_MUSHROOM, BlockID.RED_MUSHROOM, BlockID.TRIPWIRE));
+        snowRealisticReplacables = ItemInfo.parseListFromString(config.getStringList("mechanics.snow.replacable-blocks", Arrays.asList("DEAD_BUSH", "LONG_GRASS", "YELLOW_FLOWER", "RED_ROSE", "BROWN_MUSHROOM", "RED_MUSHROOM", "FIRE")));
+        snowFallAnimationSpeed = config.getInt("mechanics.snow.falldown-animation-speed", 5);
 
 
         // Teleporter Configuration Listener
+        config.setComment("mechanics.teleporter.enable", "Enables the Teleporter mechanic.");
         teleporterEnabled = config.getBoolean("mechanics.teleporter.enable", true);
+
+        config.setComment("mechanics.teleporter.require-sign", "Require a sign to be at the destination of the teleportation.");
         teleporterRequireSign = config.getBoolean("mechanics.teleporter.require-sign", false);
+
+        config.setComment("mechanics.teleporter.max-range", "The maximum distance between the start and end of a teleporter. Set to 0 for infinite.");
         teleporterMaxRange = config.getInt("mechanics.teleporter.max-range", 0);
 
 
         // TreeLopper Configuration Listener
         treeLopperEnabled = config.getBoolean("mechanics.tree-lopper.enable", false);
-        treeLopperBlocks = config.getIntList("mechanics.tree-lopper.block-list", Arrays.asList(BlockID.LOG));
-        treeLopperItems = config.getIntList("mechanics.tree-lopper.tool-list", Arrays.asList(ItemID.WOOD_AXE, ItemID.STONE_AXE, ItemID.IRON_AXE, ItemID.GOLD_AXE, ItemID.DIAMOND_AXE));
+        treeLopperBlocks = ItemInfo.parseListFromString(config.getStringList("mechanics.tree-lopper.block-list", Arrays.asList("LOG")));
+        treeLopperItems = ItemInfo.parseListFromString(config.getStringList("mechanics.tree-lopper.tool-list", Arrays.asList("IRON_AXE", "WOOD_AXE", "STONE_AXE", "DIAMOND_AXE", "GOLD_AXE")));
         treeLopperMaxSize = config.getInt("mechanics.tree-lopper.max-size", 30);
         treeLopperAllowDiagonals = config.getBoolean("mechanics.tree-lopper.allow-diagonals", false);
         treeLopperEnforceData = config.getBoolean("mechanics.tree-lopper.enforce-data", false);
+        treeLopperPlaceSapling = config.getBoolean("mechanics.tree-lopper.place-saplings", false);
+        treeLopperBreakLeaves = config.getBoolean("mechanics.tree-lopper.break-leaves", false);
 
 
         // XPStorer Configuration Listener
+        config.setComment("mechanics.xp-storer.enable", "Enable the XP Storer mechanic.");
         xpStorerEnabled = config.getBoolean("mechanics.xp-storer.enable", true);
-        xpStorerBlock = config.getInt("mechanics.xp-storer.block", BlockID.MOB_SPAWNER);
+
+        config.setComment("mechanics.xp-storer.block", "The block that is an XP Spawner.");
+        xpStorerBlock = new ItemInfo(config.getString("mechanics.xp-storer.block", "MOB_SPAWNER"));
 
 
         /* Vehicle Configuration */
@@ -489,62 +562,63 @@ public class YAMLConfiguration extends LocalConfiguration {
 
         // Vehicles Minecart Station Configuration Listener
         minecartStationEnabled = config.getBoolean("vehicles.minecart.mechanisms.station.enable", true);
-        minecartStationBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.station.block", "49:0"));
+        minecartStationBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.station.block", "OBSIDIAN:0"));
 
 
         // Vehicles Minecart Sorter Configuration Listener
         minecartSorterEnabled = config.getBoolean("vehicles.minecart.mechanisms.sorter.enable", true);
-        minecartSorterBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.sorter.block", "87:0"));
+        minecartSorterBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.sorter.block", "NETHERRACK:0"));
 
 
         // Vehicles Minecart Ejector Configuration Listener
         minecartEjectorEnabled = config.getBoolean("vehicles.minecart.mechanisms.ejector.enable", true);
-        minecartEjectorBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.ejector.block", "42:0"));
+        minecartEjectorBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.ejector.block", "IRON_BLOCK:0"));
 
 
         // Vehicles Minecart Deposit Configuration Listener
         minecartDepositEnabled = config.getBoolean("vehicles.minecart.mechanisms.deposit.enable", true);
-        minecartDepositBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.deposit.block", "15:0"));
+        minecartDepositBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.deposit.block", "IRON_ORE:0"));
 
 
         // Vehicles Minecart Teleport Configuration Listener
         minecartTeleportEnabled = config.getBoolean("vehicles.minecart.mechanisms.teleport.enable", true);
-        minecartTeleportBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.teleport.block", "133:0"));
+        minecartTeleportBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.teleport.block", "EMERALD_BLOCK:0"));
 
 
         // Vehicles Minecart Lift Configuration Listener
         minecartElevatorEnabled = config.getBoolean("vehicles.minecart.mechanisms.elevator.enable", true);
-        minecartElevatorBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.elevator.block", "112:0"));
+        minecartElevatorBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.elevator.block", "NETHER_BRICK:0"));
 
 
         // Vehicles Minecart Messager Configuration Listener
         minecartMessagerEnabled = config.getBoolean("vehicles.minecart.mechanisms.messager.enable", true);
-        minecartMessagerBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.messager.block", "121:0"));
+        minecartMessagerBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.messager.block", "ENDER_STONE:0"));
 
 
         // Vehicles Minecart Reverse Configuration Listener
         minecartReverseEnabled = config.getBoolean("vehicles.minecart.mechanisms.reverse.enable", true);
-        minecartReverseBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.reverse.block", "35:0"));
+        minecartReverseBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.reverse.block", "WOOL:0"));
 
 
         // Vehicles Minecart MaxSpeed Configuration Listener
         minecartMaxSpeedEnabled = config.getBoolean("vehicles.minecart.mechanisms.max-speed.enable", true);
-        minecartMaxSpeedBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.max-speed.block", "173:0"));
+        minecartMaxSpeedBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.max-speed.block", "COAL_BLOCK:0"));
 
 
         // Vehicles Minecart SpeedMod Configuration Listener
         minecartSpeedModEnabled = config.getBoolean("vehicles.minecart.mechanisms.speed-modifier.enable", true);
-        minecartSpeedModMaxBoostBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.speed-modifier.max-boost-block", "41:0"));
-        minecartSpeedMod25xBoostBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.speed-modifier.25x-boost-block", "14:0"));
-        minecartSpeedMod50xSlowBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.speed-modifier.50x-slow-block", "88:0"));
-        minecartSpeedMod20xSlowBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.speed-modifier.20x-slow-block", "13:0"));
+        minecartSpeedModMaxBoostBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.speed-modifier.max-boost-block", "GOLD_BLOCK:0"));
+        minecartSpeedMod25xBoostBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.speed-modifier.25x-boost-block", "GOLD_ORE:0"));
+        minecartSpeedMod50xSlowBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.speed-modifier.50x-slow-block", "SOUL_SAND:0"));
+        minecartSpeedMod20xSlowBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.speed-modifier.20x-slow-block", "GRAVEL:0"));
 
 
         // Vehicles Minecart Dispenser Configuration Listener
         minecartDispenserEnabled = config.getBoolean("vehicles.minecart.mechanisms.dispenser.enable", true);
-        minecartDispenserBlock = ItemInfo.parseFromString(config.getString("vehicles.minecart.mechanisms.dispenser.block", "129:0"));
+        minecartDispenserBlock = new ItemInfo(config.getString("vehicles.minecart.mechanisms.dispenser.block", "EMERALD_ORE:0"));
         minecartDispenserLegacy = config.getBoolean("vehicles.minecart.mechanisms.dispenser.spawn-infront", false);
         minecartDispenserAntiSpam = config.getBoolean("vehicles.minecart.mechanisms.dispenser.check-for-carts", true);
+        minecartDispenserPropel = config.getBoolean("vehicles.minecart.mechanisms.dispenser.propel-cart", false);
 
 
         // Vehicles Minecart Fall Speed Listener
@@ -557,6 +631,7 @@ public class YAMLConfiguration extends LocalConfiguration {
         minecartMoreRailsEnabled = config.getBoolean("vehicles.minecart.more-rails.enable", false);
         minecartMoreRailsPressurePlate = config.getBoolean("vehicles.minecart.more-rails.pressure-plate-intersection", false);
         minecartMoreRailsLadder = config.getBoolean("vehicles.minecart.more-rails.ladder-vertical-rail", false);
+        minecartMoreRailsLadderVelocity = config.getDouble("vehicles.minecart.more-rails.ladder-vertical-rail-velocity", 0.5D);
 
 
         // Vehicles Minecart Remove Entities Listener
@@ -575,6 +650,7 @@ public class YAMLConfiguration extends LocalConfiguration {
 
         // Vehicles Minecart Remove On Exit Listener
         minecartRemoveOnExitEnabled = config.getBoolean("vehicles.minecart.remove-on-exit.enable", false);
+        minecartRemoveOnExitGiveItem = config.getBoolean("vehicles.minecart.remove-on-exit.give-item", false);
 
 
         // Vehicles Minecart Collision Entry Listener
@@ -601,13 +677,14 @@ public class YAMLConfiguration extends LocalConfiguration {
 
 
         // Vehicles Minecart Configuration Listener
-        minecartEmptySlowdownEnable = config.getBoolean("vehicles.minecart.empty-slowdown.enable", true);
+        minecartEmptySlowdownStopperEnable = config.getBoolean("vehicles.minecart.empty-slowdown-stopper.enable", false);
 
 
         // Vehicles Minecart No Collide Listener
         minecartNoCollideEnable = config.getBoolean("vehicles.minecart.no-collide.enable", false);
         minecartNoCollideEmpty = config.getBoolean("vehicles.minecart.no-collide.empty-carts", true);
         minecartNoCollideFull = config.getBoolean("vehicles.minecart.no-collide.full-carts", false);
+
 
         // Vehicles - Boat Options
         boatNoCrash = config.getBoolean("vehicles.boat.disable-crashing", false);
@@ -617,6 +694,26 @@ public class YAMLConfiguration extends LocalConfiguration {
         // Vehicles - Boat Remove Entities Listener
         boatRemoveEntitiesEnabled = config.getBoolean("vehicles.boat.remove-entities.enable", false);
         boatRemoveEntitiesOtherBoats = config.getBoolean("vehicles.boat.remove-entities.remove-other-boats", false);
+
+
+        // Vehicles Boat Speed Modifier Listener
+        boatSpeedModifierEnable = config.getBoolean("vehicles.boat.speed-modifiers.enable", false);
+        boatSpeedModifierMaxSpeed = config.getDouble("vehicles.boat.speed-modifiers.max-speed", 1);
+        boatSpeedModifierUnnoccupiedDeceleration = config.getDouble("vehicles.boat.speed-modifiers.unnoccupied-deceleration", 1);
+        boatSpeedModifierOccupiedDeceleration = config.getDouble("vehicles.boat.speed-modifiers.occupied-deceleration", 1);
+
+
+        // Vehicles Boat Land Boats Listener
+        boatLandBoatsEnable = config.getBoolean("vehicles.boat.land-boats.enable", false);
+
+
+        // Vehicles Boat Remove On Exit Listener
+        boatRemoveOnExitEnabled = config.getBoolean("vehicles.boat.remove-on-exit.enable", false);
+        boatRemoveOnExitGiveItem = config.getBoolean("vehicles.boat.remove-on-exit.give-item", false);
+
+
+        // Vehicles Boat Water Place Only Listener
+        boatWaterPlaceOnly = config.getBoolean("vehicles.boat.water-place-only.enable", false);
 
 
         config.save(); //Save all the added values.

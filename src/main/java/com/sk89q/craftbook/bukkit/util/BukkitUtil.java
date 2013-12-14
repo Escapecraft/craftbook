@@ -18,16 +18,14 @@ import org.bukkit.entity.Vehicle;
 
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
-import com.sk89q.craftbook.bukkit.BukkitChangedSign;
 import com.sk89q.craftbook.bukkit.BukkitVehicle;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
-import com.sk89q.worldedit.BlockVector;
+import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.LocalWorld;
 import com.sk89q.worldedit.Location;
 import com.sk89q.worldedit.Vector;
 import com.sk89q.worldedit.WorldVector;
-import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
 import com.sk89q.worldedit.bukkit.entity.BukkitEntity;
 import com.sk89q.worldedit.bukkit.entity.BukkitExpOrb;
@@ -64,30 +62,25 @@ public class BukkitUtil {
 
     public static ChangedSign toChangedSign(Block sign) {
 
-        if (sign.getTypeId() != BlockID.WALL_SIGN && sign.getTypeId() != BlockID.SIGN_POST) return null;
-        try {
-            sign.getState();
-        } catch (NullPointerException ex) {
-            return null;
-        }
+        if (!SignUtil.isSign(sign)) return null;
         return toChangedSign((Sign) sign.getState(), ((Sign) sign.getState()).getLines());
     }
 
     public static ChangedSign toChangedSign(Sign sign, String[] lines) {
 
-        return new BukkitChangedSign(sign, lines);
+        return new ChangedSign(sign, lines);
     }
 
     public static ChangedSign toChangedSign(Sign sign, String[] lines, LocalPlayer player) {
 
-        return new BukkitChangedSign(sign, lines);
+        return new ChangedSign(sign, lines, player);
     }
 
     public static Sign toSign(ChangedSign sign) {
 
         try {
             if (sign.hasChanged()) sign.update(false);
-            return ((BukkitChangedSign) sign).getSign();
+            return sign.getSign();
         } catch (NullPointerException ex) {
             return null;
         }
@@ -105,14 +98,14 @@ public class BukkitUtil {
         return lw;
     }
 
-    public static BlockVector toVector(Block block) {
+    public static Vector toVector(Block block) {
 
-        return new BlockVector(block.getX(), block.getY(), block.getZ());
+        return new Vector(block.getX(), block.getY(), block.getZ());
     }
 
-    public static BlockVector toVector(BlockFace face) {
+    public static Vector toVector(BlockFace face) {
 
-        return new BlockVector(face.getModX(), face.getModY(), face.getModZ());
+        return new Vector(face.getModX(), face.getModY(), face.getModZ());
     }
 
     public static BlockWorldVector toWorldVector(Block block) {

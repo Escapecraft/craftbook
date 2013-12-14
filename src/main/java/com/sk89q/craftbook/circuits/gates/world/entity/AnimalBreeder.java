@@ -1,7 +1,9 @@
 package com.sk89q.craftbook.circuits.gates.world.entity;
 
+import java.util.Arrays;
 import java.util.HashMap;
 
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -17,17 +19,14 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.ChangedSign;
+import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
 import com.sk89q.craftbook.circuits.ic.IC;
 import com.sk89q.craftbook.circuits.ic.ICFactory;
-import com.sk89q.craftbook.util.ICUtil;
 import com.sk89q.craftbook.util.InventoryUtil;
-import com.sk89q.craftbook.util.LocationUtil;
-import com.sk89q.craftbook.util.RegexUtil;
-import com.sk89q.worldedit.Vector;
-import com.sk89q.worldedit.blocks.ItemID;
+import com.sk89q.craftbook.util.SearchArea;
 
 public class AnimalBreeder extends AbstractSelfTriggeredIC {
 
@@ -35,8 +34,7 @@ public class AnimalBreeder extends AbstractSelfTriggeredIC {
         super(server, sign, factory);
     }
 
-    private Block center;
-    private Vector radius;
+    private SearchArea area;
     private Block chest;
 
     @Override
@@ -45,17 +43,7 @@ public class AnimalBreeder extends AbstractSelfTriggeredIC {
         // if the line contains a = the offset is given
         // the given string should look something like that:
         // radius=x:y:z or radius, e.g. 1=-2:5:11
-        radius = ICUtil.parseRadius(getSign());
-        String radiusString = radius.getBlockX() + "," + radius.getBlockY() + "," + radius.getBlockZ();
-        if(radius.getBlockX() == radius.getBlockY() && radius.getBlockY() == radius.getBlockZ())
-            radiusString = String.valueOf(radius.getBlockX());
-        if (getSign().getLine(2).contains("=")) {
-            getSign().setLine(2, radiusString + "=" + RegexUtil.EQUALS_PATTERN.split(getSign().getLine(2))[1]);
-            center = ICUtil.parseBlockLocation(getSign());
-        } else {
-            getSign().setLine(2, radiusString);
-            center = getBackBlock();
-        }
+        area = SearchArea.createArea(BukkitUtil.toSign(getSign()).getBlock(), getLine(2));
 
         chest = getBackBlock().getRelative(BlockFace.UP);
     }
@@ -113,17 +101,14 @@ public class AnimalBreeder extends AbstractSelfTriggeredIC {
         if(inv == null)
             return false;
 
-        for (Entity entity : LocationUtil.getNearbyEntities(center.getLocation(), radius)) {
+        for (Entity entity : area.getEntitiesInArea(Arrays.asList(com.sk89q.craftbook.util.EntityType.MOB_PEACEFUL))) {
             if (entity.isValid() && entity instanceof Ageable) {
                 if(!((Ageable) entity).canBreed() || !canBreed(entity))
                     continue;
-                // Check Radius
-                if (LocationUtil.isWithinRadius(center.getLocation(), entity.getLocation(), radius)) {
-                    if(breedAnimal(inv, entity))
-                        return true;
-                    else
-                        lastEntity.put(entity.getType(), entity);
-                }
+                if(breedAnimal(inv, entity))
+                    return true;
+                else
+                    lastEntity.put(entity.getType(), entity);
             }
         }
 
@@ -141,9 +126,9 @@ public class AnimalBreeder extends AbstractSelfTriggeredIC {
 
             if (entity instanceof Cow || entity instanceof Sheep) {
 
-                if(InventoryUtil.doesInventoryContain(inv.getInventory(), false, new ItemStack(ItemID.WHEAT, 2))) {
+                if(InventoryUtil.doesInventoryContain(inv.getInventory(), false, new ItemStack(Material.WHEAT, 2))) {
 
-                    if(InventoryUtil.removeItemsFromInventory(inv, new ItemStack(ItemID.WHEAT, 2))) {
+                    if(InventoryUtil.removeItemsFromInventory(inv, new ItemStack(Material.WHEAT, 2))) {
                         Ageable animal = (Ageable) entity.getWorld().spawnEntity(entity.getLocation(), entity.getType());
                         animal.setBaby();
                         ((Ageable) entity).setBreed(false);
@@ -152,9 +137,9 @@ public class AnimalBreeder extends AbstractSelfTriggeredIC {
                 }
             } else if (entity instanceof Pig) {
 
-                if(InventoryUtil.doesInventoryContain(inv.getInventory(), false, new ItemStack(ItemID.CARROT, 2))) {
+                if(InventoryUtil.doesInventoryContain(inv.getInventory(), false, new ItemStack(Material.CARROT, 2))) {
 
-                    if(InventoryUtil.removeItemsFromInventory(inv, new ItemStack(ItemID.CARROT, 2))) {
+                    if(InventoryUtil.removeItemsFromInventory(inv, new ItemStack(Material.CARROT, 2))) {
                         Ageable animal = (Ageable) entity.getWorld().spawnEntity(entity.getLocation(), entity.getType());
                         animal.setBaby();
                         ((Ageable) entity).setBreed(false);
@@ -162,9 +147,9 @@ public class AnimalBreeder extends AbstractSelfTriggeredIC {
                     }
                 }
             } else if (entity instanceof Chicken) {
-                if(InventoryUtil.doesInventoryContain(inv.getInventory(), false, new ItemStack(ItemID.SEEDS, 2))) {
+                if(InventoryUtil.doesInventoryContain(inv.getInventory(), false, new ItemStack(Material.SEEDS, 2))) {
 
-                    if(InventoryUtil.removeItemsFromInventory(inv, new ItemStack(ItemID.SEEDS, 2))) {
+                    if(InventoryUtil.removeItemsFromInventory(inv, new ItemStack(Material.SEEDS, 2))) {
                         Ageable animal = (Ageable) entity.getWorld().spawnEntity(entity.getLocation(), entity.getType());
                         animal.setBaby();
                         ((Ageable) entity).setBreed(false);
@@ -173,9 +158,9 @@ public class AnimalBreeder extends AbstractSelfTriggeredIC {
                 }
             } else if (entity instanceof Wolf) {
 
-                int[] validItems = new int[]{ItemID.RAW_CHICKEN, ItemID.COOKED_CHICKEN, ItemID.RAW_BEEF, ItemID.COOKED_BEEF, ItemID.RAW_PORKCHOP, ItemID.COOKED_PORKCHOP, ItemID.ROTTEN_FLESH};
+                Material[] validItems = new Material[]{Material.RAW_CHICKEN, Material.COOKED_CHICKEN, Material.RAW_BEEF, Material.COOKED_BEEF, Material.PORK, Material.GRILLED_PORK, Material.ROTTEN_FLESH};
 
-                for(int item : validItems) {
+                for(Material item : validItems) {
                     if(InventoryUtil.doesInventoryContain(inv.getInventory(), false, new ItemStack(item, 2))) {
                         if(InventoryUtil.removeItemsFromInventory(inv, new ItemStack(item, 2))) {
                             Ageable animal = (Ageable) entity.getWorld().spawnEntity(entity.getLocation(), entity.getType());

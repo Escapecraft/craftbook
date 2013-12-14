@@ -17,6 +17,7 @@
 package com.sk89q.craftbook.circuits.gates.world.items;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.inventory.ItemStack;
 
@@ -49,7 +50,7 @@ public class ItemDispenser extends AbstractIC {
 
         item = ItemUtil.makeItemValid(ItemSyntax.getItem(getLine(2)));
         if(item == null)
-            item = new ItemStack(1, 1);
+            item = new ItemStack(Material.STONE, 1);
 
         try {
             amount = Math.max(1, Integer.parseInt(getSign().getLine(3)));
@@ -81,12 +82,11 @@ public class ItemDispenser extends AbstractIC {
     public void trigger(ChipState chip) {
 
         if (chip.getInput(0)) {
-            if (item.getTypeId() != 36) {
-                Location loc = getBackBlock().getRelative(0, 1,
-                        0).getLocation().add(0.5, 0.5, 0.5);
+            if (item.getType() != Material.PISTON_MOVING_PIECE) {
+                Location loc = getBackBlock().getRelative(0, 1, 0).getLocation().add(0.5, 0.5, 0.5);
                 int maxY = 10;
 
-                for (int y = 1; y <= maxY; y++) {
+                for (int y = 0; y <= maxY; y++) {
                     if (BlockType.canPassThrough(loc.getBlock().getRelative(0, y, 0).getTypeId())) {
 
                         for(int i = 0; i < times; i++)

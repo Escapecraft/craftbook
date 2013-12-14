@@ -28,9 +28,10 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
 
+import org.bukkit.ChatColor;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.material.MaterialData;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.ItemSyntax;
@@ -89,9 +90,11 @@ public final class CustomDropManager {
         else return blockDropDefinitions[block];
     }
 
-    public DropDefinition[] getMobDrop(String mobName) {
+    public DropDefinition[] getMobDrop(LivingEntity mob) {
 
-        return mobDropDefinitions.get(mobName.toLowerCase(Locale.ENGLISH));
+        if(mob.getCustomName() != null && mobDropDefinitions.containsKey(ChatColor.translateAlternateColorCodes('&', (mob.getType().name() + "|" + mob.getCustomName()).toLowerCase(Locale.ENGLISH))))
+            return mobDropDefinitions.get(ChatColor.translateAlternateColorCodes('&', (mob.getType().name() + "|" + mob.getCustomName()).toLowerCase(Locale.ENGLISH)));
+        return mobDropDefinitions.get(mob.getType().name().toLowerCase(Locale.ENGLISH));
     }
 
     public void loadDropDefinitions(File file, boolean isMobDrop) throws IOException {
@@ -176,7 +179,7 @@ public final class CustomDropManager {
                                 drop.drops[data] = drops;
                             }
                         } else {
-                            itemsSource = itemsSource.toLowerCase(Locale.ENGLISH);
+                            itemsSource = ChatColor.translateAlternateColorCodes('&', itemsSource.toLowerCase(Locale.ENGLISH));
                             if (mobDropDefinitions.containsKey(itemsSource)) {
                                 reader.close();
                                 throw new CustomDropParseException(prelude + "double drop definition");
@@ -301,8 +304,7 @@ public final class CustomDropManager {
         public ItemStack getItemStack() {
 
             if (CraftBookPlugin.inst().getRandom().nextInt(100) > chance) return null;
-            ItemStack stack = new ItemStack(id, countMin == countMax ? countMin : countMin + CraftBookPlugin.inst().getRandom().nextInt(countMax - countMin + 1), data);
-            stack.setData(new MaterialData(id,data));
+            ItemStack stack = new ItemStack(id, countMin == countMax ? countMin : countMin + CraftBookPlugin.inst().getRandom().nextInt(countMax - countMin + 1), data, data);
             stack.setItemMeta(meta);
             return stack;
         }

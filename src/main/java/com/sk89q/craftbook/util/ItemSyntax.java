@@ -1,5 +1,6 @@
 package com.sk89q.craftbook.util;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -17,6 +18,7 @@ import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.material.MaterialData;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
@@ -34,6 +36,11 @@ public class ItemSyntax {
     private static final Pattern COMMA_PATTERN = Pattern.compile(",", Pattern.LITERAL);
     private static final Pattern PIPE_PATTERN = Pattern.compile("|", Pattern.LITERAL);
     private static final Pattern FSLASH_PATTERN = Pattern.compile("/", Pattern.LITERAL);
+
+    /**
+     * The plugin that stores this ItemSyntax reference. Only set this if you have a method: "public String parseItemSyntax(String item) {" in your plugin class.
+     */
+    public static JavaPlugin plugin;
 
     /**
      * The opposite of {@link getItem()}. Returns the String made by an {@link ItemStack}. This can be used in getItem() to return the same {@link ItemStack}.
@@ -57,6 +64,8 @@ public class ItemSyntax {
             if(item.getItemMeta().hasDisplayName())
                 builder.append("|").append(item.getItemMeta().getDisplayName());
             if(item.getItemMeta().hasLore()) {
+                if(!item.getItemMeta().hasDisplayName())
+                    builder.append("|$IGNORE");
                 List<String> list = item.getItemMeta().getLore();
                 for(String s : list)
                     builder.append("|").append(s);
@@ -103,7 +112,28 @@ public class ItemSyntax {
         if (line == null || line.isEmpty())
             return null;
 
-        int id = 0;
+        if(plugin != null) {
+            try {
+                line = (String) plugin.getClass().getMethod("parseItemSyntax", String.class).invoke(plugin, line);
+            } catch (NoSuchMethodException e) {
+                plugin = null;
+                e.printStackTrace();
+            } catch (SecurityException e) {
+                plugin = null;
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                plugin = null;
+                e.printStackTrace();
+            } catch (IllegalArgumentException e) {
+                plugin = null;
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                plugin = null;
+                e.printStackTrace();
+            }
+        }
+
+        Material material = Material.AIR;
         int data = -1;
         int amount = 1;
 
@@ -113,22 +143,19 @@ public class ItemSyntax {
         String[] amountSplit = ASTERISK_PATTERN.split(enchantSplit[0], 2);
         String[] dataSplit = COLON_PATTERN.split(amountSplit[0], 2);
         try {
-            id = Integer.parseInt(dataSplit[0]);
+            material = Material.getMaterial(Integer.parseInt(dataSplit[0]));
         } catch (NumberFormatException e) {
             try {
-                id = Material.matchMaterial(dataSplit[0]).getId();
-                if (id < 1) id = 1;
+                material = Material.matchMaterial(dataSplit[0]);
             } catch (Exception ee) {
                 try {
                     try {
                         Object itemType = Class.forName("com.sk89q.worldedit.blocks.ItemType").getMethod("lookup", String.class).invoke(null, dataSplit[0]);
-                        id = (Integer) itemType.getClass().getMethod("getID").invoke(itemType);
-                        if (id < 1) id = 1;
+                        material = Material.getMaterial((Integer) itemType.getClass().getMethod("getID").invoke(itemType));
                     }
                     catch(Exception eee){
                         Object blockType = Class.forName("com.sk89q.worldedit.blocks.BlockType").getMethod("lookup", String.class).invoke(null, dataSplit[0]);
-                        id = (Integer) blockType.getClass().getMethod("getID").invoke(blockType);
-                        if (id < 1) id = 1;
+                        material = Material.getMaterial((Integer) blockType.getClass().getMethod("getID").invoke(blockType));
                     }
                 } catch(Throwable ignored){}
             }
@@ -142,15 +169,16 @@ public class ItemSyntax {
                 amount = Integer.parseInt(amountSplit[1]);
         } catch(Exception ignored){}
 
-        id = Math.max(1, id);
+        if (material == null || material == Material.AIR) material = Material.STONE;
 
-        ItemStack rVal = new ItemStack(id, amount, (short) data);
-        rVal.setData(new MaterialData(id, (byte)data));
+        ItemStack rVal = new ItemStack(material, amount, (short) data);
+        rVal.setData(new MaterialData(material, (byte)data));
 
-        if(nameLoreSplit.length > 1 && id > 0) {
+        if(nameLoreSplit.length > 1) {
 
             ItemMeta meta = rVal.getItemMeta();
-            meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', nameLoreSplit[1]));
+            if(!nameLoreSplit[1].equalsIgnoreCase("$IGNORE"))
+                meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', nameLoreSplit[1]));
             if(nameLoreSplit.length > 2) {
 
                 List<String> lore = new ArrayList<String>();

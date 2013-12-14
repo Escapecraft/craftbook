@@ -26,45 +26,38 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.bukkit.Chunk;
-import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
-import org.bukkit.event.Cancellable;
-import org.bukkit.event.Event;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
-import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.circuits.ic.ICMechanic;
+import com.sk89q.craftbook.circuits.pipe.PipePutEvent;
+import com.sk89q.craftbook.util.EventUtil;
+import com.sk89q.craftbook.util.ProtectionUtil;
+import com.sk89q.craftbook.util.SignUtil;
+import com.sk89q.craftbook.util.events.SourcedBlockRedstoneEvent;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
 import com.sk89q.craftbook.util.exceptions.ProcessedMechanismException;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.BlockWorldVector2D;
-import com.sk89q.worldedit.blocks.ItemID;
 
 /**
- * A MechanicManager tracks the BlockVector where loaded Mechanic instances have registered triggerability,
+ * A MechanicManager tracks the Vector where loaded Mechanic instances have registered triggerability,
  * and dispatches incoming events by checking
  * for Mechanic instance that might be triggered by the event and by considering instantiation of a new Mechanic
- * instance for unregistered
- * BlockVector.
+ * instance for unregistered Vector.
  *
  * @author sk89q
  * @author hash
  */
 public class MechanicManager {
-
-    /**
-     * Logger for errors. The Minecraft namespace is required so that messages are part of Minecraft's root logger.
-     */
-    protected final Logger logger = Logger.getLogger("Minecraft.CraftBook");
 
     /**
      * List of factories that will be used to detect mechanisms at a location.
@@ -146,29 +139,24 @@ public class MechanicManager {
      */
     public boolean dispatchSignChange(SignChangeEvent event) {
         // We don't need to handle events that no mechanic we use makes use of
-        if (!passesFilter(event)) return false;
+        if (!EventUtil.passesFilter(event)) return false;
 
         // See if this event could be occurring on any mechanism's triggering blocks
-        Block block = event.getBlock();
-        BlockWorldVector pos = toWorldVector(block);
+        BlockWorldVector pos = toWorldVector(event.getBlock());
         LocalPlayer localPlayer = CraftBookPlugin.inst().wrapPlayer(event.getPlayer());
 
-        BlockState state = event.getBlock().getState();
+        if (!SignUtil.isSign(event.getBlock())) return false;
 
-        if (!(state instanceof Sign)) return false;
-
-        Sign sign = (Sign) state;
+        Sign sign = (Sign) event.getBlock().getState();
 
         try {
             load(pos, localPlayer, BukkitUtil.toChangedSign(sign, event.getLines(), localPlayer));
         } catch (InvalidMechanismException e) {
-            if (e.getMessage() != null) {
+            if (e.getMessage() != null)
                 localPlayer.printError(e.getMessage());
-            }
 
             event.setCancelled(true);
-            block.getWorld().dropItem(block.getLocation(), new ItemStack(ItemID.SIGN, 1));
-            block.setTypeId(0);
+            event.getBlock().breakNaturally();
         }
 
         return false;
@@ -186,7 +174,7 @@ public class MechanicManager {
         CraftBookPlugin plugin = CraftBookPlugin.inst();
 
         // We don't need to handle events that no mechanic we use makes use of
-        if (!passesFilter(event)) return 0;
+        if (!EventUtil.passesFilter(event)) return 0;
 
         short returnValue = 0;
         LocalPlayer player = plugin.wrapPlayer(event.getPlayer());
@@ -201,8 +189,9 @@ public class MechanicManager {
             HashSet<Mechanic> mechanics = load(pos, player);
             if(mechanics.size() > 0) {
                 // A mechanic has been found, check if we can actually build here.
-                if (!plugin.canBuild(event.getPlayer(), event.getBlock().getLocation(), false)) {
-                    player.printError("area.permissions");
+                if (!ProtectionUtil.canBuild(event.getPlayer(), event.getBlock().getLocation(), false)) {
+                    if(plugin.getConfiguration().showPermissionMessages)
+                        player.printError("area.break-permissions");
                     return 0;
                 }
             }
@@ -231,12 +220,48 @@ public class MechanicManager {
      *
      * @return the number of mechanics to processed
      */
+    public short dispatchPipePut(PipePutEvent event) {
+
+        CraftBookPlugin plugin = CraftBookPlugin.inst();
+
+        // We don't need to handle events that no mechanic we use makes use of
+        if (!EventUtil.passesFilter(event)) return 0;
+
+        short returnValue = 0;
+
+        // See if this event could be occurring on any mechanism's triggering blocks
+        BlockWorldVector pos = toWorldVector(event.getPuttingBlock());
+
+        try {
+            HashSet<Mechanic> mechanics = load(pos, null);
+            for (Mechanic aMechanic : mechanics) {
+                if (aMechanic != null) {
+
+                    if(plugin.getConfiguration().advancedBlockChecks && event.isCancelled())
+                        return returnValue;
+
+                    aMechanic.onPipePut(event);
+                    returnValue++;
+                }
+            }
+        } catch (InvalidMechanismException e) {
+        }
+        return returnValue;
+    }
+
+    /**
+     * Handle a block right click event.
+     *
+     * @param event
+     *
+     * @return the number of mechanics to processed
+     */
     public short dispatchBlockRightClick(PlayerInteractEvent event) {
 
         CraftBookPlugin plugin = CraftBookPlugin.inst();
 
         // We don't need to handle events that no mechanic we use makes use of
-        if (!passesFilter(event)) return 0;
+        if (!EventUtil.passesFilter(event)) return 0;
 
         short returnValue = 0;
         LocalPlayer player = plugin.wrapPlayer(event.getPlayer());
@@ -246,16 +271,18 @@ public class MechanicManager {
 
         try {
             HashSet<Mechanic> mechanics = load(pos, player);
+            if(mechanics.size() > 0) {
+                if (!ProtectionUtil.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace(), event.getAction())) {
+                    if(plugin.getConfiguration().showPermissionMessages)
+                        player.printError("area.use-permissions");
+                    return 0;
+                }
+            }
             for (Mechanic aMechanic : mechanics) {
                 if (aMechanic != null) {
 
                     if(plugin.getConfiguration().advancedBlockChecks && event.isCancelled())
                         return returnValue;
-
-                    if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace(), event.getAction())) {
-                        player.printError("area.permissions");
-                        return 0;
-                    }
 
                     aMechanic.onRightClick(event);
                     returnValue++;
@@ -281,7 +308,7 @@ public class MechanicManager {
         CraftBookPlugin plugin = CraftBookPlugin.inst();
 
         // We don't need to handle events that no mechanic we use makes use of
-        if (!passesFilter(event)) return 0;
+        if (!EventUtil.passesFilter(event)) return 0;
 
         short returnValue = 0;
         LocalPlayer player = plugin.wrapPlayer(event.getPlayer());
@@ -290,16 +317,17 @@ public class MechanicManager {
         BlockWorldVector pos = toWorldVector(event.getClickedBlock());
         try {
             HashSet<Mechanic> mechanics = load(pos, player);
+            if(mechanics.size() > 0) {
+                if (!ProtectionUtil.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace(), event.getAction())) {
+                    //player.printError("area.permissions"); Don't show a message for this.
+                    return 0;
+                }
+            }
             for (Mechanic aMechanic : mechanics) {
                 if (aMechanic != null) {
 
                     if(plugin.getConfiguration().advancedBlockChecks && event.isCancelled())
                         return returnValue;
-
-                    if (!plugin.canUse(event.getPlayer(), event.getClickedBlock().getLocation(), event.getBlockFace(), event.getAction())) {
-                        player.printError("area.permissions");
-                        return 0;
-                    }
 
                     aMechanic.onLeftClick(event);
                     returnValue++;
@@ -323,7 +351,7 @@ public class MechanicManager {
      */
     public short dispatchBlockRedstoneChange(SourcedBlockRedstoneEvent event) {
         // We don't need to handle events that no mechanic we use makes use of
-        if (!passesFilter(event)) return 0;
+        if (!EventUtil.passesFilter(event)) return 0;
 
         short returnValue = 0;
         // See if this event could be occurring on any mechanism's triggering blocks
@@ -512,22 +540,6 @@ public class MechanicManager {
     }
 
     /**
-     * Used to filter events for processing. This allows for short circuiting code so that code isn't checked
-     * unnecessarily.
-     *
-     * @param event
-     *
-     * @return true if the event should be processed by this manager; false otherwise.
-     */
-    protected boolean passesFilter(Event event) {
-
-        if(event instanceof Cancellable && ((Cancellable) event).isCancelled() && CraftBookPlugin.inst().getConfiguration().advancedBlockChecks)
-            return false;
-
-        return true;
-    }
-
-    /**
      * Handles chunk load.
      *
      * @param chunk
@@ -605,7 +617,7 @@ public class MechanicManager {
     protected void unload(Mechanic mechanic, ChunkUnloadEvent event) {
 
         if (mechanic == null) {
-            logger.log(Level.WARNING, "CraftBook mechanic: Failed to unload(Mechanic) - null.");
+            CraftBookPlugin.logger().log(Level.WARNING, "CraftBook mechanic: Failed to unload(Mechanic) - null.");
             return;
         }
 
@@ -623,7 +635,7 @@ public class MechanicManager {
             }
             mechanic.unload();
         } catch (Throwable t) { // Mechanic failed to unload for some reason
-            logger.log(Level.WARNING, "CraftBook mechanic: Failed to unload " + mechanic.getClass().getSimpleName());
+            CraftBookPlugin.logger().log(Level.WARNING, "CraftBook mechanic: Failed to unload " + mechanic.getClass().getSimpleName());
             BukkitUtil.printStacktrace(t);
         }
 
@@ -658,8 +670,10 @@ public class MechanicManager {
                 try {
                     mechanic.think();
                 } catch (Throwable t) { // Mechanic failed to think for some reason
-                    logger.log(Level.WARNING, "CraftBook mechanic: Failed to think for " + mechanic.getClass().getSimpleName());
+                    CraftBookPlugin.logger().log(Level.WARNING, "CraftBook mechanic: Failed to think for " + mechanic.getClass().getSimpleName());
                     BukkitUtil.printStacktrace(t);
+                    if(mechanic instanceof ICMechanic && CraftBookPlugin.inst().getConfiguration().ICBreakOnError)
+                        BukkitUtil.toSign(((ICMechanic)mechanic).getIC().getSign()).getBlock().breakNaturally();
                 }
             } else {
                 unload(mechanic, null);

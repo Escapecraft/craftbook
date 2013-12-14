@@ -19,13 +19,15 @@ import com.sk89q.craftbook.AbstractMechanic;
 import com.sk89q.craftbook.AbstractMechanicFactory;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
-import com.sk89q.craftbook.SourcedBlockRedstoneEvent;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
+import com.sk89q.craftbook.util.BlockUtil;
 import com.sk89q.craftbook.util.EntityUtil;
+import com.sk89q.craftbook.util.ItemInfo;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.RegexUtil;
 import com.sk89q.craftbook.util.SignUtil;
+import com.sk89q.craftbook.util.events.SourcedBlockRedstoneEvent;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
 import com.sk89q.craftbook.util.exceptions.ProcessedMechanismException;
 import com.sk89q.worldedit.BlockWorldVector;
@@ -65,6 +67,8 @@ public class BetterPistons extends AbstractMechanic {
                         if (face == piston.getFacing())
                             continue;
                         sign = block.getRelative(face);
+                        if(!SignUtil.getBackBlock(sign).getLocation().equals(block.getLocation()))
+                            continue;
                         type = checkSign(sign);
                         if (type == this.type) {
                             break signCheck;
@@ -94,24 +98,24 @@ public class BetterPistons extends AbstractMechanic {
 
             Types type = null;
 
-            if (sign.getState() instanceof Sign) {
+            if (SignUtil.isSign(sign)) {
 
-                Sign s = (Sign) sign.getState();
+                ChangedSign s = BukkitUtil.toChangedSign(sign);
                 if (s.getLine(1).equalsIgnoreCase("[Crush]") && Types.isEnabled(Types.CRUSH)) {
                     s.setLine(1, "[Crush]");
-                    s.update(true);
+                    s.update(false);
                     type = Types.CRUSH;
                 } else if (s.getLine(1).equalsIgnoreCase("[SuperSticky]") && Types.isEnabled(Types.SUPERSTICKY)) {
                     s.setLine(1, "[SuperSticky]");
-                    s.update(true);
+                    s.update(false);
                     type = Types.SUPERSTICKY;
                 } else if (s.getLine(1).equalsIgnoreCase("[Bounce]") && Types.isEnabled(Types.BOUNCE)) {
                     s.setLine(1, "[Bounce]");
-                    s.update(true);
+                    s.update(false);
                     type = Types.BOUNCE;
                 } else if (s.getLine(1).equalsIgnoreCase("[SuperPush]") && Types.isEnabled(Types.SUPERPUSH)) {
                     s.setLine(1, "[SuperPush]");
-                    s.update(true);
+                    s.update(false);
                     type = Types.SUPERPUSH;
                 }
             }
@@ -162,7 +166,7 @@ public class BetterPistons extends AbstractMechanic {
         this.type = type;
     }
 
-    private double movemod = 1.0;
+    private final double movemod = 1.0;
 
     /**
      * Raised when an input redstone current changes.
@@ -171,7 +175,7 @@ public class BetterPistons extends AbstractMechanic {
     public void onBlockRedstoneChange(SourcedBlockRedstoneEvent event) {
 
         //Make sure same type (Lazy checks)
-        if (event.getBlock().getTypeId() != trigger.getTypeId()) return;
+        if (!BlockUtil.areBlocksIdentical(trigger, event.getBlock())) return;
 
         PistonBaseMaterial piston = (PistonBaseMaterial) trigger.getState().getData();
         ChangedSign signState = BukkitUtil.toChangedSign(sign);
@@ -202,12 +206,7 @@ public class BetterPistons extends AbstractMechanic {
 
     public void crush(PistonBaseMaterial piston, ChangedSign signState) {
 
-        piston.setPowered(false);
-        if (CraftBookPlugin.inst().getConfiguration().pistonsCrusherBlacklist.contains(trigger.getRelative(piston.getFacing()).getTypeId())) {
-            return;
-        }
-        trigger.getRelative(piston.getFacing()).breakNaturally();
-        trigger.getRelative(piston.getFacing()).setTypeId(0, false);
+        //piston.setPowered(false);
 
         if (CraftBookPlugin.inst().getConfiguration().pistonsCrusherInstaKill) {
             for (Entity ent : trigger.getRelative(piston.getFacing()).getChunk().getEntities()) {
@@ -216,6 +215,12 @@ public class BetterPistons extends AbstractMechanic {
                 }
             }
         }
+
+        if (CraftBookPlugin.inst().getConfiguration().pistonsCrusherBlacklist.contains(new ItemInfo(trigger.getRelative(piston.getFacing())))) {
+            return;
+        }
+        trigger.getRelative(piston.getFacing()).breakNaturally();
+        trigger.getRelative(piston.getFacing()).setTypeId(0, false);
     }
 
     public void bounce(PistonBaseMaterial piston, ChangedSign signState) {
@@ -230,7 +235,7 @@ public class BetterPistons extends AbstractMechanic {
         }
 
         Vector vel = new Vector(piston.getFacing().getModX(), piston.getFacing().getModY(), piston.getFacing().getModZ()).multiply(mult);
-        if (trigger.getRelative(piston.getFacing()).getTypeId() == 0 || trigger.getRelative(piston.getFacing()).getState() != null && trigger.getRelative(piston.getFacing()).getState() instanceof InventoryHolder || trigger.getRelative(piston.getFacing()).getTypeId() == BlockID.PISTON_MOVING_PIECE || trigger.getRelative(piston.getFacing()).getTypeId() == BlockID.PISTON_EXTENSION || CraftBookPlugin.inst().getConfiguration().pistonsBounceBlacklist.contains(trigger.getRelative(piston.getFacing()).getTypeId())) {
+        if (trigger.getRelative(piston.getFacing()).getTypeId() == 0 || trigger.getRelative(piston.getFacing()).getState() != null && trigger.getRelative(piston.getFacing()).getState() instanceof InventoryHolder || trigger.getRelative(piston.getFacing()).getTypeId() == BlockID.PISTON_MOVING_PIECE || trigger.getRelative(piston.getFacing()).getTypeId() == BlockID.PISTON_EXTENSION || CraftBookPlugin.inst().getConfiguration().pistonsBounceBlacklist.contains(new ItemInfo(trigger.getRelative(piston.getFacing())))) {
             for (Entity ent : trigger.getRelative(piston.getFacing()).getChunk().getEntities()) {
                 if (EntityUtil.isEntityInBlock(ent, trigger.getRelative(piston.getFacing()))) {
                     ent.setVelocity(ent.getVelocity().add(vel));
@@ -347,17 +352,19 @@ public class BetterPistons extends AbstractMechanic {
      */
     public boolean copyData(Block from, Block to) {
 
-        if (from.getState() instanceof DoubleChest || to.getState() instanceof DoubleChest) return false;
+        BlockState toState = to.getState();
+        BlockState fromState = from.getState();
+
+        if (fromState instanceof DoubleChest || toState instanceof DoubleChest) return false;
 
         int type = from.getTypeId();
         byte data = from.getData();
 
         ItemStack[] oldInventory = null;
-        if (from.getState() instanceof InventoryHolder) {
-            oldInventory = ((InventoryHolder) from.getState()).getInventory().getContents().clone();
-            InventoryHolder fromState = (InventoryHolder) from.getState();
-            fromState.getInventory().clear();
-            ((BlockState) fromState).update();
+        if (fromState instanceof InventoryHolder) {
+            oldInventory = ((InventoryHolder) fromState).getInventory().getContents().clone();
+            ((InventoryHolder) fromState).getInventory().clear();
+            fromState.update();
             from.setTypeId(0);
         }
         to.setTypeIdAndData(type, data, true);
@@ -367,16 +374,14 @@ public class BetterPistons extends AbstractMechanic {
             }
         }
 
-        if (to.getState() instanceof Sign) {
-            Sign state = (Sign) to.getState();
+        if (toState instanceof Sign) {
             for (int i = 0; i < 4; i++) {
-                state.setLine(i, ((Sign) from.getState()).getLine(i));
+                ((Sign) toState).setLine(i, ((Sign) fromState).getLine(i));
             }
-            state.update();
-        } else if (to.getState() instanceof InventoryHolder) {
-            InventoryHolder state = (InventoryHolder) to.getState();
-            state.getInventory().setContents(oldInventory);
-            ((BlockState) state).update(true);
+            toState.update();
+        } else if (toState instanceof InventoryHolder) {
+            ((InventoryHolder) toState).getInventory().setContents(oldInventory);
+            toState.update(true);
         }
 
         return true;
@@ -386,7 +391,7 @@ public class BetterPistons extends AbstractMechanic {
 
         if (block.getState() instanceof DoubleChest) return false;
 
-        if(CraftBookPlugin.inst().getConfiguration().pistonsMovementBlacklist.contains(block.getTypeId()))
+        if(CraftBookPlugin.inst().getConfiguration().pistonsMovementBlacklist.contains(new ItemInfo(block)))
             return false;
 
         switch (block.getTypeId()) {

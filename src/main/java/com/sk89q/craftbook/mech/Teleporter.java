@@ -1,8 +1,8 @@
 package com.sk89q.craftbook.mech;
 
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.Sign;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.material.Button;
 
@@ -11,15 +11,15 @@ import com.sk89q.craftbook.AbstractMechanicFactory;
 import com.sk89q.craftbook.ChangedSign;
 import com.sk89q.craftbook.LocalPlayer;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
+import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.util.RegexUtil;
+import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
 import com.sk89q.craftbook.util.exceptions.ProcessedMechanismException;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.Location;
 import com.sk89q.worldedit.Vector;
-import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.BlockType;
-import com.sk89q.worldedit.bukkit.BukkitUtil;
 
 /**
  * Teleporter Mechanism. Based off Elevator
@@ -47,19 +47,21 @@ public class Teleporter extends AbstractMechanic {
             Block block = BukkitUtil.toBlock(pt);
             // check if this looks at all like something we're interested in first
 
-            if (block.getState() instanceof Sign) {
-                Sign s = (Sign) block.getState();
+            if (SignUtil.isSign(block)) {
+                ChangedSign s = BukkitUtil.toChangedSign(block);
                 if (!s.getLine(1).equalsIgnoreCase("[Teleporter]")) return null;
                 String[] pos = RegexUtil.COLON_PATTERN.split(s.getLine(2));
                 if (pos.length > 2) return new Teleporter(block);
-            } else if (block.getTypeId() == BlockID.STONE_BUTTON || block.getTypeId() == BlockID.WOODEN_BUTTON) {
+            } else if (block.getType() == Material.STONE_BUTTON || block.getType() == Material.WOOD_BUTTON) {
                 Button b = (Button) block.getState().getData();
-                Block sign = block.getRelative(b.getAttachedFace()).getRelative(b.getAttachedFace());
-                if (sign.getState() instanceof Sign) {
-                    Sign s = (Sign) sign.getState();
+                if(b == null || b.getAttachedFace() == null)
+                    return null;
+                Block sign = block.getRelative(b.getAttachedFace(), 2);
+                if (SignUtil.isSign(sign)) {
+                    ChangedSign s = BukkitUtil.toChangedSign(sign);
                     if (!s.getLine(1).equalsIgnoreCase("[Teleporter]")) return null;
                     String[] pos = RegexUtil.COLON_PATTERN.split(s.getLine(2));
-                    if (pos.length > 2) return new Teleporter(s.getBlock());
+                    if (pos.length > 2) return new Teleporter(sign);
                 }
             }
 
@@ -93,7 +95,6 @@ public class Teleporter extends AbstractMechanic {
     /**
      * @param trigger if you didn't already check if this is a wall sign with appropriate text,
      *                you're going on Santa's naughty list.
-     * @param plugin  the direction (UP or DOWN) in which we're looking for a destination
      *
      * @throws InvalidMechanismException
      */
@@ -110,14 +111,14 @@ public class Teleporter extends AbstractMechanic {
 
         if (!CraftBookPlugin.inst().getConfiguration().teleporterEnabled) return;
 
-        if (!BukkitUtil.toWorldVector(event.getClickedBlock()).equals(BukkitUtil.toWorldVector(trigger)) && !(event
-                .getClickedBlock().getState().getData() instanceof Button))
+        if (!BukkitUtil.toWorldVector(event.getClickedBlock()).equals(BukkitUtil.toWorldVector(trigger)) && !(event.getClickedBlock().getState().getData() instanceof Button))
             return; // wth? our manager is insane.
 
         LocalPlayer localPlayer = CraftBookPlugin.inst().wrapPlayer(event.getPlayer());
 
         if (!localPlayer.hasPermission("craftbook.mech.teleporter.use")) {
-            localPlayer.printError("mech.use-permission");
+            if(CraftBookPlugin.inst().getConfiguration().showPermissionMessages)
+                localPlayer.printError("mech.use-permission");
             return;
         }
 
@@ -135,8 +136,8 @@ public class Teleporter extends AbstractMechanic {
         double toY = 0;
         double toZ = 0;
 
-        if (trigger.getState() instanceof Sign) {
-            Sign s = (Sign) trigger.getState();
+        if (SignUtil.isSign(trigger)) {
+            ChangedSign s = BukkitUtil.toChangedSign(trigger);
             String[] pos = RegexUtil.COLON_PATTERN.split(s.getLine(2));
             if (pos.length > 2) {
                 try {
@@ -155,43 +156,37 @@ public class Teleporter extends AbstractMechanic {
 
         if (CraftBookPlugin.inst().getConfiguration().teleporterRequireSign) {
             Block location = trigger.getWorld().getBlockAt((int) toX, (int) toY, (int) toZ);
-            if (location.getTypeId() != BlockID.WALL_SIGN && location.getTypeId() != BlockID.SIGN_POST) {
-                if (location.getTypeId() == BlockID.STONE_BUTTON || location.getTypeId() == BlockID.WOODEN_BUTTON) {
-                    Button b = (Button) location.getState().getData();
-                    Block sign = location.getRelative(b.getAttachedFace()).getRelative(b.getAttachedFace());
-                    if (sign.getState() instanceof Sign) {
-                        Sign s = (Sign) sign.getState();
-                        if (!s.getLine(1).equalsIgnoreCase("[Teleporter]")) {
-                            player.printError("mech.teleport.sign");
-                            return;
-                        }
-                    }
-                } else {
-                    player.printError("mech.teleport.sign");
+            if (location.getType() == Material.WALL_SIGN || location.getType() == Material.SIGN_POST) {
+                if (!checkTeleportSign(player, location)) {
                     return;
                 }
+            } else if (location.getType() == Material.STONE_BUTTON || location.getType() == Material.WOOD_BUTTON) {
+                Button b = (Button) location.getState().getData();
+                Block sign = location.getRelative(b.getAttachedFace()).getRelative(b.getAttachedFace());
+                if (!checkTeleportSign(player, sign)) {
+                    return;
+                }
+            } else {
+                player.printError("mech.teleport.sign");
+                return;
             }
         }
 
         Block floor = trigger.getWorld().getBlockAt((int) Math.floor(toX), (int) (Math.floor(toY) + 1),
                 (int) Math.floor(toZ));
         // well, unless that's already a ceiling.
-        if (!occupiable(floor)) {
+        if (!BlockType.canPassThrough(floor.getTypeId()))
             floor = floor.getRelative(BlockFace.DOWN);
-        }
 
         // now iterate down until we find enough open space to stand in
         // or until we're 5 blocks away, which we consider too far.
         int foundFree = 0;
         for (int i = 0; i < 5; i++) {
-            if (occupiable(floor)) {
+            if (BlockType.canPassThrough(floor.getTypeId()))
                 foundFree++;
-            } else {
+            else
                 break;
-            }
-            if (floor.getY() == 0x0) {
-                break;
-            }
+            if (floor.getY() == 0x0) break;
             floor = floor.getRelative(BlockFace.DOWN);
         }
         if (foundFree < 2) {
@@ -204,14 +199,11 @@ public class Teleporter extends AbstractMechanic {
         subspaceRift = subspaceRift.setPosition(new Vector(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 0.5));
         if (player.isInsideVehicle()) {
             subspaceRift = player.getVehicle().getLocation();
-            subspaceRift = subspaceRift.setPosition(new Vector(floor.getX() + 0.5, floor.getY() + 2,
-                    floor.getZ() + 0.5));
+            subspaceRift = subspaceRift.setPosition(new Vector(floor.getX() + 0.5, floor.getY() + 2, floor.getZ() + 0.5));
             player.getVehicle().teleport(subspaceRift);
         }
         if (CraftBookPlugin.inst().getConfiguration().teleporterMaxRange > 0)
-            if (subspaceRift.getPosition().distanceSq(player.getPosition().getPosition()) >
-            CraftBookPlugin.inst().getConfiguration().teleporterMaxRange * CraftBookPlugin.inst()
-            .getConfiguration().teleporterMaxRange) {
+            if (subspaceRift.getPosition().distanceSq(player.getPosition().getPosition()) > CraftBookPlugin.inst().getConfiguration().teleporterMaxRange * CraftBookPlugin.inst().getConfiguration().teleporterMaxRange) {
                 player.print("mech.teleport.range");
                 return;
             }
@@ -221,8 +213,19 @@ public class Teleporter extends AbstractMechanic {
         player.print("mech.teleport.alert");
     }
 
-    private static boolean occupiable(Block block) {
+    private boolean checkTeleportSign(LocalPlayer player, Block sign) {
 
-        return BlockType.canPassThrough(block.getTypeId());
+        if (!SignUtil.isSign(sign)) {
+            player.printError("mech.teleport.sign");
+            return false;
+        }
+
+        ChangedSign s = BukkitUtil.toChangedSign(sign);
+        if (!s.getLine(1).equalsIgnoreCase("[Teleporter]")) {
+            player.printError("mech.teleport.sign");
+            return false;
+        }
+
+        return true;
     }
 }

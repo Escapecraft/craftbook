@@ -16,7 +16,6 @@
 
 package com.sk89q.craftbook.bukkit;
 
-import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.bukkit.GameMode;
@@ -25,7 +24,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Minecart;
-import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -33,6 +31,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -45,17 +44,21 @@ import org.bukkit.material.Attachable;
 import org.bukkit.material.Directional;
 import org.bukkit.material.PressureSensor;
 
-import com.sk89q.craftbook.RightClickBlockEvent;
-import com.sk89q.craftbook.SourcedBlockRedstoneEvent;
+import com.sk89q.craftbook.circuits.pipe.PipePutEvent;
 import com.sk89q.craftbook.mech.Elevator;
+import com.sk89q.craftbook.util.EventUtil;
 import com.sk89q.craftbook.util.LocationUtil;
 import com.sk89q.craftbook.util.ParsingUtil;
+import com.sk89q.craftbook.util.ProtectionUtil;
+import com.sk89q.craftbook.util.SignUtil;
+import com.sk89q.craftbook.util.events.SignClickEvent;
+import com.sk89q.craftbook.util.events.SourcedBlockRedstoneEvent;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
-import com.sk89q.craftbook.vehicles.CartBlockEnterEvent;
-import com.sk89q.craftbook.vehicles.CartBlockImpactEvent;
-import com.sk89q.craftbook.vehicles.CartBlockRedstoneEvent;
 import com.sk89q.craftbook.vehicles.cart.CartBlockMechanism;
 import com.sk89q.craftbook.vehicles.cart.CartMechanismBlocks;
+import com.sk89q.craftbook.vehicles.cart.events.CartBlockEnterEvent;
+import com.sk89q.craftbook.vehicles.cart.events.CartBlockImpactEvent;
+import com.sk89q.craftbook.vehicles.cart.events.CartBlockRedstoneEvent;
 import com.sk89q.worldedit.BlockWorldVector;
 import com.sk89q.worldedit.BlockWorldVector2D;
 import com.sk89q.worldedit.LocalWorld;
@@ -63,7 +66,6 @@ import com.sk89q.worldedit.WorldVector;
 import com.sk89q.worldedit.blocks.BlockID;
 import com.sk89q.worldedit.blocks.BlockType;
 import com.sk89q.worldedit.bukkit.BukkitUtil;
-import com.sk89q.worldedit.bukkit.BukkitWorld;
 
 /**
  * This adapter hooks a mechanic manager up to Bukkit.
@@ -71,14 +73,6 @@ import com.sk89q.worldedit.bukkit.BukkitWorld;
  * @author sk89q
  */
 public class MechanicListenerAdapter implements Listener {
-
-    public static final ArrayList<Event> ignoredEvents = new ArrayList<Event>();
-
-    /**
-     * Constructs the adapter.
-     */
-    public MechanicListenerAdapter() {
-    }
 
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent event) {
@@ -99,19 +93,18 @@ public class MechanicListenerAdapter implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
 
-        if (ignoredEvents.contains(event)) {
-            ignoredEvents.remove(event);
+        if (EventUtil.shouldIgnoreEvent(event))
             return;
+
+        if(event.getClickedBlock() != null && SignUtil.isSign(event.getClickedBlock())) {
+            SignClickEvent ev = new SignClickEvent(event.getPlayer(), event.getAction(), event.getItem(), event.getClickedBlock(), event.getBlockFace());
+            CraftBookPlugin.inst().getServer().getPluginManager().callEvent(ev);
+            if(ev.isCancelled())
+                event.setCancelled(true);
         }
 
-        boolean isRightClick = false;
-
-        if(CraftBookPlugin.inst().getConfiguration().experimentalClicks && event.getAction() == Action.RIGHT_CLICK_AIR) {
-            isRightClick = event.getPlayer().getTargetBlock(null, 5).getTypeId() != 0;
-        }
-
-        if (event.getAction() == Action.RIGHT_CLICK_BLOCK || isRightClick)
-            CraftBookPlugin.inst().getManager().dispatchBlockRightClick(isRightClick ? new RightClickBlockEvent(event, event.getPlayer().getTargetBlock(null, 5)) : event);
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK)
+            CraftBookPlugin.inst().getManager().dispatchBlockRightClick(event);
 
         if (event.getAction() == Action.LEFT_CLICK_BLOCK)
             CraftBookPlugin.inst().getManager().dispatchBlockLeftClick(event);
@@ -120,20 +113,17 @@ public class MechanicListenerAdapter implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onSignChange(SignChangeEvent event) {
 
-        if (ignoredEvents.contains(event)) {
-            ignoredEvents.remove(event);
+        if (EventUtil.shouldIgnoreEvent(event))
             return;
-        }
+
         CraftBookPlugin.inst().getManager().dispatchSignChange(event);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onBlockBreak(BlockBreakEvent event) {
 
-        if (ignoredEvents.contains(event)) {
-            ignoredEvents.remove(event);
+        if (EventUtil.shouldIgnoreEvent(event))
             return;
-        }
 
         if(!(CraftBookPlugin.inst().getConfiguration().advancedBlockChecks && event.isCancelled())) {
             switch(event.getBlock().getTypeId()) {
@@ -142,25 +132,25 @@ public class MechanicListenerAdapter implements Listener {
                 case BlockID.REDSTONE_REPEATER_ON:
                 case BlockID.REDSTONE_BLOCK:
                 case BlockID.COMPARATOR_ON:
-                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
+                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !ProtectionUtil.canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
                         break;
                     handleRedstoneForBlock(event.getBlock(), 15, 0);
                     break;
                 case BlockID.REDSTONE_WIRE:
-                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
+                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !ProtectionUtil.canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
                         break;
                     if(event.getBlock().getData() > 0)
                         handleRedstoneForBlock(event.getBlock(), event.getBlock().getData(), 0);
                     break;
                 case BlockID.LEVER:
-                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
+                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !ProtectionUtil.canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
                         break;
                     if(((org.bukkit.material.Lever) event.getBlock().getState().getData()).isPowered())
                         handleRedstoneForBlock(event.getBlock(), 15, 0);
                     break;
                 case BlockID.WOODEN_BUTTON:
                 case BlockID.STONE_BUTTON:
-                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
+                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !ProtectionUtil.canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
                         break;
                     if(((org.bukkit.material.Button) event.getBlock().getState().getData()).isPowered())
                         handleRedstoneForBlock(event.getBlock(), 15, 0);
@@ -170,7 +160,7 @@ public class MechanicListenerAdapter implements Listener {
                 case BlockID.PRESSURE_PLATE_HEAVY:
                 case BlockID.PRESSURE_PLATE_LIGHT:
                 case BlockID.DETECTOR_RAIL:
-                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !CraftBookPlugin.inst().canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
+                    if(CraftBookPlugin.inst().getConfiguration().pedanticBlockChecks && !ProtectionUtil.canBuild(event.getPlayer(), event.getBlock().getLocation(), false))
                         break;
                     if(event.getBlock().getState().getData() instanceof PressureSensor && ((PressureSensor) event.getBlock().getState().getData()).isPressed())
                         handleRedstoneForBlock(event.getBlock(), 15, 0);
@@ -186,15 +176,10 @@ public class MechanicListenerAdapter implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onBlockRedstoneChange(BlockRedstoneEvent event) {
 
-        if (ignoredEvents.contains(event)) {
-            ignoredEvents.remove(event);
+        if (EventUtil.shouldIgnoreEvent(event))
             return;
-        }
-        int oldLevel = event.getOldCurrent();
-        int newLevel = event.getNewCurrent();
-        Block block = event.getBlock();
 
-        handleRedstoneForBlock(block, oldLevel, newLevel);
+        handleRedstoneForBlock(event.getBlock(), event.getOldCurrent(), event.getNewCurrent());
     }
 
     public void handleRedstoneForBlock(Block block, int oldLevel, int newLevel) {
@@ -202,7 +187,7 @@ public class MechanicListenerAdapter implements Listener {
         World world = block.getWorld();
         BlockWorldVector v = BukkitUtil.toWorldVector(block);
 
-        // Give the method a BlockVector instead of a Block
+        // Give the method a BlockWorldVector instead of a Block
         boolean wasOn = oldLevel >= 1;
         boolean isOn = newLevel >= 1;
         boolean wasChange = wasOn != isOn;
@@ -216,97 +201,104 @@ public class MechanicListenerAdapter implements Listener {
         int y = v.getBlockY();
         int z = v.getBlockZ();
 
-        int type = block.getTypeId();
-
         // When this hook has been called, the level in the world has not
         // yet been updated, so we're going to do this very ugly thing of
         // faking the value with the new one whenever the data value of this
         // block is requested -- it is quite ugly
+        switch(block.getTypeId()) {
+            case BlockID.REDSTONE_WIRE:
+                if (CraftBookPlugin.inst().getConfiguration().indirectRedstone) {
 
-        if (type == BlockID.REDSTONE_WIRE) {
-
-            if (CraftBookPlugin.inst().getConfiguration().indirectRedstone) {
-
-                // power all blocks around the redstone wire on the same y level
-                // north/south
-                handleDirectWireInput(new WorldVector(w, x - 1, y, z), block, oldLevel, newLevel);
-                handleDirectWireInput(new WorldVector(w, x + 1, y, z), block, oldLevel, newLevel);
-                // east/west
-                handleDirectWireInput(new WorldVector(w, x, y, z - 1), block, oldLevel, newLevel);
-                handleDirectWireInput(new WorldVector(w, x, y, z + 1), block, oldLevel, newLevel);
-
-                // Can be triggered from below
-                handleDirectWireInput(new WorldVector(w, x, y + 1, z), block, oldLevel, newLevel);
-
-                // Can be triggered from above (Eg, glass->glowstone like redstone lamps)
-                handleDirectWireInput(new WorldVector(w, x, y - 1, z), block, oldLevel, newLevel);
-            } else {
-
-                int above = world.getBlockTypeIdAt(x, y + 1, z);
-
-                int westSide = world.getBlockTypeIdAt(x, y, z + 1);
-                int westSideAbove = world.getBlockTypeIdAt(x, y + 1, z + 1);
-                int westSideBelow = world.getBlockTypeIdAt(x, y - 1, z + 1);
-                int eastSide = world.getBlockTypeIdAt(x, y, z - 1);
-                int eastSideAbove = world.getBlockTypeIdAt(x, y + 1, z - 1);
-                int eastSideBelow = world.getBlockTypeIdAt(x, y - 1, z - 1);
-
-                int northSide = world.getBlockTypeIdAt(x - 1, y, z);
-                int northSideAbove = world.getBlockTypeIdAt(x - 1, y + 1, z);
-                int northSideBelow = world.getBlockTypeIdAt(x - 1, y - 1, z);
-                int southSide = world.getBlockTypeIdAt(x + 1, y, z);
-                int southSideAbove = world.getBlockTypeIdAt(x + 1, y + 1, z);
-                int southSideBelow = world.getBlockTypeIdAt(x + 1, y - 1, z);
-
-                // Make sure that the wire points to only this block
-                if (!BlockType.isRedstoneBlock(westSide) && !BlockType.isRedstoneBlock(eastSide)
-                        && (!BlockType.isRedstoneBlock(westSideAbove) || westSide == 0 || above != 0)
-                        && (!BlockType.isRedstoneBlock(eastSideAbove) || eastSide == 0 || above != 0)
-                        && (!BlockType.isRedstoneBlock(westSideBelow) || westSide != 0)
-                        && (!BlockType.isRedstoneBlock(eastSideBelow) || eastSide != 0)) {
-                    // Possible blocks north / south
+                    // power all blocks around the redstone wire on the same y level
+                    // north/south
                     handleDirectWireInput(new WorldVector(w, x - 1, y, z), block, oldLevel, newLevel);
                     handleDirectWireInput(new WorldVector(w, x + 1, y, z), block, oldLevel, newLevel);
-                    handleDirectWireInput(new WorldVector(w, x - 1, y - 1, z), block, oldLevel, newLevel);
-                    handleDirectWireInput(new WorldVector(w, x + 1, y - 1, z), block, oldLevel, newLevel);
-                }
-
-                if (!BlockType.isRedstoneBlock(northSide) && !BlockType.isRedstoneBlock(southSide)
-                        && (!BlockType.isRedstoneBlock(northSideAbove) || northSide == 0 || above != 0)
-                        && (!BlockType.isRedstoneBlock(southSideAbove) || southSide == 0 || above != 0)
-                        && (!BlockType.isRedstoneBlock(northSideBelow) || northSide != 0)
-                        && (!BlockType.isRedstoneBlock(southSideBelow) || southSide != 0)) {
-                    // Possible blocks west / east
+                    // east/west
                     handleDirectWireInput(new WorldVector(w, x, y, z - 1), block, oldLevel, newLevel);
                     handleDirectWireInput(new WorldVector(w, x, y, z + 1), block, oldLevel, newLevel);
-                    handleDirectWireInput(new WorldVector(w, x, y - 1, z - 1), block, oldLevel, newLevel);
-                    handleDirectWireInput(new WorldVector(w, x, y - 1, z + 1), block, oldLevel, newLevel);
+
+                    // Can be triggered from below
+                    handleDirectWireInput(new WorldVector(w, x, y + 1, z), block, oldLevel, newLevel);
+
+                    // Can be triggered from above (Eg, glass->glowstone like redstone lamps)
+                    handleDirectWireInput(new WorldVector(w, x, y - 1, z), block, oldLevel, newLevel);
+                } else {
+
+                    int above = world.getBlockTypeIdAt(x, y + 1, z);
+
+                    int westSide = world.getBlockTypeIdAt(x, y, z + 1);
+                    int westSideAbove = world.getBlockTypeIdAt(x, y + 1, z + 1);
+                    int westSideBelow = world.getBlockTypeIdAt(x, y - 1, z + 1);
+                    int eastSide = world.getBlockTypeIdAt(x, y, z - 1);
+                    int eastSideAbove = world.getBlockTypeIdAt(x, y + 1, z - 1);
+                    int eastSideBelow = world.getBlockTypeIdAt(x, y - 1, z - 1);
+
+                    int northSide = world.getBlockTypeIdAt(x - 1, y, z);
+                    int northSideAbove = world.getBlockTypeIdAt(x - 1, y + 1, z);
+                    int northSideBelow = world.getBlockTypeIdAt(x - 1, y - 1, z);
+                    int southSide = world.getBlockTypeIdAt(x + 1, y, z);
+                    int southSideAbove = world.getBlockTypeIdAt(x + 1, y + 1, z);
+                    int southSideBelow = world.getBlockTypeIdAt(x + 1, y - 1, z);
+
+                    // Make sure that the wire points to only this block
+                    if (!BlockType.isRedstoneBlock(westSide) && !BlockType.isRedstoneBlock(eastSide)
+                            && (!BlockType.isRedstoneBlock(westSideAbove) || westSide == 0 || above != 0)
+                            && (!BlockType.isRedstoneBlock(eastSideAbove) || eastSide == 0 || above != 0)
+                            && (!BlockType.isRedstoneBlock(westSideBelow) || westSide != 0)
+                            && (!BlockType.isRedstoneBlock(eastSideBelow) || eastSide != 0)) {
+                        // Possible blocks north / south
+                        handleDirectWireInput(new WorldVector(w, x - 1, y, z), block, oldLevel, newLevel);
+                        handleDirectWireInput(new WorldVector(w, x + 1, y, z), block, oldLevel, newLevel);
+                        handleDirectWireInput(new WorldVector(w, x - 1, y - 1, z), block, oldLevel, newLevel);
+                        handleDirectWireInput(new WorldVector(w, x + 1, y - 1, z), block, oldLevel, newLevel);
+                    }
+
+                    if (!BlockType.isRedstoneBlock(northSide) && !BlockType.isRedstoneBlock(southSide)
+                            && (!BlockType.isRedstoneBlock(northSideAbove) || northSide == 0 || above != 0)
+                            && (!BlockType.isRedstoneBlock(southSideAbove) || southSide == 0 || above != 0)
+                            && (!BlockType.isRedstoneBlock(northSideBelow) || northSide != 0)
+                            && (!BlockType.isRedstoneBlock(southSideBelow) || southSide != 0)) {
+                        // Possible blocks west / east
+                        handleDirectWireInput(new WorldVector(w, x, y, z - 1), block, oldLevel, newLevel);
+                        handleDirectWireInput(new WorldVector(w, x, y, z + 1), block, oldLevel, newLevel);
+                        handleDirectWireInput(new WorldVector(w, x, y - 1, z - 1), block, oldLevel, newLevel);
+                        handleDirectWireInput(new WorldVector(w, x, y - 1, z + 1), block, oldLevel, newLevel);
+                    }
+
+                    // Can be triggered from below
+                    handleDirectWireInput(new WorldVector(w, x, y + 1, z), block, oldLevel, newLevel);
+
+                    // Can be triggered from above
+                    handleDirectWireInput(new WorldVector(w, x, y - 1, z), block, oldLevel, newLevel);
                 }
-
-                // Can be triggered from below
-                handleDirectWireInput(new WorldVector(w, x, y + 1, z), block, oldLevel, newLevel);
-            }
-            return;
-        } else if (type == BlockID.REDSTONE_REPEATER_OFF || type == BlockID.REDSTONE_REPEATER_ON || type == BlockID.COMPARATOR_OFF || type == BlockID.COMPARATOR_ON) {
-
-            Directional diode = (Directional) block.getState().getData();
-            BlockFace f = diode.getFacing();
-            handleDirectWireInput(new WorldVector(w, x + f.getModX(), y, z + f.getModZ()), block, oldLevel, newLevel);
-            if(block.getRelative(f).getTypeId() != 0) {
-                handleDirectWireInput(new WorldVector(w, x + f.getModX(), y - 1, z + f.getModZ()), block, oldLevel, newLevel);
-                handleDirectWireInput(new WorldVector(w, x + f.getModX(), y + 1, z + f.getModZ()), block, oldLevel, newLevel);
-                handleDirectWireInput(new WorldVector(w, x + f.getModX() + 1, y - 1, z + f.getModZ()), block, oldLevel, newLevel);
-                handleDirectWireInput(new WorldVector(w, x + f.getModX() - 1, y - 1, z + f.getModZ()), block, oldLevel, newLevel);
-                handleDirectWireInput(new WorldVector(w, x + f.getModX() + 1, y - 1, z + f.getModZ() + 1), block, oldLevel, newLevel);
-                handleDirectWireInput(new WorldVector(w, x + f.getModX() - 1, y - 1, z + f.getModZ() - 1), block, oldLevel, newLevel);
-            }
-            return;
-        } else if (type == BlockID.STONE_BUTTON || type == BlockID.WOODEN_BUTTON || type == BlockID.LEVER) {
-
-            Attachable button = (Attachable) block.getState().getData();
-            BlockFace f = button.getAttachedFace();
-            handleDirectWireInput(new WorldVector(w, x + f.getModX()*2, y, z + f.getModZ()*2), block, oldLevel, newLevel);
+                return;
+            case BlockID.REDSTONE_REPEATER_OFF:
+            case BlockID.REDSTONE_REPEATER_ON:
+            case BlockID.COMPARATOR_OFF:
+            case BlockID.COMPARATOR_ON:
+                Directional diode = (Directional) block.getState().getData();
+                BlockFace f = diode.getFacing();
+                handleDirectWireInput(new WorldVector(w, x + f.getModX(), y, z + f.getModZ()), block, oldLevel, newLevel);
+                if(block.getRelative(f).getTypeId() != 0) {
+                    handleDirectWireInput(new WorldVector(w, x + f.getModX(), y - 1, z + f.getModZ()), block, oldLevel, newLevel);
+                    handleDirectWireInput(new WorldVector(w, x + f.getModX(), y + 1, z + f.getModZ()), block, oldLevel, newLevel);
+                    handleDirectWireInput(new WorldVector(w, x + f.getModX() + 1, y - 1, z + f.getModZ()), block, oldLevel, newLevel);
+                    handleDirectWireInput(new WorldVector(w, x + f.getModX() - 1, y - 1, z + f.getModZ()), block, oldLevel, newLevel);
+                    handleDirectWireInput(new WorldVector(w, x + f.getModX() + 1, y - 1, z + f.getModZ() + 1), block, oldLevel, newLevel);
+                    handleDirectWireInput(new WorldVector(w, x + f.getModX() - 1, y - 1, z + f.getModZ() - 1), block, oldLevel, newLevel);
+                }
+                return;
+            case BlockID.STONE_BUTTON:
+            case BlockID.WOODEN_BUTTON:
+            case BlockID.LEVER:
+                Attachable button = (Attachable) block.getState().getData();
+                if(button != null) {
+                    BlockFace face = button.getAttachedFace();
+                    if(face != null)
+                        handleDirectWireInput(new WorldVector(w, x + face.getModX()*2, y, z + face.getModZ()*2), block, oldLevel, newLevel);
+                }
         }
+
         // For redstone wires and repeaters, the code already exited this method
         // Non-wire blocks proceed
 
@@ -321,6 +313,9 @@ public class MechanicListenerAdapter implements Listener {
 
         // Can be triggered from below
         handleDirectWireInput(new WorldVector(w, x, y + 1, z), block, oldLevel, newLevel);
+
+        // Can be triggered from above
+        handleDirectWireInput(new WorldVector(w, x, y - 1, z), block, oldLevel, newLevel);
     }
 
     /**
@@ -333,7 +328,7 @@ public class MechanicListenerAdapter implements Listener {
      */
     protected void handleDirectWireInput(WorldVector pt, Block sourceBlock, int oldLevel, int newLevel) {
 
-        Block block = ((BukkitWorld) pt.getWorld()).getWorld().getBlockAt(pt.getBlockX(), pt.getBlockY(), pt.getBlockZ());
+        Block block = sourceBlock.getWorld().getBlockAt(pt.getBlockX(), pt.getBlockY(), pt.getBlockZ());
         if(block.getLocation().equals(sourceBlock.getLocation())) //The same block, don't run.
             return;
         final SourcedBlockRedstoneEvent event = new SourcedBlockRedstoneEvent(sourceBlock, block, oldLevel, newLevel);
@@ -403,10 +398,8 @@ public class MechanicListenerAdapter implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onChunkLoad(final ChunkLoadEvent event) {
 
-        if (ignoredEvents.contains(event)) {
-            ignoredEvents.remove(event);
+        if (EventUtil.shouldIgnoreEvent(event))
             return;
-        }
         CraftBookPlugin.server().getScheduler().runTaskLater(CraftBookPlugin.inst(), new Runnable() {
 
             @Override
@@ -423,10 +416,8 @@ public class MechanicListenerAdapter implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onChunkUnload(ChunkUnloadEvent event) {
 
-        if (ignoredEvents.contains(event)) {
-            ignoredEvents.remove(event);
+        if (EventUtil.shouldIgnoreEvent(event))
             return;
-        }
         int chunkX = event.getChunk().getX();
         int chunkZ = event.getChunk().getZ();
 
@@ -434,9 +425,16 @@ public class MechanicListenerAdapter implements Listener {
     }
 
     @EventHandler
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
+
+        if(CraftBookPlugin.inst().getConfiguration().variablesPlayerChatOverride && event.getPlayer().hasPermission("craftbook.variables.chat"))
+            event.setMessage(ParsingUtil.parseVariables(event.getMessage(), event.getPlayer()));
+    }
+
+    @EventHandler
     public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
 
-        if(CraftBookPlugin.inst().getConfiguration().variablesPlayerCommandOverride)
+        if(CraftBookPlugin.inst().getConfiguration().variablesPlayerCommandOverride && event.getPlayer().hasPermission("craftbook.variables.commands"))
             event.setMessage(ParsingUtil.parseVariables(event.getMessage(), event.getPlayer()));
     }
 
@@ -445,5 +443,10 @@ public class MechanicListenerAdapter implements Listener {
 
         if(CraftBookPlugin.inst().getConfiguration().variablesCommandBlockOverride)
             event.setCommand(ParsingUtil.parseVariables(event.getCommand(), null));
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
+    public void onPipePut(PipePutEvent event) {
+        CraftBookPlugin.inst().getManager().dispatchPipePut(event);
     }
 }

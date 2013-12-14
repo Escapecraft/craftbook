@@ -10,7 +10,9 @@ import org.bukkit.entity.Creature;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Explosive;
 import org.bukkit.entity.Horse;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Item;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Pig;
@@ -21,9 +23,9 @@ import org.bukkit.entity.minecart.RideableMinecart;
 import org.bukkit.entity.minecart.StorageMinecart;
 
 public enum EntityType {
-    PLAYER('P'), ITEM('I'), MOB_HOSTILE('H'), MOB_PEACEFUL('A'), MOB_ANY('M'), ANY('L'), CART('C'), RIDEABLE('R'),
-    CART_STORAGE('S'), CART_POWERED('E'), CART_HOPPER('O'), EXPLOSIVE('T'), AMBIENT('N');
 
+    PLAYER('P'), ITEM('I'), MOB_HOSTILE('H'), MOB_PEACEFUL('A'), MOB_ANY('M'), ANY('L'), CART('C'), RIDEABLE('R'),
+    CART_STORAGE('S'), CART_POWERED('E'), CART_HOPPER('O'), EXPLOSIVE('T'), AMBIENT('N'), NON_LIVING('D'), LIVING('L');
 
     public boolean is(Entity entity) {
 
@@ -33,11 +35,11 @@ public enum EntityType {
             case ITEM:
                 return entity instanceof Item;
             case MOB_HOSTILE:
-                return entity instanceof Monster && !(entity instanceof Player);
+                return entity instanceof Monster && !(entity instanceof HumanEntity);
             case MOB_PEACEFUL:
-                return entity instanceof Animals;
+                return entity instanceof Animals && !(entity instanceof HumanEntity);
             case MOB_ANY:
-                return entity instanceof Creature;
+                return entity instanceof Creature && !(entity instanceof HumanEntity);
             case CART:
                 return entity instanceof Minecart;
             case CART_STORAGE:
@@ -52,6 +54,10 @@ public enum EntityType {
                 return entity instanceof RideableMinecart || entity instanceof Boat || entity instanceof Pig || entity instanceof Horse;
             case AMBIENT:
                 return entity instanceof Ambient;
+            case NON_LIVING:
+                return !(entity instanceof LivingEntity) && !(entity instanceof HumanEntity);
+            case LIVING:
+                return entity instanceof LivingEntity;
             case ANY:
                 return true;
             default:

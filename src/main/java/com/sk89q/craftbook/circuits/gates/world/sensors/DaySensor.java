@@ -19,7 +19,6 @@ package com.sk89q.craftbook.circuits.gates.world.sensors;
 import org.bukkit.Server;
 
 import com.sk89q.craftbook.ChangedSign;
-import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.circuits.ic.AbstractICFactory;
 import com.sk89q.craftbook.circuits.ic.AbstractSelfTriggeredIC;
 import com.sk89q.craftbook.circuits.ic.ChipState;
@@ -48,9 +47,8 @@ public class DaySensor extends AbstractSelfTriggeredIC {
     @Override
     public void trigger(ChipState chip) {
 
-        if (chip.getInput(0)) {
+        if (chip.getInput(0))
             chip.setOutput(0, isDay());
-        }
     }
 
     @Override
@@ -84,14 +82,17 @@ public class DaySensor extends AbstractSelfTriggeredIC {
      */
     protected boolean isDay() {
 
-        long time = BukkitUtil.toSign(getSign()).getWorld().getTime();
-        if (time < 0) {
+        long time = getBackBlock().getWorld().getTime();
+        while (time < 0) {
             time += 24000;
         }
+        while (time > 24000) {
+            time -= 24000;
+        }
 
-        if (day <= night) {
+        if (day < night) {
             return time >= day && time <= night;
-        } else if (day >= night) {
+        } else if (day > night) {
             return time <= day || time >= night;
         }
         return time < night;
@@ -119,12 +120,7 @@ public class DaySensor extends AbstractSelfTriggeredIC {
         @Override
         public String[] getLineHelp() {
 
-            return new String[] {"custom day start", "custom day end"};
+            return new String[] {"custom day start", "custom night start (day end)"};
         }
-    }
-
-    @Override
-    public boolean isActive () {
-        return true;
     }
 }

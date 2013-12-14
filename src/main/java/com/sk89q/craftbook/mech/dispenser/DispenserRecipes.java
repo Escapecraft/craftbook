@@ -1,30 +1,31 @@
 package com.sk89q.craftbook.mech.dispenser;
 
 import java.util.HashSet;
+import java.util.Set;
 
+import org.bukkit.Material;
 import org.bukkit.block.Dispenser;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockDispenseEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import com.sk89q.craftbook.AbstractCraftBookMechanic;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.util.ItemUtil;
 
 /**
  * @author Me4502
  */
-public class DispenserRecipes implements Listener {
+public class DispenserRecipes extends AbstractCraftBookMechanic {
 
-    private final CraftBookPlugin plugin = CraftBookPlugin.inst();
-
-    private final HashSet<Recipe> recipes = new HashSet<Recipe>();
+    private final Set<Recipe> recipes = new HashSet<Recipe>();
 
     private static DispenserRecipes instance;
 
-    public DispenserRecipes() {
+    @Override
+    public boolean enable () {
 
         instance = this;
         if(CraftBookPlugin.inst().getConfiguration().customDispensingXPShooter) addRecipe(new XPShooter());
@@ -32,17 +33,17 @@ public class DispenserRecipes implements Listener {
         if(CraftBookPlugin.inst().getConfiguration().customDispensingFireArrows) addRecipe(new FireArrows());
         if(CraftBookPlugin.inst().getConfiguration().customDispensingFan) addRecipe(new Fan());
         if(CraftBookPlugin.inst().getConfiguration().customDispensingCannon) addRecipe(new Cannon());
+
+        return true;
     }
 
     /**
      * Unloads the instanceof DispenserRecipes.
      */
-    public static void unload() {
+    @Override
+    public void disable() {
 
-        if(instance == null)
-            return;
-
-        instance.recipes.clear();
+        recipes.clear();
         instance = null;
     }
 
@@ -59,7 +60,7 @@ public class DispenserRecipes implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockDispense(BlockDispenseEvent event) {
 
-        if (plugin.getConfiguration().customDispensingEnabled) {
+        if (CraftBookPlugin.inst().getConfiguration().customDispensingEnabled) {
             if (!(event.getBlock().getState() instanceof Dispenser)) return; // Heh? Isn't this just for dispensers?
             Dispenser dis = (Dispenser) event.getBlock().getState();
             if (dispenseNew(dis, event.getItem(), event.getVelocity(), event)) {
@@ -73,11 +74,11 @@ public class DispenserRecipes implements Listener {
         if (dis == null || dis.getInventory() == null || dis.getInventory().getContents() == null) return false;
         ItemStack[] stacks = dis.getInventory().getContents();
         for (Recipe r : recipes) {
-            int[] recipe = r.getRecipe();
+            Material[] recipe = r.getRecipe();
             if (checkRecipe(stacks, recipe)) {
                 boolean toReturn = r.doAction(dis, item, velocity, event);
                 for (int i = 0; i < stacks.length; i++) {
-                    if (recipe[i] != 0) {
+                    if (recipe[i] != Material.AIR) {
                         stacks[i] = ItemUtil.getUsedItem(stacks[i]);
                     }
                 }
@@ -88,11 +89,11 @@ public class DispenserRecipes implements Listener {
         return false;
     }
 
-    private static boolean checkRecipe(ItemStack[] stacks, int[] recipe) {
+    private static boolean checkRecipe(ItemStack[] stacks, Material[] recipe) {
 
         for (int i = 0; i < stacks.length; i++) {
             ItemStack stack = stacks[i];
-            int id = stack == null ? 0 : stack.getTypeId();
+            Material id = stack == null ? Material.AIR : stack.getType();
             if (recipe[i] != id) {
                 return false;
             }

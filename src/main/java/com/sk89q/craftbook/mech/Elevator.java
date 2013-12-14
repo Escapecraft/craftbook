@@ -24,8 +24,6 @@ import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.material.Button;
@@ -41,6 +39,7 @@ import com.sk89q.craftbook.bukkit.BukkitVehicle;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
 import com.sk89q.craftbook.util.RegexUtil;
+import com.sk89q.craftbook.util.SignUtil;
 import com.sk89q.craftbook.util.exceptions.InvalidMechanismException;
 import com.sk89q.craftbook.util.exceptions.ProcessedMechanismException;
 import com.sk89q.worldedit.BlockWorldVector;
@@ -54,8 +53,6 @@ import com.sk89q.worldedit.blocks.BlockType;
  * @author hash
  */
 public class Elevator extends AbstractMechanic {
-
-    private CraftBookPlugin plugin = CraftBookPlugin.inst();
 
     public static class Factory extends AbstractMechanicFactory<Elevator> {
 
@@ -92,9 +89,7 @@ public class Elevator extends AbstractMechanic {
          * @throws ProcessedMechanismException
          */
         @Override
-        public Elevator detect(BlockWorldVector pt, LocalPlayer player,
-                ChangedSign sign) throws InvalidMechanismException,
-                ProcessedMechanismException {
+        public Elevator detect(BlockWorldVector pt, LocalPlayer player, ChangedSign sign) throws InvalidMechanismException, ProcessedMechanismException {
 
             Direction dir = isLift(sign);
             switch (dir) {
@@ -132,9 +127,6 @@ public class Elevator extends AbstractMechanic {
      */
     private Elevator(Block trigger, Direction dir) throws InvalidMechanismException {
 
-        super();
-        this.trigger = trigger;
-
         // find destination sign
         shift = dir == Direction.UP ? BlockFace.UP : BlockFace.DOWN;
         int f = dir == Direction.UP ? trigger.getWorld().getMaxHeight() : 0;
@@ -145,12 +137,11 @@ public class Elevator extends AbstractMechanic {
         while (true) {
             destination = destination.getRelative(shift);
             Direction derp = isLift(destination);
-            if (derp != Direction.NONE && isValidLift(BukkitUtil.toChangedSign(trigger),
-                    BukkitUtil.toChangedSign(destination))) {
+            if (derp != Direction.NONE && isValidLift(BukkitUtil.toChangedSign(trigger), BukkitUtil.toChangedSign(destination)))
                 break; // found it!
-            }
+
             if (destination.getY() == trigger.getY()) throw new InvalidConstructionException();
-            if (plugin.getConfiguration().elevatorLoop && !loopd) {
+            if (CraftBookPlugin.inst().getConfiguration().elevatorLoop && !loopd) {
                 if (destination.getY() == trigger.getWorld().getMaxHeight()) { // hit the top of the world
                     org.bukkit.Location low = destination.getLocation();
                     low.setY(0);
@@ -165,7 +156,7 @@ public class Elevator extends AbstractMechanic {
             } else {
                 if (destination.getY() == trigger.getWorld().getMaxHeight()) // hit the top of the world
                     throw new InvalidConstructionException();
-                if (destination.getY() == 0) // hit the bottom of the world
+                else if (destination.getY() == 0) // hit the bottom of the world
                     throw new InvalidConstructionException();
             }
         }
@@ -177,7 +168,6 @@ public class Elevator extends AbstractMechanic {
         // shaft.
     }
 
-    private final Block trigger;
     private final BlockFace shift;
     private Block destination;
 
@@ -188,21 +178,17 @@ public class Elevator extends AbstractMechanic {
     @Override
     public void onRightClick(PlayerInteractEvent event) {
 
+        LocalPlayer localPlayer = CraftBookPlugin.inst().wrapPlayer(event.getPlayer());
+
         if(task != null) {
-            event.getPlayer().sendMessage("Elevator Busy!");
+            localPlayer.printError("mech.lift.busy");
             return;
         }
 
-        if (!plugin.getConfiguration().elevatorEnabled) return;
-
-        if (!BukkitUtil.toWorldVector(event.getClickedBlock()).equals(BukkitUtil.toWorldVector(trigger)))
-            return; // wth? our manager is insane
-
-        LocalPlayer localPlayer = plugin.wrapPlayer(event.getPlayer());
-
         if (!localPlayer.hasPermission("craftbook.mech.elevator.use")) {
             event.setCancelled(true);
-            localPlayer.printError("mech.use-permission");
+            if(CraftBookPlugin.inst().getConfiguration().showPermissionMessages)
+                localPlayer.printError("mech.use-permission");
             return;
         }
 
@@ -214,9 +200,7 @@ public class Elevator extends AbstractMechanic {
     private void makeItSo(LocalPlayer player) {
         // start with the block shifted vertically from the player
         // to the destination sign's height (plus one).
-        Block floor = destination.getWorld().getBlockAt((int) Math.floor(player.getPosition().getPosition().getX()),
-                destination.getY() + 1,
-                (int) Math.floor(player.getPosition().getPosition().getZ()));
+        Block floor = destination.getWorld().getBlockAt((int) Math.floor(player.getPosition().getPosition().getX()), destination.getY() + 1, (int) Math.floor(player.getPosition().getPosition().getZ()));
         // well, unless that's already a ceiling.
         if (!occupiable(floor)) {
             floor = floor.getRelative(BlockFace.DOWN);
@@ -295,7 +279,7 @@ public class Elevator extends AbstractMechanic {
                     }
 
                     if(lastLocation.getBlockX() != p.getLocation().getBlockX() || lastLocation.getBlockZ() != p.getLocation().getBlockZ()) {
-                        player.print("You have left the elevator!");
+                        player.print("mech.lift.leave");
                         p.setFlying(false);
                         p.setAllowFlight(p.getGameMode() == GameMode.CREATIVE);
                         task.cancel();
@@ -347,18 +331,18 @@ public class Elevator extends AbstractMechanic {
         // Now, we want to read the sign so we can tell the player
         // his or her floor, but as that may not be avilable, we can
         // just print a generic message
-        Sign info = null;
-        if (!(destination.getState() instanceof Sign)) {
-            if (destination.getState().getData() instanceof Button) {
+        ChangedSign info = null;
+        if (!SignUtil.isSign(destination)) {
+            if (destination.getTypeId() == BlockID.STONE_BUTTON || destination.getTypeId() == BlockID.WOODEN_BUTTON) {
 
                 Button button = (Button) destination.getState().getData();
-                if (destination.getRelative(button.getAttachedFace(), 2).getState() instanceof Sign)
-                    info = (Sign) destination.getRelative(button.getAttachedFace(), 2).getState();
+                if (SignUtil.isSign(destination.getRelative(button.getAttachedFace(), 2)))
+                    info = BukkitUtil.toChangedSign(destination.getRelative(button.getAttachedFace(), 2));
             }
             if (info == null)
                 return;
         } else
-            info = (Sign) destination.getState();
+            info = BukkitUtil.toChangedSign(destination);
         String title = info.getLines()[0];
         if (!title.isEmpty()) {
             player.print(player.translate("mech.lift.floor") + ": " + title);
@@ -382,19 +366,19 @@ public class Elevator extends AbstractMechanic {
 
     private static Elevator.Direction isLift(Block block) {
 
-        BlockState state = block.getState();
-        if (!(state instanceof Sign)) {
-            if (CraftBookPlugin.inst().getConfiguration().elevatorButtonEnabled
-                    && (block.getTypeId() == BlockID.STONE_BUTTON || block.getTypeId() == BlockID.WOODEN_BUTTON)) {
+        if (!SignUtil.isSign(block)) {
+            if (CraftBookPlugin.inst().getConfiguration().elevatorButtonEnabled && (block.getTypeId() == BlockID.STONE_BUTTON || block.getTypeId() == BlockID.WOODEN_BUTTON)) {
                 Button b = (Button) block.getState().getData();
-                Block sign = block.getRelative(b.getAttachedFace()).getRelative(b.getAttachedFace());
-                if (sign.getState() instanceof Sign)
-                    return isLift(BukkitUtil.toChangedSign((Sign) sign.getState(), ((Sign) sign.getState()).getLines()));
+                if(b == null || b.getAttachedFace() == null)
+                    return Direction.NONE;
+                Block sign = block.getRelative(b.getAttachedFace(), 2);
+                if (SignUtil.isSign(sign))
+                    return isLift(BukkitUtil.toChangedSign(sign));
             }
             return Direction.NONE;
         }
 
-        return isLift(BukkitUtil.toChangedSign((Sign) state, ((Sign) state).getLines()));
+        return isLift(BukkitUtil.toChangedSign(block));
     }
 
     private static Elevator.Direction isLift(ChangedSign sign) {
@@ -419,7 +403,7 @@ public class Elevator extends AbstractMechanic {
 
         public NoDepartureException() {
 
-            super("Cannot depart from this lift (can only arrive).");
+            super("mech.lift.no-depart");
         }
     }
 
@@ -429,7 +413,7 @@ public class Elevator extends AbstractMechanic {
 
         public InvalidConstructionException() {
 
-            super("This lift has no destination.");
+            super("mech.lift.no-destination");
         }
     }
 }

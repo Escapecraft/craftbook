@@ -2,44 +2,49 @@ package com.sk89q.craftbook.mech;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
+import java.util.Set;
 
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerMoveEvent;
 
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.events.PacketContainer;
+import com.sk89q.craftbook.AbstractCraftBookMechanic;
 import com.sk89q.craftbook.bukkit.CraftBookPlugin;
 import com.sk89q.craftbook.bukkit.util.BukkitUtil;
-import com.sk89q.worldedit.blocks.BlockID;
+import com.sk89q.craftbook.util.ItemInfo;
 
-public class Footprints implements Listener {
+public class Footprints extends AbstractCraftBookMechanic {
 
-    private boolean disabled = false;
+    private static boolean disabled = false;
 
-    public HashSet<String> footsteps = new HashSet<String>();
+    public Set<String> footsteps = new HashSet<String>();
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onPlayerMove(final PlayerMoveEvent event) {
 
         if(event.getFrom().getX() == event.getTo().getX() && event.getFrom().getZ() == event.getTo().getZ())
             return;
 
         if (disabled) return;
-        if(!CraftBookPlugin.inst().getConfiguration().footprintsEnabled)
-            return;
         Block below = event.getPlayer().getLocation().subtract(0, 1, 0).getBlock(); //Gets the block they're standing on
         double yOffset = 0.07D;
 
-        if(event.getPlayer().getLocation().getBlock().getTypeId() == BlockID.SNOW) {
+        if(event.getPlayer().getLocation().getBlock().getType() == Material.SNOW || event.getPlayer().getLocation().getBlock().getType() == Material.CARPET || event.getPlayer().getLocation().getBlock().getType() == Material.SOUL_SAND) {
             below = event.getPlayer().getLocation().getBlock();
             yOffset = 0.15D;
+            if(event.getPlayer().getLocation().getBlock().getType() == Material.SNOW && event.getPlayer().getLocation().getBlock().getData() == 0 || event.getPlayer().getLocation().getBlock().getType() == Material.CARPET) {
+                yOffset = below.getY() - event.getPlayer().getLocation().getY();
+                yOffset += 0.15D;
+            }
         } else if (event.getPlayer().getLocation().getY() != below.getY() + 1)
             return;
 
-        if(CraftBookPlugin.inst().getConfiguration().footprintsBlocks.contains(Integer.valueOf(below.getTypeId()))) {
+        if(CraftBookPlugin.inst().getConfiguration().footprintsBlocks.contains(new ItemInfo(below))) {
 
             if(footsteps.contains(event.getPlayer().getName()))
                 return;
@@ -86,5 +91,18 @@ public class Footprints implements Listener {
                 return;
             }
         }
+    }
+
+    @Override
+    public boolean enable () {
+
+        if (CraftBookPlugin.plugins.hasProtocolLib()) return true;
+        else CraftBookPlugin.inst().getLogger().warning("Footprints require ProtocolLib! They will not function without it!");
+        return false;
+    }
+
+    @Override
+    public void disable () {
+        footsteps.clear();
     }
 }
